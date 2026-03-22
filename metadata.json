@@ -1,0 +1,7 @@
+{
+  "name": "stargaze - Your Free Sky Guide",
+  "description": "A hobbyist stargazing portal for tracking celestial events, meteor showers, and eclipses with real-time data.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
