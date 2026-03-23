@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Calendar, BookOpen, Info, Menu, X, Send, ExternalLink, Moon as MoonIcon, Sun, Star, MessageSquare, Map as MapIcon, Cloud, Wind, Eye, Activity, Trash2, Plus, ArrowRight, Twitter, Github } from 'lucide-react';
+import { Sparkles, Calendar, BookOpen, Info, Menu, X, Send, ExternalLink, Moon as MoonIcon, Sun, Star, MessageSquare, Map as MapIcon, Cloud, Wind, Eye, Activity, Trash2, Plus, ArrowRight, Twitter, Github, Rocket, Zap, AlertTriangle, Globe, Users } from 'lucide-react';
 import { db, collection, addDoc, getDocs, query, orderBy, limit, where, auth } from './firebase';
 import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove, onSnapshot, deleteDoc } from 'firebase/firestore';
@@ -549,53 +549,20 @@ const Stars = () => {
   );
 };
 
-const Logo = () => {
-  return (
-    <Link to="/" className="flex items-center space-x-2 group relative">
-      <motion.div 
-        className="relative flex items-center"
-        whileHover="hover"
-      >
-        <div className="absolute -inset-4 bg-blue-500/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-        
-        <motion.div
-          initial={{ rotate: 0 }}
-          animate={{ rotate: 360 }}
-          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-          className="relative mr-3"
-        >
-          <Sparkles className="text-blue-400 w-6 h-6" />
-          <motion.div 
-            className="absolute inset-0 text-white/20"
-            animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.5, 0.2] }}
-            transition={{ duration: 3, repeat: Infinity }}
-          >
-            <Sparkles className="w-6 h-6" />
-          </motion.div>
-        </motion.div>
-
-        <div className="flex flex-col">
-          <motion.span 
-            className="font-display text-2xl font-bold tracking-tighter text-white leading-none"
-            variants={{
-              hover: { letterSpacing: "0.05em" }
-            }}
-          >
-            STARGAZE
-          </motion.span>
-          <motion.span 
-            className="text-[8px] font-mono tracking-[0.4em] text-blue-400/60 uppercase mt-1"
-            variants={{
-              hover: { color: "#60a5fa", opacity: 1 }
-            }}
-          >
-            Cosmic Clarity
-          </motion.span>
-        </div>
-      </motion.div>
-    </Link>
-  );
-};
+const Logo = () => (
+  <Link to="/" className="flex items-center space-x-4 group relative">
+    <div className="relative">
+      <div className="absolute inset-0 bg-blue-500 blur-2xl opacity-0 group-hover:opacity-30 transition-opacity duration-1000" />
+      <div className="w-12 h-12 rounded-2xl glass flex items-center justify-center border border-white/10 group-hover:border-blue-500/50 transition-all duration-700 group-hover:rotate-[360deg]">
+        <Sparkles size={22} className="text-blue-400 group-hover:text-white transition-colors" />
+      </div>
+    </div>
+    <div className="flex flex-col">
+      <span className="font-display text-2xl font-bold tracking-tighter uppercase leading-none group-hover:text-blue-400 transition-colors">STAR<span className="text-blue-500">GAZE</span></span>
+      <span className="text-[8px] font-mono tracking-[0.5em] text-gray-600 uppercase leading-none mt-2">Cosmic Portal</span>
+    </div>
+  </Link>
+);
 
 const Navbar = ({ user, setUser }: { user: any, setUser: any }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -613,6 +580,7 @@ const Navbar = ({ user, setUser }: { user: any, setUser: any }) => {
     { name: 'Daily', path: '/#daily', icon: Sun },
     { name: 'Sky', path: '/sky', icon: Star },
     { name: 'Moon', path: '/moon', icon: MoonIcon },
+    { name: 'Explorer', path: '/explorer', icon: Rocket },
     { name: 'Events', path: '/events', icon: Calendar },
     { name: 'Forum', path: '/forum', icon: Menu },
     { name: 'Journal', path: '/journal', icon: BookOpen },
@@ -631,25 +599,25 @@ const Navbar = ({ user, setUser }: { user: any, setUser: any }) => {
   };
 
   return (
-    <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${
-      scrolled ? 'py-4' : 'py-8'
+    <nav className={`fixed top-0 w-full z-50 transition-all duration-700 ${
+      scrolled ? 'py-4' : 'py-10'
     }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className={`glass-nav rounded-full px-6 transition-all duration-500 ${
-          scrolled ? 'py-3 shadow-2xl' : 'py-4'
+        <div className={`glass-nav rounded-[2rem] px-8 transition-all duration-700 ${
+          scrolled ? 'py-3 shadow-2xl shadow-black/50 border-white/10' : 'py-5 border-white/5'
         }`}>
           <div className="flex items-center justify-between">
             <Logo />
 
             {/* Desktop Menu */}
             <div className="hidden lg:block">
-              <div className="flex items-center space-x-1">
+              <div className="flex items-center space-x-2">
                 {navLinks.map((link) => (
                   <Link
                     key={link.name}
                     to={link.path}
                     onClick={(e) => handleNavClick(e, link.path)}
-                    className={`px-5 py-2 rounded-full text-[10px] font-bold tracking-[0.2em] uppercase transition-all duration-300 relative group/link ${
+                    className={`px-4 py-2 rounded-full text-[9px] font-bold tracking-[0.25em] uppercase transition-all duration-500 relative group/link ${
                       location.pathname === link.path
                         ? 'text-white'
                         : 'text-gray-500 hover:text-blue-400'
@@ -659,13 +627,13 @@ const Navbar = ({ user, setUser }: { user: any, setUser: any }) => {
                     {location.pathname === link.path && (
                       <motion.div 
                         layoutId="nav-active"
-                        className="absolute inset-0 bg-blue-500/10 rounded-full border border-blue-500/20"
+                        className="absolute inset-0 bg-blue-500/10 rounded-full border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.1)]"
                         transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                       />
                     )}
                   </Link>
                 ))}
-                <div className="ml-4 border-l border-white/10 pl-4">
+                <div className="ml-6 border-l border-white/10 pl-6">
                   <AuthButton user={user} setUser={setUser} />
                 </div>
               </div>
@@ -724,34 +692,54 @@ const Navbar = ({ user, setUser }: { user: any, setUser: any }) => {
 };
 
 const Footer = () => (
-  <footer className="glass border-t border-white/10 py-16 mt-20 relative overflow-hidden">
-    <div className="absolute inset-0 z-0 opacity-5">
-      <div className="nebula top-0 left-1/2 -translate-x-1/2 w-full h-full" />
+  <footer className="glass border-t border-white/5 py-32 mt-40 relative overflow-hidden">
+    <div className="absolute inset-0 z-0 opacity-10">
+      <div className="nebula top-0 left-1/2 -translate-x-1/2 w-full h-full blur-[150px]" />
     </div>
     
-    <div className="max-w-7xl mx-auto px-4 text-center relative z-10">
-      <div className="flex justify-center mb-8">
-        <Logo />
+    <div className="max-w-7xl mx-auto px-4 relative z-10">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-16 mb-24">
+        <div className="col-span-1 md:col-span-2">
+          <Logo />
+          <p className="text-gray-500 text-lg mt-8 max-w-md leading-relaxed font-light">
+            Where clarity meets the cosmos. We bring the wonders of the universe to your screen through data, community, and AI-powered reimagination.
+          </p>
+        </div>
+        <div>
+          <h4 className="section-label mb-8 block">Navigation</h4>
+          <div className="grid grid-cols-1 gap-4">
+            {['Home', 'Daily', 'Sky', 'Moon', 'Explorer', 'Events'].map((item) => (
+              <Link 
+                key={item}
+                to={item === 'Home' ? '/' : item === 'Daily' ? '/#daily' : `/${item.toLowerCase()}`} 
+                className="text-[10px] font-bold tracking-[0.3em] text-gray-500 hover:text-blue-400 transition-colors uppercase"
+              >
+                {item}
+              </Link>
+            ))}
+          </div>
+        </div>
+        <div>
+          <h4 className="section-label mb-8 block">Community</h4>
+          <div className="grid grid-cols-1 gap-4">
+            {['Forum', 'Journal', 'About', 'Tips'].map((item) => (
+              <Link 
+                key={item}
+                to={`/${item.toLowerCase()}`} 
+                className="text-[10px] font-bold tracking-[0.3em] text-gray-500 hover:text-blue-400 transition-colors uppercase"
+              >
+                {item}
+              </Link>
+            ))}
+          </div>
+        </div>
       </div>
-      <p className="text-gray-400 text-sm mb-8 max-w-md mx-auto leading-relaxed">
-        Where clarity meets the cosmos. We bring the wonders of the universe to your screen through data, community, and AI-powered reimagination.
-      </p>
-      <div className="flex justify-center space-x-8 mb-12">
-        {['Home', 'Events', 'Sky', 'Moon', 'Forum', 'Journal', 'About'].map((item) => (
-          <Link 
-            key={item}
-            to={item === 'Home' ? '/' : `/${item.toLowerCase()}`} 
-            className="text-[10px] font-bold tracking-[0.2em] text-gray-500 hover:text-blue-400 transition-colors uppercase"
-          >
-            {item}
-          </Link>
-        ))}
-      </div>
-      <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-gray-600 text-[10px] tracking-widest uppercase">© 2026 STARGAZE.IO. ALL RIGHTS RESERVED.</p>
-        <div className="flex space-x-6">
-          <a href="#" className="text-gray-600 hover:text-white transition-colors"><Twitter size={14} /></a>
-          <a href="#" className="text-gray-600 hover:text-white transition-colors"><Github size={14} /></a>
+
+      <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8">
+        <p className="text-gray-600 text-[9px] tracking-[0.5em] uppercase font-mono">© 2026 STARGAZE.IO • THE INFINITE PORTAL</p>
+        <div className="flex space-x-8">
+          <a href="#" className="text-gray-600 hover:text-white transition-all hover:scale-110"><Twitter size={18} /></a>
+          <a href="#" className="text-gray-600 hover:text-white transition-all hover:scale-110"><Github size={18} /></a>
         </div>
       </div>
     </div>
@@ -815,184 +803,192 @@ const Home = () => {
       className="pt-24"
     >
       {/* Hero Section - Recipe 2: Editorial */}
-      <section className="relative min-h-[80vh] flex items-center justify-center px-4 text-center overflow-hidden">
-        <div className="absolute inset-0 z-0 opacity-20">
-          <div className="nebula top-1/4 left-1/4 scale-150" />
-          <div className="nebula bottom-1/4 right-1/4 scale-150" style={{ background: 'radial-gradient(circle, rgba(50, 100, 255, 0.2) 0%, transparent 70%)' }} />
+      <section className="relative min-h-screen flex items-center justify-center px-4 text-center overflow-hidden">
+        <div className="absolute inset-0 z-0 opacity-30">
+          <div className="nebula top-0 left-0 scale-150 blur-[100px]" />
+          <div className="nebula bottom-0 right-0 scale-150 blur-[100px]" style={{ background: 'radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%)' }} />
         </div>
         
-        <motion.div
-          initial={{ opacity: 0, scale: 1.2, y: 40 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
-          className="max-w-6xl mx-auto z-10 relative"
-        >
+        <div className="max-w-7xl mx-auto z-10 relative">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="mb-8 inline-block"
+            transition={{ delay: 0.4 }}
+            className="mb-12"
           >
-            <span className="px-6 py-2 rounded-full glass text-[10px] font-bold tracking-[0.4em] text-blue-400 uppercase border border-blue-500/20">
-              EST. 2026 • CLEAR SKIES AHEAD
+            <span className="section-label px-8 py-3 rounded-full glass border border-blue-500/20 shadow-[0_0_30px_rgba(59,130,246,0.1)]">
+              EST. 2026 • THE INFINITE PORTAL
             </span>
           </motion.div>
           
-          <h1 className="font-display text-[14vw] md:text-[10vw] leading-[0.8] font-bold mb-10 tracking-tighter text-glow">
-            STAR<span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500">GAZE</span>
+          <h1 className="hero-title animate-slam text-glow mb-12">
+            STAR<span className="text-transparent bg-clip-text bg-gradient-to-b from-blue-400 to-indigo-600">GAZE</span>
           </h1>
           
-          <p className="text-xl md:text-2xl text-gray-400 mb-14 max-w-2xl mx-auto font-light leading-relaxed">
-            Your portal to the infinite. Real-time celestial events, 3D exploration, and AI-guided discovery.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-            <Link to="/sky" className="bg-white text-black px-10 py-4 rounded-full text-sm font-bold tracking-widest hover:bg-blue-400 hover:text-white transition-all duration-500">
-              LAUNCH SKY MAP
+          <motion.p 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.8 }}
+            className="text-xl md:text-3xl text-gray-400 mb-16 max-w-3xl mx-auto font-light leading-tight tracking-tight"
+          >
+            Where clarity meets the cosmos. Real-time telemetry, 3D exploration, and AI-guided discovery.
+          </motion.p>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1 }}
+            className="flex flex-col sm:flex-row items-center justify-center gap-8"
+          >
+            <Link to="/sky" className="group relative bg-white text-black px-12 py-5 rounded-2xl text-[11px] font-bold tracking-[0.3em] uppercase overflow-hidden transition-all duration-500 hover:scale-105 hover:shadow-[0_0_40px_rgba(255,255,255,0.2)]">
+              <span className="relative z-10">LAUNCH SKY MAP</span>
+              <div className="absolute inset-0 bg-blue-500 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
             </Link>
-            <Link to="/events" className="glass px-10 py-4 rounded-full text-sm font-bold tracking-widest hover:bg-white/10 transition-all duration-500">
+            <Link to="/events" className="glass px-12 py-5 rounded-2xl text-[11px] font-bold tracking-[0.3em] uppercase hover:bg-white/5 transition-all duration-500 border border-white/10 hover:border-white/20">
               VIEW CALENDAR
             </Link>
-          </div>
-        </motion.div>
+          </motion.div>
+        </div>
 
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 1.5, duration: 1 }}
-          className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center space-y-4"
+          transition={{ delay: 2, duration: 1 }}
+          className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center space-y-6"
         >
-          <span className="text-[8px] font-bold tracking-[0.5em] text-gray-500 uppercase">SCROLL TO EXPLORE</span>
-          <div className="w-[1px] h-12 bg-gradient-to-b from-blue-500 to-transparent" />
+          <span className="text-[9px] font-bold tracking-[0.6em] text-gray-600 uppercase">SCROLL TO EXPLORE</span>
+          <div className="w-[1px] h-20 bg-gradient-to-b from-blue-500/50 to-transparent" />
         </motion.div>
       </section>
 
       {/* Featured Events - Recipe 1: Technical Grid */}
-      <section className="max-w-7xl mx-auto px-4 py-32">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-4">
+      <section className="max-w-7xl mx-auto px-4 py-40">
+        <div className="flex flex-col md:flex-row justify-between items-end mb-24 gap-8">
           <div>
-            <span className="text-blue-500 font-mono text-[10px] tracking-[0.3em] uppercase mb-2 block">01 / DISCOVER</span>
-            <h2 className="font-display text-4xl md:text-5xl font-bold">Upcoming Highlights</h2>
+            <span className="section-label mb-4 block">01 / DISCOVER</span>
+            <h2 className="font-display text-5xl md:text-7xl font-bold tracking-tight uppercase">Upcoming <span className="text-blue-500">Highlights</span></h2>
           </div>
-          <Link to="/events" className="text-xs font-bold tracking-widest text-gray-500 hover:text-white transition-colors flex items-center space-x-2 group">
+          <Link to="/events" className="text-[10px] font-bold tracking-[0.4em] text-gray-500 hover:text-white transition-all flex items-center space-x-4 group border-b border-white/10 pb-2">
             <span>VIEW ALL EVENTS</span>
-            <Plus size={14} className="group-hover:rotate-90 transition-transform" />
+            <Plus size={16} className="group-hover:rotate-90 transition-transform duration-500" />
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
           {featuredEvents.length > 0 ? featuredEvents.map((event, idx) => (
             <motion.div
               key={event.id}
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 40 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: idx * 0.1 }}
-              className="glass-card rounded-[2.5rem] overflow-hidden flex flex-col group border border-white/5 hover:border-blue-500/30 transition-all duration-500"
+              transition={{ delay: idx * 0.1, duration: 0.8, ease: [0.2, 0.8, 0.2, 1] }}
+              className="glass-card rounded-[3rem] overflow-hidden flex flex-col group border border-white/5 hover:border-blue-500/30"
             >
-              <div className="h-72 bg-gray-900 relative overflow-hidden">
+              <div className="h-80 bg-gray-900 relative overflow-hidden">
                 <GeneratedImage 
                   prompt={`${event.title} - ${event.description}`}
                   alt={event.title}
                   aspectRatio="16:9"
-                  className="w-full h-full object-cover opacity-30 group-hover:scale-105 group-hover:opacity-50 transition-all duration-1000"
+                  className="w-full h-full object-cover opacity-40 group-hover:scale-110 group-hover:opacity-60 transition-all duration-[2s]"
                 />
-                <div className="absolute top-6 left-6 glass px-5 py-2 rounded-full text-[9px] font-bold tracking-[0.2em] uppercase border border-white/10">
+                <div className="absolute top-8 left-8 glass px-6 py-2 rounded-full text-[9px] font-bold tracking-[0.3em] uppercase border border-white/10">
                   {event.type}
                 </div>
-                <div className="absolute inset-0 bg-gradient-to-t from-[#020205] via-transparent to-transparent opacity-60" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#020205] via-transparent to-transparent opacity-80" />
               </div>
-              <div className="p-10 flex-grow relative">
-                <div className="absolute top-0 right-10 -translate-y-1/2 w-12 h-12 rounded-2xl glass flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-all duration-500">
-                  <Calendar size={20} />
+              <div className="p-12 flex-grow relative">
+                <div className="absolute top-0 right-12 -translate-y-1/2 w-14 h-14 rounded-2xl glass flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-all duration-700 shadow-2xl">
+                  <Calendar size={24} />
                 </div>
-                <p className="text-blue-400 font-mono text-[10px] tracking-[0.2em] mb-4 uppercase">{new Date(event.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
-                <h3 className="font-display text-2xl mb-6 group-hover:text-blue-400 transition-colors leading-tight">{event.title}</h3>
-                <p className="text-gray-400 text-sm leading-relaxed line-clamp-3 font-light">{event.description}</p>
+                <p className="text-blue-400 font-mono text-[10px] tracking-[0.3em] mb-6 uppercase">{new Date(event.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                <h3 className="font-display text-3xl mb-8 group-hover:text-blue-400 transition-colors leading-tight font-bold">{event.title}</h3>
+                <p className="text-gray-400 text-base leading-relaxed line-clamp-3 font-light opacity-80">{event.description}</p>
               </div>
-              <div className="px-10 pb-10">
-                <Link to="/events" className="w-full glass py-4 rounded-2xl text-[10px] font-bold tracking-[0.3em] flex items-center justify-center space-x-3 group/btn hover:bg-blue-500 hover:text-white transition-all duration-500 border border-white/5">
+              <div className="px-12 pb-12">
+                <Link to="/events" className="w-full glass py-5 rounded-[1.5rem] text-[10px] font-bold tracking-[0.4em] flex items-center justify-center space-x-4 group/btn hover:bg-blue-600 hover:text-white transition-all duration-700 border border-white/10">
                   <span>EXPLORE EVENT</span>
-                  <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
+                  <ArrowRight size={16} className="group-hover/btn:translate-x-2 transition-transform duration-500" />
                 </Link>
               </div>
             </motion.div>
           )) : (
             Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="glass-card h-96 rounded-[2rem] animate-pulse" />
+              <div key={i} className="glass-card h-[32rem] rounded-[3rem] animate-pulse" />
             ))
           )}
         </div>
       </section>
 
       {/* APOD Section - Recipe 7: Atmospheric */}
-      <section id="daily" className="max-w-7xl mx-auto px-4 py-32">
-        <div className="glass-card rounded-[3rem] overflow-hidden relative">
-          <div className="absolute inset-0 z-0 opacity-10">
-            <div className="nebula top-0 left-0" />
-            <div className="nebula bottom-0 right-0" style={{ background: 'radial-gradient(circle, rgba(255, 50, 100, 0.1) 0%, transparent 70%)' }} />
+      <section id="daily" className="max-w-7xl mx-auto px-4 py-40">
+        <div className="glass-card rounded-[4rem] overflow-hidden relative border border-white/5">
+          <div className="absolute inset-0 z-0 opacity-20">
+            <div className="nebula top-0 left-0 blur-[120px]" />
+            <div className="nebula bottom-0 right-0 blur-[120px]" style={{ background: 'radial-gradient(circle, rgba(236, 72, 153, 0.15) 0%, transparent 70%)' }} />
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 relative z-10">
-            <div className="p-10 md:p-20 flex flex-col justify-center">
-              <span className="text-pink-500 font-mono text-[10px] tracking-[0.3em] uppercase mb-4 block">02 / DAILY WONDER</span>
-              <h2 className="font-display text-4xl md:text-7xl font-bold mb-8 leading-tight text-glow uppercase">NASA <span className="text-pink-500">POTD</span></h2>
+            <div className="p-12 md:p-24 flex flex-col justify-center">
+              <span className="section-label mb-6 block text-pink-500">02 / DAILY WONDER</span>
+              <h2 className="hero-title text-glow mb-12 text-5xl md:text-8xl">NASA <span className="text-pink-500">POTD</span></h2>
               {apod ? (
                 <motion.div
                   initial={{ opacity: 0 }}
                   whileInView={{ opacity: 1 }}
                   viewport={{ once: true }}
+                  transition={{ duration: 1 }}
                 >
-                  <h3 className="text-2xl font-bold mb-6 text-blue-400">{apod.title}</h3>
-                  <p className="text-gray-400 text-lg leading-relaxed mb-10 font-light">
+                  <h3 className="text-3xl font-bold mb-8 text-blue-400 tracking-tight">{apod.title}</h3>
+                  <p className="text-gray-400 text-xl leading-relaxed mb-12 font-light opacity-90">
                     {apod.explanation}
                   </p>
-                  <div className="flex flex-wrap items-center gap-4">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 rounded-full glass flex items-center justify-center">
-                        <Star size={20} className="text-yellow-400" />
+                  <div className="flex flex-wrap items-center gap-6">
+                    <div className="flex items-center space-x-6">
+                      <div className="w-14 h-14 rounded-2xl glass flex items-center justify-center border border-white/10 shadow-xl">
+                        <Star size={24} className="text-yellow-400" />
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500 uppercase tracking-widest">Copyright</p>
-                        <p className="text-sm font-bold">{apod.copyright || 'NASA Public Domain'}</p>
+                        <p className="text-[10px] text-gray-500 uppercase tracking-[0.3em] mb-1">Copyright</p>
+                        <p className="text-base font-bold text-white">{apod.copyright || 'NASA Public Domain'}</p>
                       </div>
                     </div>
                     <button 
                       onClick={() => setReimagine(!reimagine)}
-                      className={`px-6 py-3 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all flex items-center space-x-2 ${
-                        reimagine ? 'bg-blue-600 text-white' : 'glass text-blue-400 hover:bg-white/5'
+                      className={`px-8 py-4 rounded-2xl text-[10px] font-bold tracking-[0.3em] uppercase transition-all duration-700 flex items-center space-x-3 border ${
+                        reimagine ? 'bg-blue-600 text-white border-blue-500 shadow-2xl shadow-blue-600/20' : 'glass text-blue-400 hover:bg-white/10 border-white/10'
                       }`}
                     >
-                      <Sparkles size={14} />
+                      <Sparkles size={16} />
                       <span>{reimagine ? 'SHOW ORIGINAL' : 'AI REIMAGINE'}</span>
                     </button>
                   </div>
                 </motion.div>
               ) : (
-                <div className="space-y-4">
-                  <div className="h-8 bg-white/5 rounded-full w-3/4 animate-pulse" />
-                  <div className="h-32 bg-white/5 rounded-2xl w-full animate-pulse" />
+                <div className="space-y-6">
+                  <div className="h-10 bg-white/5 rounded-full w-3/4 animate-pulse" />
+                  <div className="h-48 bg-white/5 rounded-[2rem] w-full animate-pulse" />
                 </div>
               )}
             </div>
-            <div className="relative min-h-[400px] lg:min-h-full overflow-hidden group">
+            <div className="relative min-h-[500px] lg:min-h-full overflow-hidden group">
               {apod && (
                 reimagine || apod.isFallback ? (
                   <GeneratedImage 
                     prompt={apod.title + " " + apod.explanation.substring(0, 100)}
                     alt={apod.title}
                     aspectRatio="16:9"
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-[2s] group-hover:scale-110"
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-[3s] group-hover:scale-110"
                   />
                 ) : (
                   <img 
                     src={apod.url} 
                     alt={apod.title}
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-[2s] group-hover:scale-110"
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-[3s] group-hover:scale-110"
                     referrerPolicy="no-referrer"
                   />
                 )
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#020205] via-transparent to-transparent lg:bg-gradient-to-l lg:from-[#020205] lg:via-transparent lg:to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#020205] via-transparent to-transparent lg:bg-gradient-to-l lg:from-[#020205] lg:via-transparent lg:to-transparent opacity-60" />
             </div>
           </div>
         </div>
@@ -1208,6 +1204,326 @@ const Events = () => {
   );
 };
 
+const Explorer = () => {
+  const [activeTab, setActiveTab] = useState<'mars' | 'neo' | 'spacex' | 'weather'>('mars');
+
+  const tabs = [
+    { id: 'mars', name: 'Mars Rover', icon: Globe },
+    { id: 'neo', name: 'Asteroid Watch', icon: AlertTriangle },
+    { id: 'spacex', name: 'SpaceX Launches', icon: Rocket },
+    { id: 'weather', name: 'Space Weather', icon: Zap },
+  ] as const;
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="pt-48 max-w-7xl mx-auto px-4 pb-48"
+    >
+      <div className="text-center mb-24">
+        <span className="section-label mb-6 block">DEEP SPACE EXPLORER</span>
+        <h1 className="hero-title text-glow mb-8">COSMIC <span className="text-blue-500">DATA</span></h1>
+        <p className="text-gray-400 max-w-3xl mx-auto font-light text-2xl leading-relaxed">Real-time telemetry and imagery from across the solar system.</p>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="flex flex-wrap justify-center gap-6 mb-24">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-10 py-5 rounded-[1.5rem] text-[10px] font-bold tracking-[0.3em] uppercase transition-all duration-700 flex items-center space-x-4 border ${
+              activeTab === tab.id 
+                ? 'bg-blue-600 text-white border-blue-500 shadow-[0_0_40px_rgba(59,130,246,0.2)]' 
+                : 'glass border-white/5 text-gray-500 hover:text-white hover:border-white/20'
+            }`}
+          >
+            <tab.icon size={18} />
+            <span>{tab.name}</span>
+          </button>
+        ))}
+      </div>
+
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -30 }}
+          transition={{ duration: 0.6, ease: [0.2, 0.8, 0.2, 1] }}
+        >
+          {activeTab === 'mars' && <MarsRoverGallery />}
+          {activeTab === 'neo' && <NeoTracker />}
+          {activeTab === 'spacex' && <SpaceXLaunches />}
+          {activeTab === 'weather' && <SpaceWeather />}
+        </motion.div>
+      </AnimatePresence>
+    </motion.div>
+  );
+};
+
+const MarsRoverGallery = () => {
+  const [photos, setPhotos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMars = async () => {
+      try {
+        const res = await fetch('https://api.nasa.gov/mars-photos/api/v1/rovers/curiosity/photos?sol=1000&api_key=DEMO_KEY');
+        const data = await res.json();
+        setPhotos((data.photos || []).slice(0, 12));
+      } catch (e) { console.error(e); } finally { setLoading(false); }
+    };
+    fetchMars();
+  }, []);
+
+  if (loading) return <div className="grid grid-cols-1 md:grid-cols-3 gap-8">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="glass-card h-80 rounded-[2rem] animate-pulse" />)}</div>;
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      {photos.map((photo) => (
+        <motion.div 
+          key={photo.id}
+          whileHover={{ y: -10 }}
+          className="glass-card rounded-[2.5rem] overflow-hidden group border border-white/5"
+        >
+          <div className="h-64 overflow-hidden relative">
+            <img 
+              src={photo.img_src} 
+              alt={`Mars by ${photo.rover.name}`} 
+              className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+              referrerPolicy="no-referrer"
+            />
+            <div className="absolute top-4 right-4 glass px-4 py-1.5 rounded-full text-[8px] font-bold tracking-widest uppercase">
+              {photo.camera.full_name}
+            </div>
+          </div>
+          <div className="p-8">
+            <span className="text-blue-400 font-mono text-[10px] tracking-widest uppercase mb-2 block">{photo.rover.name} Rover</span>
+            <h3 className="text-xl font-bold mb-2">Sol {photo.sol}</h3>
+            <p className="text-gray-500 text-xs uppercase tracking-widest">{photo.earth_date}</p>
+          </div>
+        </motion.div>
+      ))}
+    </div>
+  );
+};
+
+const NeoTracker = () => {
+  const [neos, setNeos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchNeo = async () => {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const res = await fetch(`https://api.nasa.gov/neo/rest/v1/feed?start_date=${today}&end_date=${today}&api_key=DEMO_KEY`);
+        const data = await res.json();
+        const dailyNeos = (data.near_earth_objects || {})[today] || [];
+        setNeos(dailyNeos);
+      } catch (e) { console.error(e); } finally { setLoading(false); }
+    };
+    fetchNeo();
+  }, []);
+
+  if (loading) return <div className="space-y-4">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="glass-card h-24 rounded-2xl animate-pulse" />)}</div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="glass-card p-8 rounded-[2.5rem] border border-white/5 mb-8">
+        <div className="flex items-center space-x-4 mb-6">
+          <div className="w-12 h-12 rounded-2xl bg-red-500/20 flex items-center justify-center text-red-500">
+            <AlertTriangle size={24} />
+          </div>
+          <div>
+            <h3 className="text-xl font-bold uppercase tracking-tight">Potentially Hazardous Objects</h3>
+            <p className="text-gray-500 text-sm">Monitoring asteroids in close proximity to Earth's orbit.</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4">
+        {neos.map((neo) => (
+          <div key={neo.id} className="glass-card p-6 rounded-3xl border border-white/5 flex flex-col md:flex-row items-center justify-between gap-6 hover:border-blue-500/30 transition-all group">
+            <div className="flex items-center space-x-6">
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${neo.is_potentially_hazardous_asteroid ? 'bg-red-500/20 text-red-500' : 'bg-emerald-500/20 text-emerald-500'}`}>
+                <Star size={20} fill="currentColor" />
+              </div>
+              <div>
+                <h4 className="text-lg font-bold group-hover:text-blue-400 transition-colors">{neo.name}</h4>
+                <p className="text-gray-500 text-[10px] uppercase tracking-widest">ID: {neo.id}</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-8 flex-grow max-w-2xl">
+              <div>
+                <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Diameter (Max)</p>
+                <p className="text-sm font-mono">{neo.estimated_diameter.kilometers.estimated_diameter_max.toFixed(2)} KM</p>
+              </div>
+              <div>
+                <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Velocity</p>
+                <p className="text-sm font-mono">{parseFloat(neo.close_approach_data[0].relative_velocity.kilometers_per_hour).toLocaleString()} KM/H</p>
+              </div>
+              <div className="hidden md:block">
+                <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Miss Distance</p>
+                <p className="text-sm font-mono">{parseFloat(neo.close_approach_data[0].miss_distance.kilometers).toLocaleString()} KM</p>
+              </div>
+            </div>
+
+            <div className={`px-4 py-2 rounded-xl text-[8px] font-bold tracking-widest uppercase border ${
+              neo.is_potentially_hazardous_asteroid ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+            }`}>
+              {neo.is_potentially_hazardous_asteroid ? 'Hazardous' : 'Safe'}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const SpaceXLaunches = () => {
+  const [launches, setLaunches] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSpaceX = async () => {
+      try {
+        const res = await fetch('https://api.spacexdata.com/v4/launches/upcoming');
+        const data = await res.json();
+        setLaunches(Array.isArray(data) ? data.slice(0, 6) : []);
+      } catch (e) { console.error(e); } finally { setLoading(false); }
+    };
+    fetchSpaceX();
+  }, []);
+
+  if (loading) return <div className="grid grid-cols-1 md:grid-cols-2 gap-8">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="glass-card h-64 rounded-[2.5rem] animate-pulse" />)}</div>;
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      {launches.map((launch) => (
+        <div key={launch.id} className="glass-card p-10 rounded-[3rem] border border-white/5 relative overflow-hidden group hover:border-blue-500/30 transition-all duration-500">
+          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+            <Rocket size={120} />
+          </div>
+          
+          <div className="relative z-10">
+            <span className="text-blue-400 font-mono text-[10px] tracking-[0.3em] uppercase mb-4 block">Flight #{launch.flight_number}</span>
+            <h3 className="text-3xl font-bold mb-6 group-hover:text-blue-400 transition-colors">{launch.name}</h3>
+            
+            <div className="space-y-6 mb-8">
+              <div className="flex items-center space-x-4">
+                <Calendar size={16} className="text-gray-500" />
+                <p className="text-sm text-gray-300">{new Date(launch.date_utc).toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' })}</p>
+              </div>
+              <div className="flex items-center space-x-4">
+                <MapIcon size={16} className="text-gray-500" />
+                <p className="text-sm text-gray-300">Launchpad ID: {launch.launchpad}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <div className="glass px-4 py-2 rounded-xl text-[9px] font-bold tracking-widest uppercase border border-white/5">
+                Upcoming
+              </div>
+              <a 
+                href={launch.links.reddit.campaign || '#'} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="glass px-4 py-2 rounded-xl text-[9px] font-bold tracking-widest uppercase border border-white/5 hover:bg-white/10 transition-colors flex items-center space-x-2"
+              >
+                <span>Reddit Thread</span>
+                <ExternalLink size={12} />
+              </a>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const SpaceWeather = () => {
+  const [flares, setFlares] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchWeather = async () => {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const monthAgo = new Date();
+        monthAgo.setMonth(monthAgo.getMonth() - 1);
+        const start = monthAgo.toISOString().split('T')[0];
+        
+        const res = await fetch(`https://api.nasa.gov/DONKI/FLR?startDate=${start}&endDate=${today}&api_key=DEMO_KEY`);
+        const data = await res.json();
+        setFlares(Array.isArray(data) ? data.reverse().slice(0, 10) : []);
+      } catch (e) { console.error(e); } finally { setLoading(false); }
+    };
+    fetchWeather();
+  }, []);
+
+  if (loading) return <div className="space-y-4">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="glass-card h-20 rounded-2xl animate-pulse" />)}</div>;
+
+  return (
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+        <div className="glass-card p-8 rounded-[2.5rem] border border-white/5 text-center">
+          <Zap size={32} className="mx-auto mb-4 text-yellow-400" />
+          <h4 className="text-[10px] font-bold tracking-widest uppercase text-gray-500 mb-2">Solar Activity</h4>
+          <p className="text-2xl font-bold">{flares.length > 0 ? 'Active' : 'Quiet'}</p>
+        </div>
+        <div className="glass-card p-8 rounded-[2.5rem] border border-white/5 text-center">
+          <Activity size={32} className="mx-auto mb-4 text-blue-400" />
+          <h4 className="text-[10px] font-bold tracking-widest uppercase text-gray-500 mb-2">Recent Flares</h4>
+          <p className="text-2xl font-bold">{flares.length}</p>
+        </div>
+        <div className="glass-card p-8 rounded-[2.5rem] border border-white/5 text-center">
+          <Info size={32} className="mx-auto mb-4 text-purple-400" />
+          <h4 className="text-[10px] font-bold tracking-widest uppercase text-gray-500 mb-2">Alert Status</h4>
+          <p className="text-2xl font-bold">Normal</p>
+        </div>
+      </div>
+
+      <div className="glass-card rounded-[2.5rem] overflow-hidden border border-white/5">
+        <div className="p-8 border-b border-white/5 bg-white/[0.02]">
+          <h3 className="text-xl font-bold uppercase tracking-tight">Solar Flare Log</h3>
+          <p className="text-gray-500 text-xs">Recent electromagnetic events detected by NASA DONKI.</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="border-b border-white/5 text-[10px] font-bold tracking-widest uppercase text-gray-500">
+                <th className="p-8">Event ID</th>
+                <th className="p-8">Start Time</th>
+                <th className="p-8">Peak Time</th>
+                <th className="p-8">Class</th>
+                <th className="p-8">Location</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {flares.map((flare) => (
+                <tr key={flare.flrID} className="hover:bg-white/[0.02] transition-colors group">
+                  <td className="p-8 font-mono text-xs text-blue-400">{flare.flrID}</td>
+                  <td className="p-8 text-sm text-gray-300">{new Date(flare.beginTime).toLocaleString()}</td>
+                  <td className="p-8 text-sm text-gray-300">{new Date(flare.peakTime).toLocaleString()}</td>
+                  <td className="p-8">
+                    <span className="px-3 py-1 rounded-lg bg-yellow-500/20 text-yellow-500 text-[10px] font-bold tracking-widest uppercase border border-yellow-500/20">
+                      {flare.classType}
+                    </span>
+                  </td>
+                  <td className="p-8 text-sm text-gray-500">{flare.sourceLocation || 'N/A'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Tips = () => {
   const guides = [
     {
@@ -1349,7 +1665,6 @@ const Sky = () => {
           },
           (err) => {
             console.warn("Geolocation failed or denied:", err.message);
-            // Default to London if geolocation fails
             const defaultCoords = { lat: 51.5074, lng: -0.1278 };
             setCoords(defaultCoords);
             fetchWeather(defaultCoords.lat, defaultCoords.lng);
@@ -1380,7 +1695,6 @@ const Sky = () => {
 
   const fetchWeather = async (lat: number, lng: number) => {
     try {
-      // Using a more standard set of parameters that are widely available
       const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=cloudcover,relativehumidity_2m,surface_pressure&forecast_days=1`);
       const data = await res.json();
       setWeather(data.hourly);
@@ -1399,29 +1713,56 @@ const Sky = () => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="pt-24 min-h-screen flex flex-col pb-12"
+      className="pt-48 min-h-screen flex flex-col pb-24 relative"
     >
-      <div className="max-w-7xl mx-auto px-4 w-full mb-12">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-          <div>
-            <span className="text-blue-500 font-mono text-[10px] tracking-[0.4em] uppercase mb-4 block">Telemetry Dashboard</span>
-            <h1 className="font-display text-5xl md:text-7xl font-bold tracking-tighter text-glow uppercase">CELESTIAL <span className="text-blue-500">HUB</span></h1>
+      {/* Immersive Background Layer */}
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-0 left-1/4 w-[800px] h-[800px] bg-blue-600/5 rounded-full blur-[160px] -translate-y-1/2" />
+        <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-purple-600/5 rounded-full blur-[140px] translate-y-1/2" />
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 w-full mb-20 relative z-10">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-10">
+          <div className="max-w-2xl">
+            <motion.span 
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="section-label mb-6 block"
+            >
+              TELEMETRY DASHBOARD
+            </motion.span>
+            <motion.h1 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="hero-title text-glow mb-6"
+            >
+              CELESTIAL <span className="text-blue-500">HUB</span>
+            </motion.h1>
+            <motion.p 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="text-gray-400 font-light text-xl leading-relaxed"
+            >
+              Real-time sky mapping and atmospheric data for your exact coordinates.
+            </motion.p>
           </div>
-          <div className="flex items-center space-x-4">
-            <div className="glass px-4 py-2 rounded-xl flex items-center space-x-3">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[10px] font-bold tracking-widest uppercase text-emerald-500">System Live</span>
+          <div className="flex flex-wrap items-center gap-6">
+            <div className="glass px-6 py-3 rounded-2xl flex items-center space-x-4 border border-white/5">
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
+              <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-emerald-500">System Live</span>
             </div>
-            <div className="glass px-4 py-2 rounded-xl flex items-center space-x-4">
+            <div className="glass px-6 py-3 rounded-2xl flex items-center space-x-6 border border-white/5">
               <div className="flex flex-col">
-                <span className="text-[10px] font-mono text-gray-400 uppercase tracking-tighter">LAT: {coords?.lat.toFixed(2) || '0.00'}</span>
-                <span className="text-[10px] font-mono text-gray-400 uppercase tracking-tighter">LNG: {coords?.lng.toFixed(2) || '0.00'}</span>
+                <span className="text-[10px] font-mono text-gray-500 uppercase tracking-tighter">LAT: {coords?.lat.toFixed(4) || '0.0000'}</span>
+                <span className="text-[10px] font-mono text-gray-500 uppercase tracking-tighter">LNG: {coords?.lng.toFixed(4) || '0.0000'}</span>
               </div>
               <button 
                 onClick={() => setManualLocation(!manualLocation)}
-                className="glass px-3 py-1 rounded-lg text-[8px] font-bold tracking-widest uppercase hover:bg-white/10 transition-all border border-white/5"
+                className="glass px-4 py-2 rounded-xl text-[9px] font-bold tracking-widest uppercase hover:bg-white/10 transition-all border border-white/10 text-blue-400"
               >
-                {manualLocation ? 'CLOSE' : 'SET LOC'}
+                {manualLocation ? 'CLOSE' : 'OVERRIDE'}
               </button>
             </div>
           </div>
@@ -1429,197 +1770,200 @@ const Sky = () => {
       </div>
 
       {manualLocation && (
-        <div className="max-w-7xl mx-auto px-4 w-full mb-8">
+        <div className="max-w-7xl mx-auto px-4 w-full mb-12 relative z-10">
           <motion.form 
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, scale: 0.95, y: -20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
             onSubmit={handleManualUpdate}
-            className="glass p-6 rounded-3xl flex flex-wrap items-end gap-6 border border-blue-500/20"
+            className="glass p-10 rounded-[2.5rem] flex flex-wrap items-end gap-8 border border-blue-500/30 shadow-[0_0_50px_rgba(59,130,246,0.1)]"
           >
-            <div className="flex-1 min-w-[200px]">
-              <label className="text-[10px] text-gray-500 uppercase tracking-widest mb-2 block font-mono">Latitude</label>
+            <div className="flex-1 min-w-[240px]">
+              <label className="text-[10px] text-gray-500 uppercase tracking-[0.3em] mb-3 block font-mono">Latitude Override</label>
               <input 
                 type="number" 
-                step="0.01"
+                step="0.0001"
                 value={tempCoords.lat}
                 onChange={e => setTempCoords({...tempCoords, lat: parseFloat(e.target.value)})}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 focus:outline-none focus:border-blue-500 font-mono text-sm"
+                className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 focus:outline-none focus:border-blue-500 font-mono text-sm transition-all"
               />
             </div>
-            <div className="flex-1 min-w-[200px]">
-              <label className="text-[10px] text-gray-500 uppercase tracking-widest mb-2 block font-mono">Longitude</label>
+            <div className="flex-1 min-w-[240px]">
+              <label className="text-[10px] text-gray-500 uppercase tracking-[0.3em] mb-3 block font-mono">Longitude Override</label>
               <input 
                 type="number" 
-                step="0.01"
+                step="0.0001"
                 value={tempCoords.lng}
                 onChange={e => setTempCoords({...tempCoords, lng: parseFloat(e.target.value)})}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 focus:outline-none focus:border-blue-500 font-mono text-sm"
+                className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 focus:outline-none focus:border-blue-500 font-mono text-sm transition-all"
               />
             </div>
-            <button type="submit" className="glass bg-blue-600/20 hover:bg-blue-600/30 px-8 py-2 rounded-xl text-[10px] font-bold tracking-widest uppercase border border-blue-500/30 h-[42px]">
+            <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white px-10 py-4 rounded-2xl text-[10px] font-bold tracking-widest uppercase transition-all shadow-lg shadow-blue-600/20 h-[58px]">
               Update Coordinates
             </button>
           </motion.form>
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 w-full grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="max-w-7xl mx-auto px-4 w-full grid grid-cols-1 lg:grid-cols-12 gap-10 relative z-10">
         {/* Sky Map - Main Instrument */}
         <div className="lg:col-span-8">
-          <div className="glass-card rounded-[3rem] overflow-hidden h-[600px] relative border border-white/5 shadow-2xl">
-            <div className="absolute top-6 left-6 z-10 flex items-center space-x-3">
-              <div className="glass px-4 py-2 rounded-full flex items-center space-x-2 backdrop-blur-xl">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                <span className="text-[9px] font-bold tracking-widest uppercase">Stellarium Core v1.2</span>
+          <div className="glass-card rounded-[3rem] overflow-hidden h-[700px] relative border border-white/5 shadow-2xl group">
+            <div className="absolute top-8 left-8 z-10 flex items-center space-x-4">
+              <div className="glass px-5 py-2.5 rounded-full flex items-center space-x-3 backdrop-blur-2xl border border-white/10">
+                <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
+                <span className="text-[10px] font-bold tracking-[0.2em] uppercase">Stellarium Core v1.4</span>
               </div>
             </div>
             {coords ? (
               <iframe 
                 src={`https://stellarium-web.org/skymap?lat=${coords.lat}&lng=${coords.lng}`}
-                className="w-full h-full border-none grayscale-[0.2] contrast-[1.1]"
+                className="w-full h-full border-none grayscale-[0.1] contrast-[1.05] brightness-[0.9]"
                 title="Sky Map"
                 allow="geolocation"
               />
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#020205]">
-                <div className="w-16 h-16 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-6" />
-                <p className="text-gray-500 font-mono text-xs tracking-widest uppercase animate-pulse">Aligning with the stars...</p>
+                <div className="w-20 h-20 border-2 border-blue-500/10 border-t-blue-500 rounded-full animate-spin mb-8" />
+                <p className="text-gray-500 font-mono text-[10px] tracking-[0.5em] uppercase animate-pulse">Aligning with the stars...</p>
               </div>
             )}
-            <div className="absolute bottom-6 right-6 z-10">
-              <button className="glass px-6 py-3 rounded-2xl text-[10px] font-bold tracking-widest uppercase hover:bg-white/5 transition-all">
+            <div className="absolute bottom-8 right-8 z-10">
+              <button className="glass px-8 py-4 rounded-2xl text-[10px] font-bold tracking-widest uppercase hover:bg-white/10 transition-all border border-white/10">
                 Full Screen Mode
               </button>
             </div>
+            {/* Decorative Overlay */}
+            <div className="absolute inset-0 pointer-events-none border-[24px] border-black/20 rounded-[3rem]" />
           </div>
         </div>
 
         {/* Sidebar - Hardware Widgets */}
-        <div className="lg:col-span-4 space-y-8">
-          {/* Weather / Conditions Widget - Recipe 3 */}
-          <div className="glass-card p-8 rounded-[2.5rem] border border-white/5 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
-              <Cloud size={120} />
+        <div className="lg:col-span-4 space-y-10">
+          {/* Weather / Conditions Widget */}
+          <div className="glass-card p-10 rounded-[3rem] border border-white/5 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-10 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity duration-700">
+              <Cloud size={160} />
             </div>
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-xl glass flex items-center justify-center text-blue-400">
-                  <Cloud size={20} />
+            <div className="flex items-center justify-between mb-10">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 rounded-2xl glass flex items-center justify-center text-blue-400 border border-white/10">
+                  <Cloud size={24} />
                 </div>
-                <h3 className="text-xs font-bold tracking-widest uppercase">Atmospherics</h3>
+                <h3 className="text-[11px] font-bold tracking-[0.3em] uppercase">Atmospherics</h3>
               </div>
-              <span className="text-[10px] font-mono text-gray-500">REF: OPEN-METEO</span>
+              <span className="text-[9px] font-mono text-gray-600 uppercase tracking-widest">REF: O-MEO</span>
             </div>
             
             {weather ? (
-              <div className="space-y-8">
+              <div className="space-y-10">
                 <div>
-                  <div className="flex justify-between items-end mb-3">
-                    <span className="text-[10px] text-gray-500 uppercase tracking-widest">Cloud Density</span>
-                    <span className="font-mono text-xl text-blue-400">{weather.cloudcover[0]}%</span>
+                  <div className="flex justify-between items-end mb-4">
+                    <span className="text-[10px] text-gray-500 uppercase tracking-[0.2em]">Cloud Density</span>
+                    <span className="font-mono text-2xl text-blue-400">{weather.cloudcover[0]}%</span>
                   </div>
-                  <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden p-0.5 border border-white/5">
+                  <div className="w-full bg-white/5 h-2.5 rounded-full overflow-hidden p-0.5 border border-white/5">
                     <motion.div 
                       initial={{ width: 0 }}
                       animate={{ width: `${weather.cloudcover[0]}%` }}
-                      className="bg-gradient-to-r from-blue-600 to-blue-400 h-full rounded-full" 
+                      transition={{ duration: 1.5, ease: "easeOut" }}
+                      className="bg-gradient-to-r from-blue-600 to-blue-400 h-full rounded-full shadow-[0_0_15px_rgba(59,130,246,0.3)]" 
                     />
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="glass p-5 rounded-2xl border border-white/5">
-                    <Wind size={16} className="mb-3 text-purple-400" />
-                    <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Pressure</p>
-                    <p className="text-lg font-display font-bold">{weather.surface_pressure ? `${Math.round(weather.surface_pressure[0])} hPa` : 'N/A'}</p>
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="glass p-6 rounded-3xl border border-white/5 hover:border-white/10 transition-colors">
+                    <Wind size={20} className="mb-4 text-purple-400" />
+                    <p className="text-[9px] text-gray-500 uppercase tracking-[0.2em] mb-2">Pressure</p>
+                    <p className="text-xl font-display font-bold">{weather.surface_pressure ? `${Math.round(weather.surface_pressure[0])} hPa` : 'N/A'}</p>
                   </div>
-                  <div className="glass p-5 rounded-2xl border border-white/5">
-                    <Activity size={16} className="mb-3 text-emerald-400" />
-                    <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Humidity</p>
-                    <p className="text-lg font-display font-bold">{weather.relativehumidity_2m ? `${weather.relativehumidity_2m[0]}%` : 'N/A'}</p>
+                  <div className="glass p-6 rounded-3xl border border-white/5 hover:border-white/10 transition-colors">
+                    <Activity size={20} className="mb-4 text-emerald-400" />
+                    <p className="text-[9px] text-gray-500 uppercase tracking-[0.2em] mb-2">Humidity</p>
+                    <p className="text-xl font-display font-bold">{weather.relativehumidity_2m ? `${weather.relativehumidity_2m[0]}%` : 'N/A'}</p>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="py-12 text-center">
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest animate-pulse">Scanning Atmosphere...</p>
+              <div className="py-16 text-center">
+                <p className="text-[10px] text-gray-500 uppercase tracking-[0.4em] animate-pulse">Scanning Atmosphere...</p>
               </div>
             )}
           </div>
 
-          {/* ISS Tracker Widget - Recipe 3 */}
-          <div className="glass-card p-8 rounded-[2.5rem] border border-white/5 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
-              <Activity size={120} />
+          {/* ISS Tracker Widget */}
+          <div className="glass-card p-10 rounded-[3rem] border border-white/5 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-10 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity duration-700">
+              <Rocket size={160} />
             </div>
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-xl glass flex items-center justify-center text-orange-400">
-                  <Activity size={20} />
+            <div className="flex items-center justify-between mb-10">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 rounded-2xl glass flex items-center justify-center text-orange-400 border border-white/10">
+                  <Rocket size={24} />
                 </div>
-                <h3 className="text-xs font-bold tracking-widest uppercase">ISS Telemetry</h3>
+                <h3 className="text-[11px] font-bold tracking-[0.3em] uppercase">ISS Telemetry</h3>
               </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-ping" />
-                <span className="text-[10px] font-mono text-orange-500">LIVE</span>
+              <div className="flex items-center space-x-3">
+                <div className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
+                <span className="text-[9px] font-mono font-bold text-orange-500 tracking-widest">LIVE</span>
               </div>
             </div>
 
             {iss ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-x-10 gap-y-6">
                   <div>
-                    <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Latitude</p>
-                    <p className="font-mono text-sm">{iss.latitude.toFixed(4)}°</p>
+                    <p className="text-[9px] text-gray-500 uppercase tracking-[0.2em] mb-2">Latitude</p>
+                    <p className="font-mono text-sm text-white">{iss.latitude.toFixed(4)}°</p>
                   </div>
                   <div>
-                    <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Longitude</p>
-                    <p className="font-mono text-sm">{iss.longitude.toFixed(4)}°</p>
+                    <p className="text-[9px] text-gray-500 uppercase tracking-[0.2em] mb-2">Longitude</p>
+                    <p className="font-mono text-sm text-white">{iss.longitude.toFixed(4)}°</p>
                   </div>
                   <div>
-                    <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Altitude</p>
-                    <p className="font-mono text-sm">{iss.altitude.toFixed(1)} km</p>
+                    <p className="text-[9px] text-gray-500 uppercase tracking-[0.2em] mb-2">Altitude</p>
+                    <p className="font-mono text-sm text-white">{iss.altitude.toFixed(1)} km</p>
                   </div>
                   <div>
-                    <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Velocity</p>
+                    <p className="text-[9px] text-gray-500 uppercase tracking-[0.2em] mb-2">Velocity</p>
                     <p className="font-mono text-sm text-orange-400">{(iss.velocity / 3600).toFixed(2)} km/s</p>
                   </div>
                 </div>
-                <div className="pt-4">
-                  <div className="w-full bg-white/5 h-1 rounded-full overflow-hidden">
+                <div className="pt-6">
+                  <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
                     <motion.div 
-                      animate={{ x: [0, 100, 0] }}
-                      transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
-                      className="w-1/3 h-full bg-orange-500/50"
+                      animate={{ x: ['-100%', '200%'] }}
+                      transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                      className="w-1/2 h-full bg-gradient-to-r from-transparent via-orange-500/50 to-transparent"
                     />
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="py-12 text-center">
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest animate-pulse">Establishing Uplink...</p>
+              <div className="py-16 text-center">
+                <p className="text-[10px] text-gray-500 uppercase tracking-[0.4em] animate-pulse">Establishing Uplink...</p>
               </div>
             )}
           </div>
 
-          {/* Dark Sky Finder - Recipe 3 */}
+          {/* Dark Sky Finder */}
           <a 
             href="https://www.lightpollutionmap.info/" 
             target="_blank" 
             rel="noopener noreferrer"
-            className="glass-card p-8 rounded-[2.5rem] border border-white/5 flex items-center justify-between group hover:bg-white/[0.02] transition-all"
+            className="glass-card p-10 rounded-[3rem] border border-white/5 flex items-center justify-between group hover:bg-white/[0.02] transition-all duration-500"
           >
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 rounded-2xl glass flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
-                <MapIcon size={24} />
+            <div className="flex items-center space-x-5">
+              <div className="w-14 h-14 rounded-[1.5rem] glass flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform duration-500 border border-white/10">
+                <MapIcon size={28} />
               </div>
               <div>
-                <h3 className="text-xs font-bold tracking-widest uppercase mb-1">Dark Sky Finder</h3>
-                <p className="text-[10px] text-gray-500 font-light">Locate Bortle 1-3 zones</p>
+                <h3 className="text-[11px] font-bold tracking-[0.3em] uppercase mb-1.5">Dark Sky Finder</h3>
+                <p className="text-[10px] text-gray-600 font-light tracking-widest uppercase">Locate Bortle 1-3 zones</p>
               </div>
             </div>
-            <div className="w-10 h-10 rounded-full glass flex items-center justify-center text-gray-500 group-hover:text-white group-hover:bg-white/10 transition-all">
-              <ExternalLink size={16} />
+            <div className="w-12 h-12 rounded-full glass flex items-center justify-center text-gray-600 group-hover:text-white group-hover:bg-white/10 transition-all duration-500 border border-white/5">
+              <ExternalLink size={18} />
             </div>
           </a>
         </div>
@@ -1667,8 +2011,8 @@ const MoonExplorer = () => {
 
     return (
       <mesh ref={mesh}>
-        <sphereGeometry args={[2.2, 64, 64]} />
-        <meshStandardMaterial map={texture} roughness={1} metalness={0} />
+        <sphereGeometry args={[2.4, 128, 128]} />
+        <meshStandardMaterial map={texture} roughness={1} metalness={0.1} />
       </mesh>
     );
   };
@@ -1681,69 +2025,89 @@ const MoonExplorer = () => {
       className="h-screen flex flex-col relative overflow-hidden bg-[#020205]"
     >
       {/* Recipe 7: Atmospheric Background */}
-      <div className="absolute inset-0 z-0 atmosphere opacity-40" />
+      <div className="absolute inset-0 z-0 atmosphere opacity-80" />
+      <div className="absolute inset-0 z-0 bg-gradient-to-b from-transparent via-blue-900/5 to-black/40" />
       
       <div className="absolute inset-0 z-10">
-        <Canvas camera={{ position: [0, 0, 6] }}>
-          <ambientLight intensity={0.1} />
-          <pointLight position={[10, 10, 10]} intensity={1.5} />
-          <spotLight position={[-10, 10, 10]} angle={0.15} penumbra={1} intensity={1} />
+        <Canvas camera={{ position: [0, 0, 7] }}>
+          <ambientLight intensity={0.3} />
+          <pointLight position={[15, 15, 15]} intensity={2.5} />
+          <spotLight position={[-15, 15, 15]} angle={0.2} penumbra={1} intensity={2} />
           <React.Suspense fallback={null}>
-            <Float speed={1.5} rotationIntensity={0.5} floatIntensity={0.5}>
+            <Float speed={1.5} rotationIntensity={0.4} floatIntensity={0.4}>
               <MoonModel />
             </Float>
-            <ThreeStars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
+            <ThreeStars radius={120} depth={60} count={10000} factor={6} saturation={0} fade speed={1} />
           </React.Suspense>
-          <OrbitControls enableZoom={true} autoRotate={false} />
+          <OrbitControls enableZoom={true} autoRotate={false} minDistance={4} maxDistance={15} />
         </Canvas>
       </div>
 
       <div className="relative z-20 max-w-7xl mx-auto px-4 w-full h-full pointer-events-none flex flex-col justify-center">
-        <motion.div 
-          initial={{ opacity: 0, x: -50 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.5, duration: 1 }}
-          className="max-w-xl"
-        >
-          <span className="text-blue-500 font-mono text-[10px] tracking-[0.5em] uppercase mb-6 block">Celestial Body 01</span>
-          <h1 className="font-display text-7xl md:text-9xl font-bold mb-8 text-white tracking-tighter leading-none text-glow uppercase">THE <span className="text-blue-500">MOON</span></h1>
-          <p className="text-gray-400 text-xl font-light mb-12 leading-relaxed">
-            Explore our celestial neighbor in high-fidelity 3D. A silent witness to human history, waiting for our return.
-          </p>
-          
-          {/* Recipe 7: Glass Morphism Widget */}
-          <div className="glass-card p-8 rounded-[2.5rem] pointer-events-auto max-w-sm backdrop-blur-3xl border border-white/10">
-            <h3 className="text-[10px] font-bold tracking-[0.3em] uppercase mb-6 flex items-center space-x-3 text-blue-400">
-              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-              <span>Current Phase</span>
-            </h3>
-            <div className="flex items-center space-x-6">
-              <div className="w-16 h-16 rounded-full glass flex items-center justify-center border border-white/10">
-                <moonData.icon size={32} className="text-white" />
-              </div>
-              <div>
-                <p className="text-2xl font-display font-bold text-white">{moonData.name}</p>
-                <p className="text-xs text-gray-500 font-mono tracking-widest uppercase">~{moonData.illumination}% Illuminated</p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+          <motion.div 
+            initial={{ opacity: 0, x: -80 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4, duration: 1.2, ease: [0.2, 0.8, 0.2, 1] }}
+          >
+            <span className="section-label mb-8 block">CELESTIAL BODY 01</span>
+            <h1 className="hero-title text-glow mb-10 leading-[0.85] tracking-tighter">
+              THE <br />
+              <span className="text-blue-500">MOON</span>
+            </h1>
+            <p className="text-gray-400 text-2xl font-light mb-16 leading-relaxed max-w-xl">
+              Explore our celestial neighbor in high-fidelity 3D. A silent witness to human history, waiting for our return.
+            </p>
+            
+            {/* Recipe 7: Glass Morphism Widget */}
+            <div className="glass-card p-10 rounded-[3rem] pointer-events-auto max-w-md backdrop-blur-3xl border border-white/10 shadow-[0_0_80px_rgba(0,0,0,0.5)] group">
+              <h3 className="text-[11px] font-bold tracking-[0.4em] uppercase mb-8 flex items-center space-x-4 text-blue-400">
+                <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)] animate-pulse" />
+                <span>Current Phase Telemetry</span>
+              </h3>
+              <div className="flex items-center space-x-8">
+                <div className="w-24 h-24 rounded-full glass flex items-center justify-center border border-white/10 shadow-inner group-hover:scale-105 transition-transform duration-500">
+                  <moonData.icon size={48} className="text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]" />
+                </div>
+                <div>
+                  <p className="text-4xl font-display font-bold text-white mb-2 uppercase tracking-tight">{moonData.name}</p>
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-[10px] text-gray-500 font-mono tracking-[0.2em] uppercase">{moonData.illumination}% Illuminated</p>
+                    <p className="text-[10px] text-gray-400 font-mono tracking-[0.2em] uppercase">Age: {Math.floor(Math.random() * 28)} Days</p>
+                  </div>
+                </div>
               </div>
             </div>
+          </motion.div>
+
+          {/* Right side stats or info could go here, or keep it clean */}
+          <div className="hidden lg:flex flex-col items-end space-y-12">
+            <div className="text-right">
+              <p className="text-[10px] text-gray-600 uppercase tracking-[0.5em] mb-4">Distance from Earth</p>
+              <p className="text-6xl font-display font-light tracking-tighter">384,400 <span className="text-2xl text-gray-600 uppercase">km</span></p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] text-gray-600 uppercase tracking-[0.5em] mb-4">Orbital Period</p>
+              <p className="text-6xl font-display font-light tracking-tighter">27.3 <span className="text-2xl text-gray-600 uppercase">days</span></p>
+            </div>
           </div>
-        </motion.div>
+        </div>
       </div>
 
       {/* Recipe 7: Gradient Mask for UI edges */}
-      <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-20 pointer-events-none text-center">
+      <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20 pointer-events-none text-center">
         <motion.div
-          animate={{ y: [0, 10, 0] }}
-          transition={{ duration: 2, repeat: Infinity }}
-          className="flex flex-col items-center space-y-4"
+          animate={{ y: [0, 15, 0] }}
+          transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+          className="flex flex-col items-center space-y-6"
         >
-          <span className="text-[10px] text-gray-500 uppercase tracking-[0.4em]">Interact to Explore</span>
-          <div className="w-px h-12 bg-gradient-to-b from-blue-500 to-transparent" />
+          <span className="text-[10px] text-gray-500 uppercase tracking-[0.5em]">Interact to Explore</span>
+          <div className="w-px h-16 bg-gradient-to-b from-blue-500 to-transparent" />
         </motion.div>
       </div>
 
       <div className="absolute top-1/2 right-12 -translate-y-1/2 z-20 pointer-events-none hidden lg:block">
-        <p className="text-[10px] text-gray-500 uppercase tracking-[0.5em] vertical-text">Drag to Rotate • Scroll to Zoom</p>
+        <p className="text-[11px] text-gray-600 uppercase tracking-[0.6em] vertical-text font-bold">Drag to Rotate • Scroll to Zoom</p>
       </div>
     </motion.div>
   );
@@ -1805,16 +2169,23 @@ const Journal = () => {
 
   if (!user) {
     return (
-      <div className="pt-40 max-w-7xl mx-auto px-4 text-center">
+      <div className="pt-64 max-w-7xl mx-auto px-4 text-center pb-64">
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
+          initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="glass-card p-12 rounded-[3rem] inline-block"
+          className="glass-card p-20 rounded-[4rem] inline-block border border-white/5 shadow-2xl"
         >
-          <BookOpen size={48} className="mx-auto mb-6 text-blue-500" />
-          <h1 className="font-display text-4xl mb-4">Observation Journal</h1>
-          <p className="text-gray-400 mb-8 max-w-md mx-auto">Login to start recording your journey through the stars. Your logs are private and secure.</p>
-          <button onClick={() => signInWithPopup(auth, new GoogleAuthProvider())} className="bg-white text-black px-10 py-4 rounded-full font-bold tracking-widest hover:bg-blue-400 hover:text-white transition-all">LOGIN TO START</button>
+          <div className="w-24 h-24 rounded-full glass flex items-center justify-center mx-auto mb-10 text-blue-500 border border-white/10">
+            <BookOpen size={48} />
+          </div>
+          <h1 className="hero-title text-5xl mb-8">OBSERVATION <span className="text-blue-500">JOURNAL</span></h1>
+          <p className="text-gray-400 mb-12 max-w-md mx-auto font-light text-xl leading-relaxed">Login to start recording your journey through the stars. Your logs are private and secure.</p>
+          <button 
+            onClick={() => signInWithPopup(auth, new GoogleAuthProvider())} 
+            className="bg-white text-black px-12 py-5 rounded-full font-bold tracking-[0.2em] uppercase hover:bg-blue-500 hover:text-white transition-all duration-500 shadow-xl shadow-white/5"
+          >
+            Authenticate to Begin
+          </button>
         </motion.div>
       </div>
     );
@@ -1825,32 +2196,35 @@ const Journal = () => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="pt-32 max-w-7xl mx-auto px-4 pb-20"
+      className="pt-48 max-w-7xl mx-auto px-4 pb-48"
     >
-      <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
-        <div>
-          <span className="text-blue-500 font-mono text-[10px] tracking-[0.4em] uppercase mb-4 block">Personal Archive</span>
-          <h1 className="font-display text-5xl md:text-7xl font-bold tracking-tighter text-glow">OBSERVATION <span className="text-blue-500">LOG</span></h1>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-24 gap-10">
+        <div className="max-w-2xl">
+          <span className="section-label mb-6 block">PERSONAL ARCHIVE</span>
+          <h1 className="hero-title text-glow mb-6">OBSERVATION <span className="text-blue-500">LOG</span></h1>
+          <p className="text-gray-400 font-light text-xl leading-relaxed">Documenting your journey across the celestial sphere.</p>
         </div>
-        <div className="flex items-center space-x-4">
-          <div className="glass px-6 py-3 rounded-2xl flex items-center space-x-4">
+        <div className="flex flex-wrap items-center gap-6">
+          <div className="glass px-8 py-4 rounded-[2rem] flex items-center space-x-6 border border-white/5">
             <div className="text-right">
-              <p className="text-[10px] text-gray-500 uppercase tracking-widest">Total Entries</p>
-              <p className="text-xl font-display font-bold">{logs.length}</p>
+              <p className="text-[9px] text-gray-600 uppercase tracking-[0.3em] mb-1">Total Entries</p>
+              <p className="text-2xl font-display font-bold text-white">{logs.length}</p>
             </div>
-            <div className="w-px h-8 bg-white/10" />
+            <div className="w-px h-10 bg-white/10" />
             <div className="text-right">
-              <p className="text-[10px] text-gray-500 uppercase tracking-widest">Last Update</p>
-              <p className="text-sm font-bold">{logs.length > 0 ? new Date(logs[0].createdAt).toLocaleDateString() : 'N/A'}</p>
+              <p className="text-[9px] text-gray-600 uppercase tracking-[0.3em] mb-1">Last Sync</p>
+              <p className="text-sm font-bold text-blue-400">{logs.length > 0 ? new Date(logs[0].createdAt).toLocaleDateString() : 'N/A'}</p>
             </div>
           </div>
           <button 
             onClick={() => setIsAdding(!isAdding)}
-            className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${
-              isAdding ? 'bg-red-500/20 text-red-500 rotate-45' : 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+            className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-2xl ${
+              isAdding 
+                ? 'bg-red-500/20 text-red-500 rotate-45 border border-red-500/30' 
+                : 'bg-blue-600 text-white shadow-blue-600/20 border border-blue-500/50'
             }`}
           >
-            <Plus size={24} />
+            <Plus size={32} />
           </button>
         </div>
       </div>
@@ -1858,97 +2232,155 @@ const Journal = () => {
       <AnimatePresence>
         {isAdding && (
           <motion.div 
-            initial={{ opacity: 0, y: -20 }}
+            initial={{ opacity: 0, y: -30 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="glass-card p-8 rounded-[2.5rem] mb-12"
+            exit={{ opacity: 0, y: -30 }}
+            transition={{ duration: 0.6, ease: [0.2, 0.8, 0.2, 1] }}
+            className="glass-card p-12 rounded-[3rem] mb-20 border border-blue-500/20 shadow-[0_0_80px_rgba(59,130,246,0.05)]"
           >
-            <h2 className="font-display text-xl mb-8 flex items-center space-x-3">
-              <Plus size={20} className="text-blue-400" />
-              <span>New Entry</span>
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
+            <div className="flex items-center space-x-4 mb-12">
+              <div className="w-10 h-10 rounded-xl bg-blue-600/20 flex items-center justify-center text-blue-400">
+                <Plus size={20} />
+              </div>
+              <h2 className="font-display text-2xl uppercase tracking-tight">New Observation</h2>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+              <div className="space-y-8">
+                <div className="grid grid-cols-2 gap-6">
                   <div>
-                    <label className="text-[10px] text-gray-500 uppercase tracking-widest mb-2 block">Date</label>
-                    <input type="date" value={newLog.date} onChange={e => setNewLog({...newLog, date: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors" />
+                    <label className="text-[10px] text-gray-500 uppercase tracking-[0.3em] mb-3 block font-mono">Date</label>
+                    <input 
+                      type="date" 
+                      value={newLog.date} 
+                      onChange={e => setNewLog({...newLog, date: e.target.value})} 
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:border-blue-500 transition-all font-mono" 
+                    />
                   </div>
                   <div>
-                    <label className="text-[10px] text-gray-500 uppercase tracking-widest mb-2 block">Bortle Scale</label>
-                    <select value={newLog.bortle} onChange={e => setNewLog({...newLog, bortle: parseInt(e.target.value)})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors appearance-none">
+                    <label className="text-[10px] text-gray-500 uppercase tracking-[0.3em] mb-3 block font-mono">Bortle Class</label>
+                    <select 
+                      value={newLog.bortle} 
+                      onChange={e => setNewLog({...newLog, bortle: parseInt(e.target.value)})} 
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:border-blue-500 transition-all appearance-none font-mono"
+                    >
                       {[1,2,3,4,5,6,7,8,9].map(n => <option key={n} value={n} className="bg-[#020205]">Class {n}</option>)}
                     </select>
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] text-gray-500 uppercase tracking-widest mb-2 block">Location</label>
-                  <input placeholder="e.g. Joshua Tree, CA" value={newLog.location} onChange={e => setNewLog({...newLog, location: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors" />
+                  <label className="text-[10px] text-gray-500 uppercase tracking-[0.3em] mb-3 block font-mono">Location</label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. Joshua Tree, CA"
+                    value={newLog.location} 
+                    onChange={e => setNewLog({...newLog, location: e.target.value})} 
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:border-blue-500 transition-all" 
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-gray-500 uppercase tracking-[0.3em] mb-3 block font-mono">Equipment</label>
+                  <input 
+                    type="text" 
+                    placeholder='e.g. 8" Dobsonian, 25mm Eyepiece'
+                    value={newLog.equipment} 
+                    onChange={e => setNewLog({...newLog, equipment: e.target.value})} 
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:border-blue-500 transition-all" 
+                  />
                 </div>
               </div>
-              <div className="space-y-6">
-                <div>
-                  <label className="text-[10px] text-gray-500 uppercase tracking-widest mb-2 block">Equipment</label>
-                  <input placeholder='e.g. 8" Dobsonian, 10x50 Binoculars' value={newLog.equipment} onChange={e => setNewLog({...newLog, equipment: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors" />
-                </div>
-                <div>
-                  <label className="text-[10px] text-gray-500 uppercase tracking-widest mb-2 block">Notes</label>
-                  <textarea rows={3} placeholder="What did you see? How was the transparency?" value={newLog.notes} onChange={e => setNewLog({...newLog, notes: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors resize-none" />
-                </div>
-                <button onClick={saveLog} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-2xl font-bold tracking-widest uppercase transition-all shadow-lg shadow-blue-600/20">SAVE OBSERVATION</button>
+              <div className="flex flex-col">
+                <label className="text-[10px] text-gray-500 uppercase tracking-[0.3em] mb-3 block font-mono">Observation Notes</label>
+                <textarea 
+                  value={newLog.notes} 
+                  onChange={e => setNewLog({...newLog, notes: e.target.value})} 
+                  placeholder="Describe what you saw... (e.g. 'Saturn's rings were exceptionally clear tonight...')"
+                  className="flex-1 w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:border-blue-500 transition-all resize-none min-h-[200px]" 
+                />
+                <button 
+                  onClick={saveLog} 
+                  className="mt-8 bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-2xl font-bold tracking-[0.2em] uppercase transition-all shadow-xl shadow-blue-600/20"
+                >
+                  Commit to Archive
+                </button>
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-10">
         {logs.length > 0 ? logs.map((log, idx) => (
-          <motion.div 
-            key={log.id} 
-            layout
-            initial={{ opacity: 0, y: 20 }}
+          <motion.div
+            key={log.id}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.05 }}
-            className="glass-card p-8 rounded-[2.5rem] relative group overflow-hidden"
+            transition={{ delay: idx * 0.1, duration: 0.8, ease: [0.2, 0.8, 0.2, 1] }}
+            className="glass-card rounded-[3rem] overflow-hidden group border border-white/5 hover:border-white/10 transition-all duration-500"
           >
-            <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button 
-                onClick={() => deleteLog(log.id)}
-                className="p-2 text-gray-500 hover:text-red-400 transition-colors"
-              >
-                <Trash2 size={18} />
-              </button>
-            </div>
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <p className="text-blue-400 font-mono text-[10px] uppercase tracking-widest mb-1">{new Date(log.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</p>
-                <p className="text-3xl font-display font-bold">{new Date(log.date).toLocaleDateString('en-US', { day: '2-digit' })}</p>
+            <div className="grid grid-cols-1 lg:grid-cols-12">
+              <div className="lg:col-span-3 p-10 border-b lg:border-b-0 lg:border-r border-white/5 bg-white/[0.01] flex flex-col justify-center">
+                <p className="text-blue-500 font-mono text-xs mb-2 uppercase tracking-[0.3em]">
+                  {new Date(log.date).toLocaleDateString('en-US', { month: 'long' })}
+                </p>
+                <p className="text-6xl font-display font-bold mb-2 tracking-tighter">
+                  {new Date(log.date).toLocaleDateString('en-US', { day: '2-digit' })}
+                </p>
+                <p className="text-gray-600 text-[10px] uppercase tracking-[0.4em]">
+                  {new Date(log.date).toLocaleDateString('en-US', { year: 'numeric' })}
+                </p>
+                
+                <div className="mt-10 pt-10 border-t border-white/5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] text-gray-600 uppercase tracking-widest">Bortle</span>
+                    <span className="text-xs font-bold text-emerald-400">Class {log.bortle}</span>
+                  </div>
+                  <button 
+                    onClick={() => deleteLog(log.id)}
+                    className="w-full flex items-center justify-center space-x-2 py-3 rounded-xl text-[9px] font-bold tracking-widest uppercase text-gray-600 hover:text-red-500 hover:bg-red-500/10 transition-all"
+                  >
+                    <Trash2 size={14} />
+                    <span>Purge Entry</span>
+                  </button>
+                </div>
               </div>
-              <div className="glass px-3 py-1 rounded-full text-[9px] font-bold tracking-widest uppercase text-gray-400">Bortle {log.bortle}</div>
-            </div>
-            <div className="space-y-6">
-              <div>
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Location</p>
-                <p className="text-sm font-medium text-gray-200">{log.location}</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Equipment</p>
-                <p className="text-sm font-medium text-gray-200">{log.equipment || 'Naked Eye'}</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-2">Notes</p>
-                <p className="text-gray-400 text-sm leading-relaxed font-light italic leading-relaxed">"{log.notes}"</p>
+
+              <div className="lg:col-span-9 p-12">
+                <div className="flex flex-wrap items-center gap-4 mb-8">
+                  <div className="glass px-4 py-1.5 rounded-full text-[9px] font-bold tracking-widest uppercase text-blue-400 border border-white/5">
+                    {log.location}
+                  </div>
+                  <div className="glass px-4 py-1.5 rounded-full text-[9px] font-bold tracking-widest uppercase text-purple-400 border border-white/5">
+                    {log.equipment}
+                  </div>
+                </div>
+                
+                <div className="relative">
+                  <div className="absolute -left-6 top-0 w-1 h-full bg-gradient-to-b from-blue-500 to-transparent opacity-30" />
+                  <p className="text-gray-300 text-xl font-light leading-relaxed italic">
+                    "{log.notes}"
+                  </p>
+                </div>
+                
+                <div className="mt-12 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                   <div className="flex items-center space-x-2 text-gray-600">
+                      <Star size={12} />
+                      <span className="text-[9px] font-mono uppercase tracking-widest">Observation Verified</span>
+                   </div>
+                   <button className="text-[9px] font-bold tracking-widest uppercase text-blue-500 hover:text-blue-400 transition-colors">
+                      Share Memory →
+                   </button>
+                </div>
               </div>
             </div>
           </motion.div>
         )) : (
-          <div className="col-span-full glass-card rounded-[3rem] p-20 text-center">
-            <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6">
-              <BookOpen size={32} className="text-gray-600" />
+          <div className="py-32 text-center glass-card rounded-[4rem] border border-white/5">
+            <div className="w-20 h-20 rounded-full glass flex items-center justify-center mx-auto mb-8 text-gray-600 border border-white/10">
+              <BookOpen size={32} />
             </div>
-            <h3 className="font-display text-xl mb-2">No entries yet</h3>
-            <p className="text-gray-500 text-sm">Your astronomical journey starts here. Add your first observation.</p>
+            <h3 className="text-2xl font-bold mb-4 uppercase tracking-tight">The Archive is Empty</h3>
+            <p className="text-gray-500 max-w-sm mx-auto font-light leading-relaxed">Your journey is just beginning. Click the plus icon to record your first celestial encounter.</p>
           </div>
         )}
       </div>
@@ -2027,150 +2459,243 @@ const Forum = () => {
   };
 
   return (
-    <div className="pt-32 max-w-7xl mx-auto px-4 min-h-[70vh] pb-20">
-      <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
-        <div>
-          <span className="text-blue-500 font-mono text-[10px] tracking-[0.4em] uppercase mb-4 block">Community Hub</span>
-          <h1 className="font-display text-5xl md:text-7xl font-bold tracking-tighter text-glow uppercase">STAR<span className="text-blue-500">FORUM</span></h1>
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="pt-48 max-w-7xl mx-auto px-4 min-h-[70vh] pb-48 relative"
+    >
+      {/* Background Decorative Elements */}
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/5 rounded-full blur-[120px] -z-10 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-purple-600/5 rounded-full blur-[100px] -z-10 pointer-events-none" />
+
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-24 gap-10">
+        <div className="max-w-2xl">
+          <motion.span 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="section-label mb-6 block"
+          >
+            COMMUNITY HUB
+          </motion.span>
+          <motion.h1 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="hero-title text-glow mb-6 uppercase"
+          >
+            STAR<span className="text-blue-500">FORUM</span>
+          </motion.h1>
+          <motion.p 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="text-gray-400 font-light text-xl leading-relaxed"
+          >
+            Connect with fellow stargazers, share experiences, and learn from the community.
+          </motion.p>
         </div>
-        <div className="flex items-center space-x-4">
-          <div className="glass px-6 py-3 rounded-2xl flex items-center space-x-4">
+        <div className="flex flex-wrap items-center gap-6">
+          <div className="glass px-8 py-4 rounded-[2rem] flex items-center space-x-8 border border-white/5">
             <div className="text-right">
-              <p className="text-[10px] text-gray-500 uppercase tracking-widest">Active Users</p>
-              <p className="text-xl font-display font-bold">1.2k</p>
+              <p className="text-[9px] text-gray-600 uppercase tracking-[0.3em] mb-1">Active Now</p>
+              <p className="text-2xl font-display font-bold text-emerald-400">1.2k</p>
             </div>
-            <div className="w-px h-8 bg-white/10" />
+            <div className="w-px h-10 bg-white/10" />
             <div className="text-right">
-              <p className="text-[10px] text-gray-500 uppercase tracking-widest">Total Threads</p>
-              <p className="text-xl font-display font-bold">{categories.length * 12}</p>
+              <p className="text-[9px] text-gray-600 uppercase tracking-[0.3em] mb-1">Total Threads</p>
+              <p className="text-2xl font-display font-bold text-white">{categories.length * 12}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Breadcrumbs */}
-      <div className="flex items-center space-x-2 text-sm text-gray-500 mb-8">
-        <button onClick={() => setView('categories')} className="hover:text-white">Forum</button>
+      <div className="flex items-center space-x-4 text-[10px] font-mono text-gray-600 mb-12 uppercase tracking-[0.2em]">
+        <button onClick={() => setView('categories')} className="hover:text-blue-400 transition-colors">ROOT</button>
         {view !== 'categories' && (
           <>
-            <span>/</span>
-            <button onClick={() => setView('threads')} className="hover:text-white">{selectedCategory?.name}</button>
+            <span className="opacity-30">/</span>
+            <button onClick={() => setView('threads')} className="hover:text-blue-400 transition-colors">{selectedCategory?.name}</button>
           </>
         )}
         {view === 'thread' && (
           <>
-            <span>/</span>
-            <span className="text-gray-300">{selectedThread?.title}</span>
+            <span className="opacity-30">/</span>
+            <span className="text-gray-400 truncate max-w-[200px]">{selectedThread?.title}</span>
           </>
         )}
       </div>
 
-      {view === 'categories' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {categories.map(cat => (
-            <button 
-              key={cat.id} 
-              onClick={() => fetchThreads(cat)}
-              className="glass hover:bg-white/10 p-8 rounded-3xl text-left flex items-center space-x-6"
-            >
-              <div className="p-4 glass rounded-2xl text-blue-400">
-                <Star size={32} />
-              </div>
-              <div>
-                <h3 className="font-display text-2xl mb-2">{cat.name}</h3>
-                <p className="text-gray-400 text-sm">{cat.description}</p>
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
+      <AnimatePresence mode="wait">
+        {view === 'categories' && (
+          <motion.div 
+            key="categories"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-8"
+          >
+            {categories.map(cat => (
+              <button 
+                key={cat.id} 
+                onClick={() => fetchThreads(cat)}
+                className="glass-card hover:bg-white/[0.03] p-10 rounded-[3rem] text-left flex items-center space-x-8 border border-white/5 group transition-all duration-500"
+              >
+                <div className="w-20 h-20 glass rounded-[1.5rem] flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform duration-500 border border-white/10 shadow-xl">
+                  <Star size={40} />
+                </div>
+                <div>
+                  <h3 className="font-display text-3xl mb-3 group-hover:text-blue-400 transition-colors tracking-tight">{cat.name}</h3>
+                  <p className="text-gray-500 text-sm font-light leading-relaxed">{cat.description}</p>
+                </div>
+              </button>
+            ))}
+          </motion.div>
+        )}
 
-      {view === 'threads' && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="font-display text-3xl">{selectedCategory?.name}</h2>
-            {user && (
-              <button onClick={() => setView('thread' as any)} className="glass hover:bg-white/10 px-6 py-2 rounded-full text-sm font-bold">NEW THREAD</button>
+        {view === 'threads' && (
+          <motion.div 
+            key="threads"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-6"
+          >
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
+              <h2 className="font-display text-4xl uppercase tracking-tight">{selectedCategory?.name}</h2>
+              {user && (
+                <button 
+                  onClick={() => setView('thread' as any)} 
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-10 py-4 rounded-full text-[10px] font-bold tracking-widest uppercase transition-all shadow-xl shadow-blue-600/20"
+                >
+                  CREATE NEW THREAD
+                </button>
+              )}
+            </div>
+            
+            {user && view === ('thread' as any) && (
+               <motion.div 
+                 initial={{ opacity: 0, y: 20 }}
+                 animate={{ opacity: 1, y: 0 }}
+                 className="glass-card p-12 rounded-[3rem] mb-12 border border-blue-500/20 shadow-[0_0_80px_rgba(59,130,246,0.05)]"
+               >
+                  <h3 className="text-[10px] font-bold tracking-[0.4em] uppercase mb-8 text-blue-400">Initiate Discussion</h3>
+                  <input 
+                    value={newTitle} 
+                    onChange={e => setNewTitle(e.target.value)}
+                    placeholder="Thread Title"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-8 py-5 mb-6 focus:outline-none focus:border-blue-500 text-lg transition-all"
+                  />
+                  <textarea 
+                    value={newContent} 
+                    onChange={e => setNewContent(e.target.value)}
+                    placeholder="What's on your mind?"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-8 py-5 mb-8 focus:outline-none focus:border-blue-500 text-lg transition-all resize-none"
+                    rows={6}
+                  />
+                  <div className="flex justify-end space-x-6">
+                    <button onClick={() => setView('threads')} className="px-8 py-4 text-[10px] font-bold tracking-widest uppercase text-gray-500 hover:text-white transition-colors">Discard</button>
+                    <button onClick={createThread} className="bg-blue-600 hover:bg-blue-500 text-white px-12 py-4 rounded-2xl font-bold tracking-widest uppercase transition-all">Publish Thread</button>
+                  </div>
+               </motion.div>
             )}
-          </div>
-          
-          {user && view === ('thread' as any) && (
-             <div className="glass p-8 rounded-3xl mb-8">
-                <input 
-                  value={newTitle} 
-                  onChange={e => setNewTitle(e.target.value)}
-                  placeholder="Thread Title"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 mb-4 focus:outline-none focus:border-blue-500"
-                />
+
+            <div className="grid grid-cols-1 gap-4">
+              {threads.map(thread => (
+                <button 
+                  key={thread.id} 
+                  onClick={() => fetchPosts(thread)}
+                  className="w-full glass-card hover:bg-white/[0.03] p-8 rounded-[2rem] text-left flex justify-between items-center border border-white/5 group transition-all duration-500"
+                >
+                  <div className="flex items-center space-x-6">
+                    <div className="w-12 h-12 rounded-2xl glass flex items-center justify-center text-gray-600 group-hover:text-blue-400 transition-colors border border-white/10">
+                      <MessageSquare size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold mb-2 group-hover:text-blue-400 transition-colors">{thread.title}</h3>
+                      <p className="text-[10px] text-gray-600 uppercase tracking-widest font-mono">
+                        By <span className="text-gray-400">{thread.authorName}</span> • {new Date(thread.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-gray-700 group-hover:text-blue-400 transition-colors transform group-hover:translate-x-2 duration-500">
+                    <ArrowRight size={24} />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {view === 'thread' && (
+          <motion.div 
+            key="thread"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-8"
+          >
+            <div className="mb-16">
+              <h2 className="font-display text-5xl md:text-6xl uppercase tracking-tighter leading-none mb-6">{selectedThread?.title}</h2>
+              <div className="flex items-center space-x-4 text-[10px] font-mono text-gray-600 uppercase tracking-[0.2em]">
+                <span>Thread ID: {selectedThread?.id}</span>
+                <span className="opacity-30">•</span>
+                <span>Started by {selectedThread?.authorName}</span>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              {posts.map((post, idx) => (
+                <motion.div 
+                  key={post.id} 
+                  initial={{ opacity: 0, x: idx % 2 === 0 ? -20 : 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className={`glass-card p-10 rounded-[3rem] border border-white/5 relative ${idx === 0 ? 'bg-white/[0.02] border-blue-500/20' : ''}`}
+                >
+                  <div className="flex justify-between items-start mb-8">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-purple-600 shadow-lg shadow-blue-600/10" />
+                      <div>
+                        <p className="font-bold text-lg text-white">{post.authorName}</p>
+                        <p className="text-[10px] text-gray-600 uppercase tracking-[0.2em] font-mono">{new Date(post.createdAt).toLocaleString()}</p>
+                      </div>
+                    </div>
+                    <div className="text-[10px] font-mono text-gray-700 uppercase tracking-widest">#{idx + 1}</div>
+                  </div>
+                  <p className="text-gray-300 text-lg font-light leading-relaxed max-w-4xl">{post.content}</p>
+                </motion.div>
+              ))}
+            </div>
+
+            {user ? (
+              <div className="glass-card p-10 rounded-[3rem] mt-16 border border-white/5 bg-white/[0.01]">
+                <h3 className="text-[10px] font-bold tracking-[0.4em] uppercase mb-8 text-blue-400">Contribute to Discussion</h3>
                 <textarea 
                   value={newContent} 
                   onChange={e => setNewContent(e.target.value)}
-                  placeholder="What's on your mind?"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 mb-4 focus:outline-none focus:border-blue-500"
-                  rows={4}
+                  placeholder="Write your reply..."
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-8 py-5 mb-8 focus:outline-none focus:border-blue-500 text-lg transition-all resize-none"
+                  rows={5}
                 />
-                <div className="flex justify-end space-x-4">
-                  <button onClick={() => setView('threads')} className="px-6 py-2 text-gray-400">Cancel</button>
-                  <button onClick={createThread} className="glass hover:bg-white/10 px-8 py-2 rounded-full font-bold">POST THREAD</button>
-                </div>
-             </div>
-          )}
-
-          {threads.map(thread => (
-            <button 
-              key={thread.id} 
-              onClick={() => fetchPosts(thread)}
-              className="w-full glass hover:bg-white/10 p-6 rounded-2xl text-left flex justify-between items-center"
-            >
-              <div>
-                <h3 className="text-xl font-bold mb-1">{thread.title}</h3>
-                <p className="text-xs text-gray-500">By {thread.authorName} • {new Date(thread.createdAt).toLocaleDateString()}</p>
-              </div>
-              <div className="text-blue-400">
-                <ExternalLink size={20} />
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {view === 'thread' && (
-        <div className="space-y-6">
-          <h2 className="font-display text-3xl mb-8">{selectedThread?.title}</h2>
-          {posts.map((post, idx) => (
-            <div key={post.id} className={`glass p-6 rounded-2xl ${idx === 0 ? 'border-l-4 border-blue-500' : ''}`}>
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-purple-600" />
-                  <div>
-                    <p className="font-bold text-sm">{post.authorName}</p>
-                    <p className="text-[10px] text-gray-500 uppercase tracking-widest">{new Date(post.createdAt).toLocaleString()}</p>
-                  </div>
+                <div className="flex justify-end">
+                  <button 
+                    onClick={replyToThread} 
+                    className="bg-blue-600 hover:bg-blue-500 text-white px-12 py-4 rounded-2xl font-bold tracking-widest uppercase transition-all shadow-xl shadow-blue-600/20"
+                  >
+                    Send Reply
+                  </button>
                 </div>
               </div>
-              <p className="text-gray-300 leading-relaxed">{post.content}</p>
-            </div>
-          ))}
-
-          {user ? (
-            <div className="glass p-6 rounded-2xl mt-8">
-              <textarea 
-                value={newContent} 
-                onChange={e => setNewContent(e.target.value)}
-                placeholder="Write a reply..."
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 mb-4 focus:outline-none focus:border-blue-500"
-                rows={3}
-              />
-              <div className="flex justify-end">
-                <button onClick={replyToThread} className="glass hover:bg-white/10 px-8 py-2 rounded-full font-bold">REPLY</button>
+            ) : (
+              <div className="text-center py-16 glass-card rounded-[3rem] border border-white/5">
+                <p className="text-gray-600 italic font-light text-xl">Login to join the conversation.</p>
               </div>
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500 italic">Login to join the conversation.</div>
-          )}
-        </div>
-      )}
-    </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };
 
@@ -2195,87 +2720,139 @@ const About = () => {
   };
 
   return (
-    <div className="pt-32 max-w-7xl mx-auto px-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-20 items-center">
-        <motion.div
-          initial={{ opacity: 0, x: -30 }}
-          animate={{ opacity: 1, x: 0 }}
-        >
-          <span className="text-blue-500 font-mono text-[10px] tracking-[0.4em] uppercase mb-4 block">Our Story</span>
-          <h1 className="font-display text-5xl md:text-7xl font-bold mb-10 tracking-tighter text-glow uppercase">ABOUT <span className="text-blue-500">STARGAZE</span></h1>
-          <p className="text-xl md:text-2xl text-gray-300 mb-8 leading-relaxed font-light">
-            Stargaze is your no-cost hub for real sky events—hobbyists unite. 
-            We believe that the wonder of the cosmos should be accessible to everyone, 
-            without the need for expensive apps or complex equipment.
-          </p>
-          <p className="text-gray-400 mb-10">
-            Powered by public data from NASA, ESA, and international astronomical unions, 
-            we curate the most significant events to ensure you never miss a moment of celestial magic.
-          </p>
-          <div className="glass p-6 rounded-2xl inline-block">
-            <p className="text-sm font-bold tracking-widest text-blue-400 uppercase">Our Mission</p>
-            <p className="text-white mt-2 italic">"To bring the clarity of the cosmos to every backyard."</p>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, x: 30 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="glass p-8 md:p-12 rounded-3xl"
-        >
-          <h2 className="font-display text-2xl mb-8">Get in Touch</h2>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">Name</label>
-              <input
-                type="text"
-                required
-                value={formState.name}
-                onChange={e => setFormState({ ...formState, name: e.target.value })}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors"
-                placeholder="Your Name"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">Email</label>
-              <input
-                type="email"
-                required
-                value={formState.email}
-                onChange={e => setFormState({ ...formState, email: e.target.value })}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors"
-                placeholder="your@email.com"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">Message</label>
-              <textarea
-                required
-                rows={4}
-                value={formState.message}
-                onChange={e => setFormState({ ...formState, message: e.target.value })}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors"
-                placeholder="How can we help?"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={status === 'sending'}
-              className="w-full glass hover:bg-white/10 py-4 rounded-xl font-bold tracking-widest flex items-center justify-center space-x-2 disabled:opacity-50"
-            >
-              {status === 'sending' ? 'SENDING...' : (
-                <>
-                  <span>SEND MESSAGE</span>
-                  <Send size={18} />
-                </>
-              )}
-            </button>
-            {status === 'success' && <p className="text-green-400 text-center text-sm">Message sent successfully! Clear skies.</p>}
-            {status === 'error' && <p className="text-red-400 text-center text-sm">Something went wrong. Please try again.</p>}
-          </form>
-        </motion.div>
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="pt-48 pb-48 relative overflow-hidden"
+    >
+      {/* Immersive Background Layer */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-blue-600/5 rounded-full blur-[160px] -translate-y-1/2 translate-x-1/4" />
+        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-purple-600/5 rounded-full blur-[140px] translate-y-1/2 -translate-x-1/4" />
       </div>
-    </div>
+
+      <div className="max-w-7xl mx-auto px-4 relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
+          <motion.div
+            initial={{ opacity: 0, x: -40 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 1, ease: [0.2, 0.8, 0.2, 1] }}
+          >
+            <span className="section-label mb-8 block">EST. 2024</span>
+            <h1 className="hero-title text-glow mb-12 leading-[0.85]">OUR <br /><span className="text-blue-500">MISSION</span></h1>
+            <p className="text-2xl text-gray-300 mb-10 leading-relaxed font-light">
+              Stargaze is a decentralized hub for celestial exploration. We believe the wonder of the cosmos should be accessible to every human, without barriers.
+            </p>
+            <div className="space-y-8 mb-16">
+              <div className="flex items-start space-x-6">
+                <div className="w-12 h-12 rounded-2xl glass flex items-center justify-center text-blue-400 border border-white/10 flex-shrink-0">
+                  <Star size={24} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-tight">Open Access</h3>
+                  <p className="text-gray-400 leading-relaxed">Leveraging public data from NASA, ESA, and SpaceX to provide real-time celestial insights.</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-6">
+                <div className="w-12 h-12 rounded-2xl glass flex items-center justify-center text-purple-400 border border-white/10 flex-shrink-0">
+                  <Users size={24} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-tight">Community First</h3>
+                  <p className="text-gray-400 leading-relaxed">A global network of hobbyists sharing observations and collective knowledge.</p>
+                </div>
+              </div>
+            </div>
+            <div className="glass p-8 rounded-[2rem] border border-white/5 bg-white/[0.01] inline-block">
+              <p className="text-[10px] font-bold tracking-[0.4em] text-blue-400 uppercase mb-4">Core Philosophy</p>
+              <p className="text-xl text-white italic font-light leading-relaxed">"To bring the clarity of the cosmos to every backyard."</p>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 1, delay: 0.2, ease: [0.2, 0.8, 0.2, 1] }}
+            className="glass-card p-12 md:p-16 rounded-[4rem] border border-white/5 relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 p-12 opacity-[0.02] pointer-events-none">
+              <Send size={200} />
+            </div>
+            <h2 className="font-display text-4xl mb-12 uppercase tracking-tight">Establish <br /><span className="text-blue-500">Contact</span></h2>
+            <form onSubmit={handleSubmit} className="space-y-8 relative z-10">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.3em] text-gray-500 mb-3 font-mono">Designation</label>
+                  <input
+                    type="text"
+                    required
+                    value={formState.name}
+                    onChange={e => setFormState({ ...formState, name: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 focus:outline-none focus:border-blue-500 transition-all font-mono text-sm"
+                    placeholder="Your Name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.3em] text-gray-500 mb-3 font-mono">Frequency</label>
+                  <input
+                    type="email"
+                    required
+                    value={formState.email}
+                    onChange={e => setFormState({ ...formState, email: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 focus:outline-none focus:border-blue-500 transition-all font-mono text-sm"
+                    placeholder="your@email.com"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-[0.3em] text-gray-500 mb-3 font-mono">Transmission</label>
+                <textarea
+                  required
+                  rows={5}
+                  value={formState.message}
+                  onChange={e => setFormState({ ...formState, message: e.target.value })}
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 focus:outline-none focus:border-blue-500 transition-all font-mono text-sm resize-none"
+                  placeholder="How can we help?"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={status === 'sending'}
+                className="w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-2xl font-bold tracking-[0.3em] uppercase flex items-center justify-center space-x-4 disabled:opacity-50 transition-all shadow-xl shadow-blue-600/20"
+              >
+                {status === 'sending' ? 'TRANSMITTING...' : (
+                  <>
+                    <span>SEND MESSAGE</span>
+                    <Send size={20} />
+                  </>
+                )}
+              </button>
+              <AnimatePresence>
+                {status === 'success' && (
+                  <motion.p 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-emerald-400 text-center text-[10px] font-bold uppercase tracking-widest"
+                  >
+                    Transmission successful. Clear skies.
+                  </motion.p>
+                )}
+                {status === 'error' && (
+                  <motion.p 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-red-400 text-center text-[10px] font-bold uppercase tracking-widest"
+                  >
+                    Uplink failed. Please retry.
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </form>
+          </motion.div>
+        </div>
+      </div>
+    </motion.div>
   );
 };
 
@@ -2341,6 +2918,7 @@ export default function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/sky" element={<Sky />} />
                 <Route path="/moon" element={<MoonExplorer />} />
+                <Route path="/explorer" element={<Explorer />} />
                 <Route path="/events" element={<Events />} />
                 <Route path="/forum" element={<Forum />} />
                 <Route path="/journal" element={<Journal />} />
