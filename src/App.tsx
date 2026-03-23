@@ -6,6 +6,7 @@ import { db, collection, addDoc, getDocs, query, orderBy, limit, where, auth } f
 import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove, onSnapshot, deleteDoc } from 'firebase/firestore';
 import { GoogleGenAI, Type } from "@google/genai";
+import { useInView } from 'react-intersection-observer';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { OrbitControls, Stars as ThreeStars, Sphere, MeshDistortMaterial, Float } from '@react-three/drei';
 import * as THREE from 'three';
@@ -31,7 +32,7 @@ const StargazeAI = () => {
     setIsTyping(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || process.env.GEMINI_API_KEY! });
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: messageText,
@@ -40,9 +41,13 @@ const StargazeAI = () => {
         }
       });
       setMessages(prev => [...prev, { role: 'ai', text: response.text || "The stars are silent right now. Try again later!" }]);
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI Error:", error);
-      setMessages(prev => [...prev, { role: 'ai', text: "I'm having trouble connecting to the celestial network." }]);
+      let errorMsg = "I'm having trouble connecting to the celestial network.";
+      if (error?.message?.includes("quota") || error?.message?.includes("RESOURCE_EXHAUSTED")) {
+        errorMsg = "The celestial network is currently at peak capacity (Quota Exceeded). Please try again in a few minutes, or use your own API key for dedicated access.";
+      }
+      setMessages(prev => [...prev, { role: 'ai', text: errorMsg }]);
     } finally {
       setIsTyping(false);
     }
@@ -197,7 +202,7 @@ const EventDetailsModal = ({ event, onClose }: { event: any, onClose: () => void
     const fetchDetails = async () => {
       setLoading(true);
       try {
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || process.env.GEMINI_API_KEY! });
         const response = await ai.models.generateContent({
           model: "gemini-3-flash-preview",
           contents: `Provide detailed information about the astronomical event: "${event.title}" occurring on ${event.date}. 
@@ -285,15 +290,23 @@ const GeneratedImage = ({ prompt, alt, className, aspectRatio = "3:4" }: { promp
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [isFallback, setIsFallback] = useState(false);
+  const { ref, inView } = useInView({
+    triggerOnce: true,
+    threshold: 0.1,
+  });
 
   useEffect(() => {
     const generate = async () => {
+      if (!inView || imageUrl) return;
+      
       setLoading(true);
       setError(false);
+      setIsFallback(false);
       try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || process.env.GEMINI_API_KEY! });
         const response = await ai.models.generateContent({
-          model: 'gemini-3.1-flash-image-preview',
+          model: 'gemini-2.5-flash-image',
           contents: {
             parts: [{ text: `A cinematic, high-quality astronomical photograph of ${prompt}. Deep space aesthetic, vibrant colors, 8k resolution, professional astrophotography style.` }],
           },
@@ -316,43 +329,52 @@ const GeneratedImage = ({ prompt, alt, className, aspectRatio = "3:4" }: { promp
           }
         }
         if (!found) throw new Error("No image in response");
-      } catch (err) {
-        console.error("Generation error:", err);
-        setError(true);
+      } catch (err: any) {
+        // Silently handle quota errors and use fallback
+        if (err?.message?.includes("quota") || err?.message?.includes("RESOURCE_EXHAUSTED")) {
+          console.warn("AI Image Quota Exceeded. Using celestial fallback.");
+        } else {
+          console.error("Generation error:", err);
+        }
+        
+        const seed = encodeURIComponent(prompt.replace(/\s+/g, '-').toLowerCase());
+        const [w, h] = aspectRatio === "3:4" ? [600, 800] : 
+                     aspectRatio === "4:3" ? [800, 600] : 
+                     aspectRatio === "1:1" ? [800, 800] : 
+                     aspectRatio === "16:9" ? [1280, 720] : [720, 1280];
+        
+        setImageUrl(`https://picsum.photos/seed/${seed}/${w}/${h}?blur=1`);
+        setIsFallback(true);
       } finally {
         setLoading(false);
       }
     };
 
-    if (prompt) generate();
-  }, [prompt, aspectRatio]);
+    generate();
+  }, [prompt, aspectRatio, inView, imageUrl]);
 
   if (loading) {
     return (
-      <div className={`w-full h-full flex items-center justify-center bg-white/5 animate-pulse ${className}`}>
+      <div ref={ref} className={`w-full h-full flex items-center justify-center bg-white/5 animate-pulse ${className}`}>
         <Star className="text-blue-500 animate-spin" size={24} />
       </div>
     );
   }
 
-  if (error || !imageUrl) {
-    return (
-      <img 
-        src={`https://picsum.photos/seed/${prompt}/800/1000`} 
-        alt={alt} 
-        className={className} 
-        referrerPolicy="no-referrer" 
-      />
-    );
-  }
-
   return (
-    <img 
-      src={imageUrl} 
-      alt={alt} 
-      className={className} 
-      referrerPolicy="no-referrer" 
-    />
+    <div ref={ref} className="relative w-full h-full group">
+      <img 
+        src={imageUrl || `https://picsum.photos/seed/${prompt}/800/1000`} 
+        alt={alt}
+        className={`w-full h-full object-cover ${className}`}
+        referrerPolicy="no-referrer"
+      />
+      {isFallback && (
+        <div className="absolute top-4 right-4 px-2 py-1 bg-black/40 backdrop-blur-md border border-white/10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+          <span className="text-[8px] text-white/60 font-mono tracking-widest uppercase">Celestial Fallback</span>
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -411,7 +433,7 @@ const KeySelectionGuard = ({ children }: { children: React.ReactNode }) => {
           </div>
           <h2 className="font-display text-3xl font-bold mb-4">Celestial Connection Required</h2>
           <p className="text-gray-400 mb-8 font-light text-sm leading-relaxed">
-            To generate real-time celestial imagery using the Nano Banana 2 (Gemini 3.1) model, you need to provide a Google Cloud API key with billing enabled.
+            To generate real-time celestial imagery and access advanced astronomical insights, please select your Gemini API key.
           </p>
           <button 
             onClick={handleSelectKey}
