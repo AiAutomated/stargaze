@@ -357,18 +357,28 @@ const GeneratedImage = ({ prompt, alt, className, aspectRatio = "3:4" }: { promp
 };
 
 const KeySelectionGuard = ({ children }: { children: React.ReactNode }) => {
-  const [hasKey, setHasKey] = useState<boolean | null>(null);
+  const [hasKey, setHasKey] = useState<boolean>(true);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     const checkKey = async () => {
-      if ((window as any).aistudio) {
-        const selected = await (window as any).aistudio.hasSelectedApiKey();
-        setHasKey(selected);
-      } else {
-        setHasKey(true);
+      try {
+        if (typeof window !== 'undefined' && (window as any).aistudio && typeof (window as any).aistudio.hasSelectedApiKey === 'function') {
+          const selected = await (window as any).aistudio.hasSelectedApiKey();
+          setHasKey(selected);
+        }
+      } catch (error) {
+        console.warn("Key check failed, defaulting to true:", error);
+      } finally {
+        setChecking(false);
       }
     };
+    
     checkKey();
+    
+    // Safety timeout to prevent infinite blank screen
+    const timeout = setTimeout(() => setChecking(false), 2000);
+    return () => clearTimeout(timeout);
   }, []);
 
   const handleSelectKey = async () => {
@@ -378,7 +388,14 @@ const KeySelectionGuard = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  if (hasKey === null) return null;
+  if (checking) {
+    return (
+      <div className="fixed inset-0 z-[200] flex items-center justify-center bg-[#020205]">
+        <div className="atmosphere" />
+        <div className="w-12 h-12 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (!hasKey) {
     return (
@@ -800,7 +817,7 @@ const Home = () => {
           </motion.div>
           
           <h1 className="font-display text-[14vw] md:text-[10vw] leading-[0.8] font-bold mb-10 tracking-tighter text-glow">
-            STAR<span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500">GLAZE</span>
+            STAR<span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500">GAZE</span>
           </h1>
           
           <p className="text-xl md:text-2xl text-gray-400 mb-14 max-w-2xl mx-auto font-light leading-relaxed">
