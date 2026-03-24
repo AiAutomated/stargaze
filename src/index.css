@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+@import url('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
 
 @theme {
   --font-display: "Space Grotesk", sans-serif;
@@ -12,6 +13,30 @@
   --color-space-blue: #3b82f6;
   --color-space-cyan: #06b6d4;
   --color-space-purple: #8b5cf6;
+}
+
+/* Leaflet Overrides */
+.leaflet-container {
+  background: #020205 !important;
+  border-radius: 2rem;
+}
+
+.leaflet-tile {
+  filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+}
+
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+  background: rgba(10, 10, 15, 0.8) !important;
+  backdrop-filter: blur(12px);
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem !important;
+}
+
+.leaflet-control-zoom-in, .leaflet-control-zoom-out {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
 body {

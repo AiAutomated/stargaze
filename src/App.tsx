@@ -1,15 +1,19 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Sparkles, Calendar, Info, Menu, X, Send, ExternalLink, 
   Moon as MoonIcon, Sun, Star, MessageSquare, Map as MapIcon, 
   Cloud, Wind, Eye, Activity, Plus, ArrowRight, Twitter, 
   Github, Rocket, Zap, AlertTriangle, Globe, Users, 
-  Clock, Navigation, Compass, Shield, Share2
+  Clock, Navigation, Compass, Shield, Share2, ShoppingBag, 
+  Bell, CheckCircle2, MapPin, Search, Filter
 } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 import { useInView } from 'react-intersection-observer';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import Markdown from 'react-markdown';
 import meteorShowers from './data/meteorShowers.json';
 
 // --- Types ---
@@ -24,6 +28,63 @@ interface MeteorShower {
   parent: string;
   description: string;
 }
+
+interface SightingReport {
+  id: string;
+  time: string;
+  location: string;
+  magnitude: number;
+  duration: string;
+  type: string;
+  verified: boolean;
+}
+
+// --- Hooks ---
+
+const useGeolocation = () => {
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setError("Geolocation is not supported by your browser");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      (err) => setError(err.message)
+    );
+  }, []);
+
+  return { location, error };
+};
+
+const useWeather = (lat?: number, lng?: number) => {
+  const [weather, setWeather] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!lat || !lng) return;
+
+    const fetchWeather = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=cloud_cover,relative_humidity_2m&daily=sunrise,sunset&timezone=auto`);
+        const data = await res.json();
+        setWeather(data);
+      } catch (e) {
+        console.error("Weather fetch error:", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWeather();
+  }, [lat, lng]);
+
+  return { weather, loading };
+};
 
 // --- Components ---
 
@@ -49,7 +110,7 @@ const StargazeGuide = () => {
         model: "gemini-3-flash-preview",
         contents: messageText,
         config: {
-          systemInstruction: "You are the Stargaze Guide, an expert in meteor showers and fireballs from Stargaze.io. You help people know when and where to look for meteors. Keep answers concise, inspiring, and focused on meteor activity. Use markdown for formatting."
+          systemInstruction: "You are the Stargaze Guide, an expert in meteor showers and fireballs from Stargaze. You help people know when and where to look for meteors. Keep answers concise, inspiring, and focused on meteor activity. Use markdown for formatting."
         }
       });
       setMessages(prev => [...prev, { role: 'ai', text: response.text || "The stars are silent right now. Try again later!" }]);
@@ -161,8 +222,6 @@ const StargazeGuide = () => {
   );
 };
 
-// --- Helper Components ---
-
 const SectionLabel = ({ children, color = "orange" }: { children: React.ReactNode, color?: string }) => (
   <motion.div 
     initial={{ opacity: 0, x: -20 }}
@@ -189,13 +248,12 @@ const HeroTitle = ({ children }: { children: React.ReactNode }) => (
 // --- Main Pages ---
 
 const Home = () => {
+  const { location } = useGeolocation();
+  const { weather } = useWeather(location?.lat, location?.lng);
   const [nextShower, setNextShower] = useState<MeteorShower | null>(null);
   const [timeLeft, setTimeLeft] = useState<{ days: number, hours: number, minutes: number, seconds: number } | null>(null);
-  const [location, setLocation] = useState<string>("London, UK");
-  const [conditions, setConditions] = useState<string>("Loading celestial forecast...");
 
   useEffect(() => {
-    // Find the next shower
     const now = new Date();
     const upcoming = (meteorShowers as MeteorShower[])
       .filter(s => new Date(s.peak) > now)
@@ -204,11 +262,6 @@ const Home = () => {
     if (upcoming.length > 0) {
       setNextShower(upcoming[0]);
     }
-
-    // Mock conditions interpretation
-    setTimeout(() => {
-      setConditions("Conditions are GOOD tonight. Clear skies and low moonlight mean you could see up to 40 meteors/hour.");
-    }, 1500);
   }, []);
 
   useEffect(() => {
@@ -235,21 +288,25 @@ const Home = () => {
     return () => clearInterval(timer);
   }, [nextShower]);
 
+  const conditionMessage = useMemo(() => {
+    if (!weather) return "Detecting celestial conditions...";
+    const cloudCover = weather.current.cloud_cover;
+    if (cloudCover < 20) return "Conditions are EXCELLENT. Crystal clear skies for maximum visibility.";
+    if (cloudCover < 50) return "Conditions are GOOD. Some clouds, but plenty of viewing windows.";
+    return "Conditions are POOR. Heavy cloud cover may obstruct your view.";
+  }, [weather]);
+
   return (
     <div className="relative min-h-screen pt-32 pb-20 px-6 overflow-hidden">
-      {/* Immersive Background */}
-      <div className="fixed inset-0 z-0">
-        <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-orange-900/10 blur-[120px] rounded-full animate-pulse" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-red-900/10 blur-[120px] rounded-full animate-pulse [animation-delay:2s]" />
-      </div>
-
+      <div className="atmosphere" />
+      
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
           <div className="lg:col-span-7">
             <SectionLabel>Next Meteor Shower</SectionLabel>
             <HeroTitle>
               {nextShower?.name || "No Showers Found"} <br />
-              <span className="text-orange-500 italic">Visible from {location}</span>
+              <span className="text-orange-500 italic">Visible from your region</span>
             </HeroTitle>
             
             <p className="text-xl text-gray-400 font-light max-w-xl mb-12 leading-relaxed">
@@ -315,7 +372,7 @@ const Home = () => {
                       <p className="text-[10px] font-bold tracking-widest uppercase">Viewing Conditions</p>
                     </div>
                     <p className="text-sm text-gray-300 leading-relaxed italic">
-                      "{conditions}"
+                      "{conditionMessage}"
                     </p>
                   </div>
 
@@ -325,9 +382,9 @@ const Home = () => {
                       <p className="text-[10px] font-bold tracking-widest uppercase">Best Time Tonight</p>
                     </div>
                     <p className="text-xl font-bold text-white">
-                      1:40 AM – 4:30 AM
+                      {weather ? "1:40 AM – 4:30 AM" : "Calculating..."}
                     </p>
-                    <p className="text-[10px] text-orange-400 mt-1 uppercase tracking-widest">Local Time (GMT)</p>
+                    <p className="text-[10px] text-orange-400 mt-1 uppercase tracking-widest">Local Time</p>
                   </div>
                 </div>
               </div>
@@ -335,7 +392,6 @@ const Home = () => {
           </div>
         </div>
 
-        {/* Live Indicator Section */}
         <div className="mt-32">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="glass-card p-8 rounded-[2.5rem] border border-white/5 group hover:border-orange-500/30 transition-all">
@@ -381,59 +437,92 @@ const Home = () => {
 };
 
 const Live = () => {
-  const [reports, setReports] = useState<any[]>([]);
+  const [reports, setReports] = useState<SightingReport[]>([]);
+  const [isReporting, setIsReporting] = useState(false);
 
   useEffect(() => {
-    // Mocking AMS fireball reports
     setReports([
-      { id: 1, time: '14:20', location: 'Brighton, UK', magnitude: -4.2, duration: '2.5s', type: 'Fireball' },
-      { id: 2, time: '13:45', location: 'London, UK', magnitude: -3.1, duration: '1.8s', type: 'Meteor' },
-      { id: 3, time: '12:10', location: 'Oxford, UK', magnitude: -5.5, duration: '4.1s', type: 'Bolide' },
-      { id: 4, time: '11:30', location: 'Cambridge, UK', magnitude: -2.8, duration: '1.2s', type: 'Meteor' },
+      { id: '1', time: '14:20', location: 'Brighton, UK', magnitude: -4.2, duration: '2.5s', type: 'Fireball', verified: true },
+      { id: '2', time: '13:45', location: 'London, UK', magnitude: -3.1, duration: '1.8s', type: 'Meteor', verified: true },
+      { id: '3', time: '12:10', location: 'Oxford, UK', magnitude: -5.5, duration: '4.1s', type: 'Bolide', verified: true },
+      { id: '4', time: '11:30', location: 'Cambridge, UK', magnitude: -2.8, duration: '1.2s', type: 'Meteor', verified: true },
     ]);
   }, []);
+
+  const handleReport = () => {
+    setIsReporting(true);
+    setTimeout(() => {
+      const newReport: SightingReport = {
+        id: Math.random().toString(),
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        location: 'Your Location',
+        magnitude: -2.5,
+        duration: '1.5s',
+        type: 'Meteor',
+        verified: false
+      };
+      setReports(prev => [newReport, ...prev]);
+      setIsReporting(false);
+    }, 1000);
+  };
 
   return (
     <div className="min-h-screen pt-32 pb-20 px-6">
       <div className="max-w-5xl mx-auto">
-        <SectionLabel>Live Activity</SectionLabel>
-        <HeroTitle>Real-time <span className="text-orange-500">Signals</span></HeroTitle>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
+          <div>
+            <SectionLabel>Live Activity</SectionLabel>
+            <HeroTitle>Real-time <span className="text-orange-500">Signals</span></HeroTitle>
+          </div>
+          <button 
+            onClick={handleReport}
+            disabled={isReporting}
+            className="px-8 py-4 bg-orange-600 text-white rounded-2xl text-[10px] font-bold tracking-widest uppercase hover:bg-orange-500 transition-all flex items-center space-x-3 disabled:opacity-50"
+          >
+            {isReporting ? <Activity className="animate-spin" size={16} /> : <Zap size={16} />}
+            <span>{isReporting ? 'Submitting...' : 'Report a Sighting'}</span>
+          </button>
+        </div>
         
         <div className="grid grid-cols-1 gap-4">
-          {reports.map((report) => (
-            <div key={report.id} className="glass-card p-8 rounded-3xl border border-white/5 flex flex-col md:flex-row items-center justify-between gap-8 hover:border-orange-500/30 transition-all group">
-              <div className="flex items-center space-x-6">
-                <div className="w-14 h-14 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500">
-                  <Zap size={24} />
+          <AnimatePresence mode="popLayout">
+            {reports.map((report) => (
+              <motion.div 
+                key={report.id} 
+                layout
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="glass-card p-8 rounded-3xl border border-white/5 flex flex-col md:flex-row items-center justify-between gap-8 hover:border-orange-500/30 transition-all group"
+              >
+                <div className="flex items-center space-x-6">
+                  <div className="w-14 h-14 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500">
+                    <Zap size={24} />
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-bold">{report.type} Spotted</h4>
+                    <p className="text-gray-500 text-[10px] uppercase tracking-widest">{report.location} • {report.time} UTC</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-xl font-bold">{report.type} Spotted</h4>
-                  <p className="text-gray-500 text-[10px] uppercase tracking-widest">{report.location} • {report.time} UTC</p>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-12">
-                <div>
-                  <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Magnitude</p>
-                  <p className="text-lg font-mono font-bold text-orange-400">{report.magnitude}</p>
+                <div className="grid grid-cols-2 gap-12">
+                  <div>
+                    <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Magnitude</p>
+                    <p className="text-lg font-mono font-bold text-orange-400">{report.magnitude}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Duration</p>
+                    <p className="text-lg font-mono font-bold">{report.duration}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Duration</p>
-                  <p className="text-lg font-mono font-bold">{report.duration}</p>
+
+                <div className={`px-6 py-2 rounded-xl text-[9px] font-bold tracking-widest uppercase border ${
+                  report.verified ? 'bg-orange-500/10 text-orange-500 border-orange-500/20' : 'bg-blue-500/10 text-blue-500 border-blue-500/20'
+                }`}>
+                  {report.verified ? 'Verified Report' : 'Pending Verification'}
                 </div>
-              </div>
-
-              <div className="px-6 py-2 rounded-xl bg-orange-500/10 text-orange-500 text-[9px] font-bold tracking-widest uppercase border border-orange-500/20">
-                Verified Report
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-12 p-8 glass-card rounded-[2.5rem] border border-white/5 text-center">
-          <p className="text-gray-400 text-sm italic">
-            "Fireball reports are sourced from community sightings and verified by the American Meteor Society (AMS) data patterns."
-          </p>
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
       </div>
     </div>
@@ -441,6 +530,16 @@ const Live = () => {
 };
 
 const VisibilityMap = () => {
+  const { location } = useGeolocation();
+  const center: [number, number] = location ? [location.lat, location.lng] : [51.505, -0.09];
+
+  const darkSkySpots = [
+    { name: 'South Downs National Park', pos: [50.97, -0.62], rating: 'Bortle 3' },
+    { name: 'Exmoor Dark Sky Reserve', pos: [51.14, -3.65], rating: 'Bortle 2' },
+    { name: 'Galloway Forest Park', pos: [55.07, -4.47], rating: 'Bortle 1' },
+    { name: 'Brecon Beacons', pos: [51.88, -3.43], rating: 'Bortle 2' },
+  ];
+
   return (
     <div className="min-h-screen pt-32 pb-20 px-6">
       <div className="max-w-7xl mx-auto">
@@ -448,24 +547,37 @@ const VisibilityMap = () => {
         <HeroTitle>Find the <span className="text-blue-500">Darkest</span> Spots</HeroTitle>
         
         <div className="glass-card w-full h-[600px] rounded-[3rem] border border-white/10 overflow-hidden relative">
-          <div className="absolute inset-0 bg-[#020205] flex flex-col items-center justify-center text-center p-12">
-            <MapIcon size={64} className="text-blue-500/20 mb-8" />
-            <h3 className="text-2xl font-bold mb-4">Interactive Visibility Map</h3>
-            <p className="text-gray-500 max-w-md mb-8">
-              We're integrating real-time light pollution data and cloud cover to show you exactly where to go for the best view.
-            </p>
-            <div className="flex space-x-4">
-              <div className="glass px-6 py-3 rounded-2xl text-[10px] font-bold tracking-widest uppercase border border-white/5">
-                Bortle Scale: 4
-              </div>
-              <div className="glass px-6 py-3 rounded-2xl text-[10px] font-bold tracking-widest uppercase border border-white/5">
-                Cloud Cover: 12%
-              </div>
-            </div>
-          </div>
-          
-          {/* Decorative Overlay */}
-          <div className="absolute inset-0 pointer-events-none border-[24px] border-[#020205]/50 backdrop-blur-[2px]" />
+          <MapContainer center={center} zoom={6} scrollWheelZoom={false} style={{ height: '100%', width: '100%' }}>
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            {darkSkySpots.map((spot, i) => (
+              <Marker key={i} position={spot.pos as [number, number]} icon={L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div style="background-color: #3b82f6; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px #3b82f6;"></div>`,
+                iconSize: [12, 12],
+                iconAnchor: [6, 6]
+              })}>
+                <Popup>
+                  <div className="p-2">
+                    <p className="font-bold text-sm mb-1">{spot.name}</p>
+                    <p className="text-[10px] text-blue-400 uppercase tracking-widest">{spot.rating}</p>
+                  </div>
+                </Popup>
+              </Marker>
+            ))}
+            {location && (
+              <Marker position={center} icon={L.divIcon({
+                className: 'user-icon',
+                html: `<div style="background-color: #ef4444; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px #ef4444;"></div>`,
+                iconSize: [14, 14],
+                iconAnchor: [7, 7]
+              })}>
+                <Popup>You are here</Popup>
+              </Marker>
+            )}
+          </MapContainer>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
@@ -475,15 +587,11 @@ const VisibilityMap = () => {
               <span>Recommended Spots Near You</span>
             </h4>
             <div className="space-y-4">
-              {[
-                { name: 'South Downs National Park', distance: '42 miles', rating: 'Bortle 3' },
-                { name: 'Exmoor Dark Sky Reserve', distance: '120 miles', rating: 'Bortle 2' },
-                { name: 'Galloway Forest Park', distance: '340 miles', rating: 'Bortle 1' }
-              ].map((spot, i) => (
+              {darkSkySpots.map((spot, i) => (
                 <div key={i} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl">
                   <div>
                     <p className="font-bold text-sm">{spot.name}</p>
-                    <p className="text-[10px] text-gray-500 uppercase tracking-widest">{spot.distance}</p>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-widest">Verified Reserve</p>
                   </div>
                   <span className="text-[10px] font-mono font-bold text-blue-400">{spot.rating}</span>
                 </div>
@@ -551,12 +659,141 @@ const MeteorCalendar = () => {
                   </div>
                 </div>
 
-                <button className="w-full py-3 glass rounded-xl text-[9px] font-bold tracking-widest uppercase border border-white/5 hover:bg-white/10 transition-colors">
-                  Set Alert
-                </button>
+                <Link to={`/shower/${shower.id}`} className="w-full block text-center py-3 glass rounded-xl text-[9px] font-bold tracking-widest uppercase border border-white/5 hover:bg-white/10 transition-colors">
+                  View Deep Dive
+                </Link>
               </div>
             </motion.div>
           ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ShowerDetail = () => {
+  const { id } = useParams();
+  const [shower, setShower] = useState<MeteorShower | null>(null);
+  const [details, setDetails] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const found = (meteorShowers as MeteorShower[]).find(s => s.id === id);
+    if (found) {
+      setShower(found);
+      fetchDetails(found);
+    }
+  }, [id]);
+
+  const fetchDetails = async (s: MeteorShower) => {
+    setLoading(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || process.env.GEMINI_API_KEY! });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `Provide a deep-dive guide for the ${s.name} meteor shower. Include its history, best viewing constellations, photography tips, and what makes it unique. Use markdown.`,
+      });
+      setDetails(response.text || "No details found.");
+    } catch (e) {
+      console.error(e);
+      setDetails("Failed to load celestial insights.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!shower) return null;
+
+  return (
+    <div className="min-h-screen pt-32 pb-20 px-6">
+      <div className="max-w-4xl mx-auto">
+        <Link to="/calendar" className="text-[10px] font-bold tracking-widest uppercase text-gray-500 flex items-center space-x-2 mb-8 hover:text-white transition-colors">
+          <ArrowRight size={12} className="rotate-180" />
+          <span>Back to Calendar</span>
+        </Link>
+        
+        <SectionLabel color="purple">{shower.parent}</SectionLabel>
+        <HeroTitle>{shower.name} <span className="text-purple-500">Guide</span></HeroTitle>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+          <div className="glass-card p-6 rounded-3xl border border-white/5">
+            <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Peak Date</p>
+            <p className="text-lg font-bold">{new Date(shower.peak).toLocaleDateString('en-US', { dateStyle: 'full' })}</p>
+          </div>
+          <div className="glass-card p-6 rounded-3xl border border-white/5">
+            <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Intensity</p>
+            <p className="text-lg font-bold">{shower.zhr} Meteors/Hr</p>
+          </div>
+          <div className="glass-card p-6 rounded-3xl border border-white/5">
+            <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Velocity</p>
+            <p className="text-lg font-bold">59 km/s</p>
+          </div>
+        </div>
+
+        <div className="glass-card p-10 rounded-[3rem] border border-white/10">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20 space-y-6">
+              <div className="w-12 h-12 border-2 border-purple-500/20 border-t-purple-500 rounded-full animate-spin" />
+              <p className="text-gray-500 font-mono text-[10px] tracking-widest uppercase animate-pulse">Consulting the star charts...</p>
+            </div>
+          ) : (
+            <div className="prose prose-invert max-w-none prose-purple">
+              <Markdown>{details || ""}</Markdown>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const GearHub = () => {
+  const gear = [
+    { name: 'Celestron Skymaster 15x70', category: 'Binoculars', price: '$99', link: '#', desc: 'Perfect entry-level for meteor watching and moon details.' },
+    { name: 'Red Light Headlamp', category: 'Essential', price: '$15', link: '#', desc: 'Preserve your night vision while navigating the dark.' },
+    { name: 'Sky-Watcher Heritage 130p', category: 'Telescope', price: '$250', link: '#', desc: 'The best portable telescope for hobbyists.' },
+    { name: 'Warm Observation Suit', category: 'Apparel', price: '$120', link: '#', desc: 'Stay warm during long winter observation sessions.' },
+  ];
+
+  return (
+    <div className="min-h-screen pt-32 pb-20 px-6">
+      <div className="max-w-6xl mx-auto">
+        <SectionLabel color="orange">Monetization Hub</SectionLabel>
+        <HeroTitle>Recommended <span className="text-orange-500">Gear</span></HeroTitle>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          {gear.map((item, i) => (
+            <div key={i} className="glass-card p-8 rounded-[2.5rem] border border-white/5 flex flex-col">
+              <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500 mb-6">
+                <ShoppingBag size={24} />
+              </div>
+              <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-2">{item.category}</p>
+              <h3 className="text-xl font-bold mb-4">{item.name}</h3>
+              <p className="text-gray-500 text-xs leading-relaxed mb-8 flex-grow">{item.desc}</p>
+              <div className="flex items-center justify-between mt-auto">
+                <span className="text-lg font-bold">{item.price}</span>
+                <a href={item.link} className="p-3 glass rounded-xl text-orange-500 hover:bg-orange-500/10 transition-colors">
+                  <ExternalLink size={16} />
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-20 glass-card p-12 rounded-[3rem] border border-orange-500/20 text-center max-w-3xl mx-auto">
+          <Bell size={48} className="mx-auto mb-6 text-orange-500" />
+          <h3 className="text-3xl font-bold mb-4">Never Miss a Peak</h3>
+          <p className="text-gray-400 mb-8 font-light">Get SMS or Email alerts when meteor activity is high in your region.</p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <input 
+              type="email" 
+              placeholder="Enter your email" 
+              className="px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:border-orange-500/50 transition-all sm:w-80"
+            />
+            <button className="px-10 py-4 bg-orange-600 text-white rounded-2xl text-[10px] font-bold tracking-widest uppercase hover:bg-orange-500 transition-all">
+              Notify Me
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -572,7 +809,7 @@ const About = () => {
         
         <div className="prose prose-invert max-w-none mb-20">
           <p className="text-xl text-gray-400 font-light leading-relaxed">
-            Stargaze.io was born from a simple frustration: missing the peak of a spectacular meteor shower because of bad timing or poor conditions. 
+            Stargaze was born from a simple frustration: missing the peak of a spectacular meteor shower because of bad timing or poor conditions. 
             We combine scheduled astronomical data with live fireball reports and AI-driven condition analysis to give you the perfect viewing window.
           </p>
         </div>
@@ -639,6 +876,7 @@ const Navbar = () => {
     { name: 'Live', path: '/live', icon: Activity },
     { name: 'Map', path: '/map', icon: MapIcon },
     { name: 'Calendar', path: '/calendar', icon: Calendar },
+    { name: 'Gear', path: '/gear', icon: ShoppingBag },
     { name: 'About', path: '/about', icon: Info },
   ];
 
@@ -652,7 +890,6 @@ const Navbar = () => {
             </div>
             <div>
               <span className="font-display font-bold text-lg tracking-tight uppercase">Stargaze</span>
-              <span className="text-orange-500 font-display font-bold text-lg tracking-tight ml-1 uppercase">.io</span>
             </div>
           </Link>
 
@@ -717,7 +954,7 @@ const Footer = () => (
           <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl flex items-center justify-center">
             <Zap size={24} className="text-white" />
           </div>
-          <span className="font-display font-bold text-2xl tracking-tight uppercase">Stargaze.io</span>
+          <span className="font-display font-bold text-2xl tracking-tight uppercase">Stargaze</span>
         </div>
         <p className="text-gray-500 max-w-sm leading-relaxed font-light">
           The ultimate companion for meteor hunters and celestial observers. 
@@ -728,7 +965,7 @@ const Footer = () => (
       <div>
         <h4 className="text-[10px] font-bold tracking-[0.3em] uppercase text-white mb-8">Navigation</h4>
         <div className="space-y-4">
-          {['Home', 'Live Reports', 'Visibility Map', 'Calendar', 'About Us'].map((item, i) => (
+          {['Home', 'Live Reports', 'Visibility Map', 'Calendar', 'Gear Hub'].map((item, i) => (
             <p key={i} className="text-gray-500 text-sm hover:text-orange-500 cursor-pointer transition-colors">{item}</p>
           ))}
         </div>
@@ -744,7 +981,7 @@ const Footer = () => (
       </div>
     </div>
     <div className="max-w-7xl mx-auto mt-20 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-[10px] text-gray-600 uppercase tracking-widest font-bold">
-      <p>© 2026 Stargaze.io. Data by NASA & AMS.</p>
+      <p>© 2026 Stargaze. Data by NASA & AMS.</p>
       <div className="flex space-x-8 mt-4 md:mt-0">
         <span className="hover:text-white cursor-pointer transition-colors">Privacy Policy</span>
         <span className="hover:text-white cursor-pointer transition-colors">Terms of Service</span>
@@ -763,6 +1000,8 @@ const App = () => {
           <Route path="/live" element={<Live />} />
           <Route path="/map" element={<VisibilityMap />} />
           <Route path="/calendar" element={<MeteorCalendar />} />
+          <Route path="/shower/:id" element={<ShowerDetail />} />
+          <Route path="/gear" element={<GearHub />} />
           <Route path="/about" element={<About />} />
         </Routes>
         <Footer />
