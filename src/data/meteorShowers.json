@@ -7,6 +7,7 @@
     "end": "2026-01-12",
     "zhr": 120,
     "parent": "Asteroid 2003 EH1",
+    "constellation": "Bootes",
     "description": "One of the best annual meteor showers, known for bright fireball meteors."
   },
   {
@@ -17,6 +18,7 @@
     "end": "2026-04-30",
     "zhr": 18,
     "parent": "Comet C/1861 G1 Thatcher",
+    "constellation": "Lyra",
     "description": "One of the oldest known meteor showers, recorded for 2,700 years."
   },
   {
@@ -27,6 +29,7 @@
     "end": "2026-05-28",
     "zhr": 50,
     "parent": "Comet 1P/Halley",
+    "constellation": "Aquarius",
     "description": "Known for their high speed and long glowing trails."
   },
   {
@@ -37,6 +40,7 @@
     "end": "2026-08-23",
     "zhr": 20,
     "parent": "Comet 96P/Machholz",
+    "constellation": "Aquarius",
     "description": "Best seen from the southern hemisphere and southern latitudes of the northern hemisphere."
   },
   {
@@ -47,6 +51,7 @@
     "end": "2026-08-24",
     "zhr": 100,
     "parent": "Comet 109P/Swift-Tuttle",
+    "constellation": "Perseus",
     "description": "The most popular meteor shower of the year, occurring in warm summer nights."
   },
   {
@@ -57,6 +62,7 @@
     "end": "2026-11-07",
     "zhr": 20,
     "parent": "Comet 1P/Halley",
+    "constellation": "Orion",
     "description": "Fast meteors that often leave persistent trains."
   },
   {
@@ -67,6 +73,7 @@
     "end": "2026-11-30",
     "zhr": 15,
     "parent": "Comet 55P/Tempel-Tuttle",
+    "constellation": "Leo",
     "description": "Known for spectacular meteor storms every 33 years."
   },
   {
@@ -77,6 +84,7 @@
     "end": "2026-12-20",
     "zhr": 120,
     "parent": "Asteroid 3200 Phaethon",
+    "constellation": "Gemini",
     "description": "The strongest and most reliable annual meteor shower."
   },
   {
@@ -87,6 +95,7 @@
     "end": "2026-12-26",
     "zhr": 10,
     "parent": "Comet 8P/Tuttle",
+    "constellation": "Ursa Minor",
     "description": "A minor shower that often produces unexpected bursts of activity."
   }
 ]
