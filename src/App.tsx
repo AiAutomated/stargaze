@@ -27,10 +27,10 @@ interface MeteorShower {
 
 // --- Components ---
 
-const MeteorGuide = () => {
+const StargazeGuide = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<{ role: 'user' | 'ai', text: string }[]>([
-    { role: 'ai', text: "Clear skies! I'm your Meteor Guide. Ask me when to look up or how to spot the next fireball!" }
+    { role: 'ai', text: "Clear skies! I'm your Stargaze Guide. Ask me when to look up or how to spot the next fireball!" }
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -49,7 +49,7 @@ const MeteorGuide = () => {
         model: "gemini-3-flash-preview",
         contents: messageText,
         config: {
-          systemInstruction: "You are the Meteor Guide, an expert in meteor showers and fireballs. You help people know when and where to look for meteors. Keep answers concise, inspiring, and focused on meteor activity. Use markdown for formatting."
+          systemInstruction: "You are the Stargaze Guide, an expert in meteor showers and fireballs from Stargaze.io. You help people know when and where to look for meteors. Keep answers concise, inspiring, and focused on meteor activity. Use markdown for formatting."
         }
       });
       setMessages(prev => [...prev, { role: 'ai', text: response.text || "The stars are silent right now. Try again later!" }]);
@@ -84,7 +84,7 @@ const MeteorGuide = () => {
                   <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-[#020205] rounded-full" />
                 </div>
                 <div>
-                  <p className="font-display font-bold text-sm tracking-widest uppercase">METEOR GUIDE</p>
+                  <p className="font-display font-bold text-sm tracking-widest uppercase">STARGAZE GUIDE</p>
                   <p className="text-[10px] text-orange-400 font-mono tracking-widest uppercase">Live Tracking Online</p>
                 </div>
               </div>
@@ -572,7 +572,7 @@ const About = () => {
         
         <div className="prose prose-invert max-w-none mb-20">
           <p className="text-xl text-gray-400 font-light leading-relaxed">
-            Meteor Tracker was born from a simple frustration: missing the peak of a spectacular meteor shower because of bad timing or poor conditions. 
+            Stargaze.io was born from a simple frustration: missing the peak of a spectacular meteor shower because of bad timing or poor conditions. 
             We combine scheduled astronomical data with live fireball reports and AI-driven condition analysis to give you the perfect viewing window.
           </p>
         </div>
@@ -651,8 +651,8 @@ const Navbar = () => {
               <Zap size={20} className="text-white" />
             </div>
             <div>
-              <span className="font-display font-bold text-lg tracking-tight">METEOR</span>
-              <span className="text-orange-500 font-display font-bold text-lg tracking-tight ml-1">TRACKER</span>
+              <span className="font-display font-bold text-lg tracking-tight uppercase">Stargaze</span>
+              <span className="text-orange-500 font-display font-bold text-lg tracking-tight ml-1 uppercase">.io</span>
             </div>
           </Link>
 
@@ -717,7 +717,7 @@ const Footer = () => (
           <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl flex items-center justify-center">
             <Zap size={24} className="text-white" />
           </div>
-          <span className="font-display font-bold text-2xl tracking-tight uppercase">Meteor Tracker</span>
+          <span className="font-display font-bold text-2xl tracking-tight uppercase">Stargaze.io</span>
         </div>
         <p className="text-gray-500 max-w-sm leading-relaxed font-light">
           The ultimate companion for meteor hunters and celestial observers. 
@@ -744,7 +744,7 @@ const Footer = () => (
       </div>
     </div>
     <div className="max-w-7xl mx-auto mt-20 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-[10px] text-gray-600 uppercase tracking-widest font-bold">
-      <p>© 2026 Meteor Tracker. Data by NASA & AMS.</p>
+      <p>© 2026 Stargaze.io. Data by NASA & AMS.</p>
       <div className="flex space-x-8 mt-4 md:mt-0">
         <span className="hover:text-white cursor-pointer transition-colors">Privacy Policy</span>
         <span className="hover:text-white cursor-pointer transition-colors">Terms of Service</span>
@@ -766,7 +766,7 @@ const App = () => {
           <Route path="/about" element={<About />} />
         </Routes>
         <Footer />
-        <MeteorGuide />
+        <StargazeGuide />
       </div>
     </Router>
   );
