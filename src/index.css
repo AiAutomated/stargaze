@@ -2,10 +2,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
 @import url('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
 
-html {
-  scroll-behavior: smooth;
-}
-
 @theme {
   --font-display: "Space Grotesk", sans-serif;
   --font-sans: "Inter", sans-serif;
@@ -17,6 +13,10 @@ html {
   --color-space-blue: #3b82f6;
   --color-space-cyan: #06b6d4;
   --color-space-purple: #8b5cf6;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 /* Leaflet Overrides */

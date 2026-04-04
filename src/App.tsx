@@ -13,6 +13,7 @@ import { useInView } from 'react-intersection-observer';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import Markdown from 'react-markdown';
+import CesiumGlobe from './components/CesiumGlobe';
 import meteorShowers from './data/meteorShowers.json';
 
 // --- Types ---
@@ -275,9 +276,14 @@ const Home = () => {
               Our advanced algorithms analyze cloud cover, light pollution, and peak activity times to ensure you have the best possible viewing experience.
             </p>
 
-            <div className="flex items-center space-x-6">
-              <Link to="/calendar" className="px-10 py-5 bg-orange-600 text-white rounded-2xl text-[10px] font-bold tracking-[0.2em] uppercase hover:bg-orange-500 transition-all shadow-2xl shadow-orange-600/20 flex items-center space-x-3 group overflow-hidden relative">
+            <div className="flex flex-wrap gap-6 items-center">
+              <Link to="/globe" className="px-10 py-5 bg-blue-600 text-white rounded-2xl text-[10px] font-bold tracking-[0.2em] uppercase hover:bg-blue-500 transition-all shadow-2xl shadow-blue-600/20 flex items-center space-x-3 group overflow-hidden relative">
                 <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
+                <Globe size={16} className="relative z-10" />
+                <span className="relative z-10">Explore 3D Globe</span>
+              </Link>
+              <Link to="/calendar" className="px-10 py-5 glass border border-white/10 text-white rounded-2xl text-[10px] font-bold tracking-[0.2em] uppercase hover:bg-white/5 transition-all flex items-center space-x-3 group overflow-hidden relative">
+                <div className="absolute inset-0 bg-white/5 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
                 <span className="relative z-10">View Full Calendar</span>
                 <ArrowRight size={16} className="relative z-10 group-hover:translate-x-1 transition-transform" />
               </Link>
@@ -832,6 +838,7 @@ const Navbar = () => {
 
   const navLinks = [
     { name: 'Home', path: '/', icon: Sun },
+    { name: 'Globe', path: '/globe', icon: Globe },
     { name: 'Live', path: '/live', icon: Activity },
     { name: 'Map', path: '/map', icon: MapIcon },
     { name: 'Calendar', path: '/calendar', icon: Calendar },
@@ -997,6 +1004,7 @@ const Footer = () => (
         <div className="space-y-4">
           {[
             { name: 'Home', path: '/' },
+            { name: 'Globe', path: '/globe' },
             { name: 'Live Reports', path: '/live' },
             { name: 'Visibility Map', path: '/map' },
             { name: 'Calendar', path: '/calendar' }
@@ -1054,6 +1062,7 @@ const App = () => {
         <AnimatePresence mode="wait">
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/globe" element={<CesiumGlobe />} />
             <Route path="/live" element={<Live />} />
             <Route path="/map" element={<VisibilityMap />} />
             <Route path="/calendar" element={<MeteorCalendar />} />
