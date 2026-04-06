@@ -7,7 +7,8 @@ import {
   Cloud, Wind, Eye, Activity, Plus, ArrowRight, Twitter, 
   Github, Rocket, AlertTriangle, Globe, Users, 
   Clock, Navigation, Compass, Shield, Share2, ShoppingBag, 
-  Bell, CheckCircle2, MapPin, Search, Filter
+  Bell, CheckCircle2, MapPin, Search, Filter,
+  ShieldCheck, Zap, Database, ChevronDown
 } from 'lucide-react';
 import { useInView } from 'react-intersection-observer';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
@@ -162,17 +163,28 @@ const ConstellationMap = ({ name }: { name: string }) => {
   );
 };
 
-const SectionLabel = ({ children, color = "orange" }: { children: React.ReactNode, color?: string }) => (
-  <motion.div 
-    initial={{ opacity: 0, x: -20 }}
-    whileInView={{ opacity: 1, x: 0 }}
-    viewport={{ once: true }}
-    className="flex items-center space-x-3 mb-6"
-  >
-    <div className={`w-8 h-[1px] bg-${color}-500/50`} />
-    <span className={`text-[10px] font-bold tracking-[0.4em] uppercase text-${color}-500 font-mono`}>{children}</span>
-  </motion.div>
-);
+const SectionLabel = ({ children, color = "orange" }: { children: React.ReactNode, color?: string }) => {
+  const colorMap: Record<string, { text: string, bg: string }> = {
+    orange: { text: "text-orange-500", bg: "bg-orange-500/50" },
+    blue: { text: "text-blue-500", bg: "bg-blue-500/50" },
+    purple: { text: "text-purple-500", bg: "bg-purple-500/50" },
+    white: { text: "text-white", bg: "bg-white/50" }
+  };
+  
+  const theme = colorMap[color] || colorMap.orange;
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, x: -20 }}
+      whileInView={{ opacity: 1, x: 0 }}
+      viewport={{ once: true }}
+      className="flex items-center space-x-3 mb-6"
+    >
+      <div className={`w-8 h-[1px] ${theme.bg}`} />
+      <span className={`text-[10px] font-bold tracking-[0.4em] uppercase ${theme.text} font-mono`}>{children}</span>
+    </motion.div>
+  );
+};
 
 const HeroTitle = ({ children }: { children: React.ReactNode }) => (
   <motion.h1 
@@ -183,6 +195,17 @@ const HeroTitle = ({ children }: { children: React.ReactNode }) => (
   >
     {children}
   </motion.h1>
+);
+
+const SectionTitle = ({ children }: { children: React.ReactNode }) => (
+  <motion.h2 
+    initial={{ opacity: 0, y: 20 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    viewport={{ once: true }}
+    className="text-4xl md:text-6xl font-bold tracking-tight mb-8"
+  >
+    {children}
+  </motion.h2>
 );
 
 // --- Main Pages ---
@@ -275,199 +298,339 @@ const Home = () => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="relative min-h-screen pt-32 pb-20 px-6"
+      className="relative min-h-screen pt-32 pb-20 overflow-x-hidden"
     >
-      {/* Hero-specific Meteor Trails */}
-      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-        {[...Array(6)].map((_, i) => (
-          <div 
-            key={i}
-            className="meteor-trail"
-            style={{
-              top: `${Math.random() * 60}%`,
-              left: `${Math.random() * 100}%`,
-              opacity: 0.1 + Math.random() * 0.2,
-              animationDelay: `${Math.random() * 15}s`,
-              animationDuration: `${2 + Math.random() * 5}s`
-            }}
-          />
-        ))}
-      </div>
-
-      <div className="max-w-7xl mx-auto relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-16">
-          <div className="lg:col-span-8">
-            <SectionLabel>Next Meteor Shower</SectionLabel>
-            <HeroTitle>
-              {nextShower?.name || "No Showers Found"} <br />
-              <span className="text-orange-500 italic text-glow">Visible from your region</span>
-            </HeroTitle>
-            
-            <p className="text-xl text-white/70 font-light max-w-2xl mb-12 leading-relaxed">
-              {nextShower?.description || "Stay tuned for the next celestial event."}
-              <br /><br />
-              Experience the wonder of the night sky with real-time tracking of the {nextShower?.name || 'upcoming'} meteor shower. 
-              Our advanced algorithms analyze cloud cover, light pollution, and peak activity times to ensure you have the best possible viewing experience.
-            </p>
-
-            <div className="flex flex-wrap gap-6 items-center">
-              <Link to="/globe" className="px-10 py-5 bg-blue-600 text-white rounded-2xl text-[10px] font-bold tracking-[0.2em] uppercase hover:bg-blue-500 transition-all shadow-2xl shadow-blue-600/20 flex items-center space-x-3 group overflow-hidden relative">
-                <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
-                <Globe size={16} className="relative z-10" />
-                <span className="relative z-10">Explore 3D Globe</span>
-              </Link>
-              <Link to="/calendar" className="px-10 py-5 glass border border-white/10 text-white rounded-2xl text-[10px] font-bold tracking-[0.2em] uppercase hover:bg-white/5 transition-all flex items-center space-x-3 group overflow-hidden relative">
-                <div className="absolute inset-0 bg-white/5 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
-                <span className="relative z-10">View Full Calendar</span>
-                <ArrowRight size={16} className="relative z-10 group-hover:translate-x-1 transition-transform" />
-              </Link>
-              <div className="flex items-center space-x-3 text-orange-500">
-                <div className="w-2 h-2 bg-orange-500 rounded-full animate-ping" />
-                <span className="text-[10px] font-bold tracking-widest uppercase">Live Activity Detected</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="lg:col-span-4">
-            <motion.div 
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
-              className="glass-card p-10 rounded-[3rem] border border-white/10 relative overflow-hidden h-full flex flex-col justify-center"
-            >
-              <div className="absolute top-0 right-0 p-8 opacity-5">
-                <Clock size={120} />
-              </div>
-              
-              <div className="relative z-10">
-                <SectionLabel color="white">Countdown to Peak</SectionLabel>
-                
-                <div className="grid grid-cols-2 gap-8 mb-10">
-                  {[
-                    { label: 'Days', value: timeLeft?.days ?? 0 },
-                    { label: 'Hours', value: timeLeft?.hours ?? 0 },
-                    { label: 'Mins', value: timeLeft?.minutes ?? 0 },
-                    { label: 'Secs', value: timeLeft?.seconds ?? 0 }
-                  ].map((unit, i) => (
-                    <div key={i} className="text-left">
-                      <p className="text-5xl md:text-6xl font-mono font-bold tracking-tighter mb-1">
-                        {unit.value.toString().padStart(2, '0')}
-                      </p>
-                      <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">{unit.label}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        </div>
-
-        {/* Bento Grid Section */}
-        <div className="bento-grid mt-24">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="bento-item-large glass-card p-10 rounded-[3rem] border border-white/5 group flex flex-col justify-between"
-          >
-            <div>
-              <div className="w-14 h-14 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500 mb-8 group-hover:scale-110 transition-transform">
-                <Eye size={28} />
-              </div>
-              <h3 className="text-3xl font-bold mb-4">Viewing Conditions</h3>
-              <p className="text-gray-400 text-lg leading-relaxed italic">
-                "{conditionMessage}"
-              </p>
-            </div>
-            <div className="mt-8 pt-8 border-t border-white/5">
-              <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-2">Cloud Cover</p>
-              <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                <motion.div 
-                  initial={{ width: 0 }}
-                  whileInView={{ width: `${weather?.current?.cloud_cover ?? 0}%` }}
-                  className="h-full bg-orange-500"
-                />
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.1 }}
-            className="bento-item-wide glass-card p-10 rounded-[3rem] border border-white/5 group bg-gradient-to-br from-orange-600/10 to-transparent"
-          >
-            <div className="flex items-center justify-between mb-8">
-              <div className="w-14 h-14 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500 group-hover:rotate-12 transition-transform">
-                <Navigation size={28} />
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] text-orange-400 uppercase tracking-widest font-bold">Best Time Tonight</p>
-                <p className="text-3xl font-bold font-mono">{bestTime}</p>
-              </div>
-            </div>
-            <p className="text-gray-400 leading-relaxed">
-              The radiant point will be highest in the sky during these hours. 
-              Find a spot away from city lights for the best experience.
-            </p>
-          </motion.div>
-
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-            className="bento-item glass-card p-8 rounded-[2.5rem] border border-white/5 flex flex-col justify-center items-center text-center group"
-          >
-            <Activity size={32} className="text-orange-500 mb-4 group-hover:animate-pulse" />
-            <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-1">Live Signals</p>
-            <p className="text-2xl font-bold">{liveSignals}</p>
-            <p className="text-[8px] text-orange-400 uppercase tracking-widest mt-1">Sightings/Hr</p>
-          </motion.div>
-
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.3 }}
-            className="bento-item glass-card p-8 rounded-[2.5rem] border border-white/5 flex flex-col justify-center items-center text-center group"
-          >
-            <MoonIcon size={32} className="text-blue-400 mb-4 group-hover:rotate-12 transition-transform" />
-            <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-1">Moon Phase</p>
-            <p className="text-2xl font-bold">{moonData.phaseName}</p>
-            <p className="text-[8px] text-blue-400 uppercase tracking-widest mt-1">{moonData.illumination}% Illum.</p>
-          </motion.div>
-        </div>
-
-        {/* Quick Links Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-24">
-          {[
-            { title: 'Live Reports', desc: 'Increased activity reported in the last hour near your region.', icon: Activity, color: 'orange', path: '/live' },
-            { title: 'Visibility Map', desc: 'Find the darkest skies and best visibility zones in your area.', icon: MapIcon, color: 'blue', path: '/map' },
-            { title: 'Yearly Calendar', desc: 'Plan your year with our comprehensive meteor shower schedule.', icon: Calendar, color: 'purple', path: '/calendar' }
-          ].map((link, i) => (
-            <motion.div 
+      {/* Hero Section */}
+      <section className="relative px-6 mb-32">
+        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+          {[...Array(8)].map((_, i) => (
+            <div 
               key={i}
+              className="meteor-trail"
+              style={{
+                top: `${Math.random() * 60}%`,
+                left: `${Math.random() * 100}%`,
+                opacity: 0.1 + Math.random() * 0.2,
+                animationDelay: `${Math.random() * 15}s`,
+                animationDuration: `${2 + Math.random() * 5}s`
+              }}
+            />
+          ))}
+        </div>
+
+        <div className="max-w-7xl mx-auto relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            <div className="lg:col-span-7">
+              <SectionLabel>The Ultimate Celestial Guide</SectionLabel>
+              <HeroTitle>
+                Explore the <br />
+                <span className="text-orange-500 italic text-glow">Infinite Night Sky.</span>
+              </HeroTitle>
+              
+              <p className="text-xl text-white/70 font-light max-w-2xl mb-12 leading-relaxed">
+                Stargaze is the world's most advanced real-time platform for celestial observation. 
+                From 3D orbital tracking to live fireball reports, we provide the data you need to witness the universe's most spectacular events.
+              </p>
+
+              <div className="flex flex-wrap gap-6 items-center">
+                <Link to="/globe" aria-label="Explore the 3D Globe" className="px-10 py-5 bg-blue-600 text-white rounded-2xl text-[10px] font-bold tracking-[0.2em] uppercase hover:bg-blue-500 transition-all shadow-2xl shadow-blue-600/20 flex items-center space-x-3 group overflow-hidden relative">
+                  <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
+                  <Globe size={16} className="relative z-10" />
+                  <span className="relative z-10">Explore 3D Globe</span>
+                </Link>
+                <Link to="/calendar" aria-label="View Meteor Calendar" className="px-10 py-5 glass border border-white/10 text-white rounded-2xl text-[10px] font-bold tracking-[0.2em] uppercase hover:bg-white/5 transition-all flex items-center space-x-3 group overflow-hidden relative">
+                  <div className="absolute inset-0 bg-white/5 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
+                  <span className="relative z-10">View Calendar</span>
+                  <ArrowRight size={16} className="relative z-10 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </div>
+            </div>
+
+            <div className="lg:col-span-5">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.8 }}
+                className="relative"
+              >
+                <div className="absolute inset-0 bg-orange-500/20 blur-[120px] rounded-full" />
+                <div className="glass-card p-10 rounded-[3rem] border border-white/10 relative overflow-hidden">
+                  <div className="flex items-center justify-between mb-8">
+                    <SectionLabel color="white">Next Event</SectionLabel>
+                    <div className="flex items-center space-x-2 text-orange-500">
+                      <div className="w-2 h-2 bg-orange-500 rounded-full animate-ping" />
+                      <span className="text-[10px] font-bold tracking-widest uppercase">Live</span>
+                    </div>
+                  </div>
+                  
+                  <h3 className="text-3xl font-bold mb-2">{nextShower?.name || "Searching..."}</h3>
+                  <p className="text-gray-500 text-xs uppercase tracking-widest mb-8">Peak Activity Countdown</p>
+
+                  <div className="grid grid-cols-2 gap-8">
+                    {[
+                      { label: 'Days', value: timeLeft?.days ?? 0 },
+                      { label: 'Hours', value: timeLeft?.hours ?? 0 },
+                      { label: 'Mins', value: timeLeft?.minutes ?? 0 },
+                      { label: 'Secs', value: timeLeft?.seconds ?? 0 }
+                    ].map((unit, i) => (
+                      <div key={i}>
+                        <p className="text-5xl font-mono font-bold tracking-tighter">
+                          {unit.value.toString().padStart(2, '0')}
+                        </p>
+                        <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mt-1">{unit.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Bento Grid */}
+      <section className="px-6 py-32 bg-white/[0.02]">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-20">
+            <SectionLabel color="orange">Core Capabilities</SectionLabel>
+            <SectionTitle>Everything you need to <br /> <span className="text-orange-500">Master the Night.</span></SectionTitle>
+          </div>
+
+          <div className="bento-grid">
+            <motion.div 
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
-              className={`glass-card p-8 rounded-[2.5rem] border border-white/5 group hover:border-${link.color}-500/30 transition-all`}
+              className="bento-item-large glass-card p-10 rounded-[3rem] border border-white/5 group flex flex-col justify-between"
             >
-              <div className={`w-12 h-12 rounded-2xl bg-${link.color}-500/10 flex items-center justify-center text-${link.color}-500 mb-6 group-hover:scale-110 transition-transform`}>
-                <link.icon size={24} />
+              <div>
+                <div className="w-14 h-14 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500 mb-8 group-hover:scale-110 transition-transform">
+                  <Eye size={28} />
+                </div>
+                <h3 className="text-3xl font-bold mb-4">Real-Time Conditions</h3>
+                <p className="text-gray-400 text-lg leading-relaxed italic">
+                  "{conditionMessage}"
+                </p>
               </div>
-              <h3 className="text-xl font-bold mb-2">{link.title}</h3>
-              <p className="text-gray-500 text-sm leading-relaxed mb-6">{link.desc}</p>
-              <Link to={link.path} className={`text-[10px] font-bold tracking-widest uppercase text-${link.color}-500 flex items-center space-x-2 group-hover:translate-x-2 transition-transform`}>
-                <span>Explore</span>
-                <ArrowRight size={12} />
-              </Link>
+              <div className="mt-8 pt-8 border-t border-white/5">
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-2">Cloud Cover Analysis</p>
+                <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    whileInView={{ width: `${weather?.current?.cloud_cover ?? 0}%` }}
+                    className="h-full bg-orange-500"
+                  />
+                </div>
+              </div>
             </motion.div>
-          ))}
+
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="bento-item-wide glass-card p-10 rounded-[3rem] border border-white/5 group bg-gradient-to-br from-orange-600/10 to-transparent"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <div className="w-14 h-14 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500 group-hover:rotate-12 transition-transform">
+                  <Navigation size={28} />
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] text-orange-400 uppercase tracking-widest font-bold">Optimal Window</p>
+                  <p className="text-3xl font-bold font-mono">{bestTime}</p>
+                </div>
+              </div>
+              <p className="text-gray-400 leading-relaxed">
+                Our proprietary algorithm calculates the exact moment the radiant point reaches its zenith, providing you with the highest probability of sightings.
+              </p>
+            </motion.div>
+
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              className="bento-item glass-card p-8 rounded-[2.5rem] border border-white/5 flex flex-col justify-center items-center text-center group"
+            >
+              <Activity size={32} className="text-orange-500 mb-4 group-hover:animate-pulse" />
+              <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-1">Global Activity</p>
+              <p className="text-2xl font-bold">{liveSignals}</p>
+              <p className="text-[8px] text-orange-400 uppercase tracking-widest mt-1">Sightings/Hr</p>
+            </motion.div>
+
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.3 }}
+              className="bento-item glass-card p-8 rounded-[2.5rem] border border-white/5 flex flex-col justify-center items-center text-center group"
+            >
+              <MoonIcon size={32} className="text-blue-400 mb-4 group-hover:rotate-12 transition-transform" />
+              <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-1">Moon Phase</p>
+              <p className="text-2xl font-bold">{moonData.phaseName}</p>
+              <p className="text-[8px] text-blue-400 uppercase tracking-widest mt-1">{moonData.illumination}% Illum.</p>
+            </motion.div>
+          </div>
         </div>
-      </div>
+      </section>
+
+      {/* How it Works Section */}
+      <section className="px-6 py-32">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+            <div>
+              <SectionLabel color="blue">The Engine</SectionLabel>
+              <SectionTitle>How Stargaze <br /> <span className="text-blue-500">Processes the Cosmos.</span></SectionTitle>
+              <p className="text-lg text-white/60 font-light leading-relaxed mb-12">
+                We don't just show you a calendar. We aggregate petabytes of data from global astronomical agencies and real-time atmospheric sensors to deliver a precision viewing guide.
+              </p>
+              
+              <div className="space-y-8">
+                {[
+                  { title: 'Data Aggregation', desc: 'We pull TLE data from CelesTrak and meteor schedules from NASA/IMO.', icon: Database },
+                  { title: 'Atmospheric Analysis', desc: 'Real-time cloud cover and Bortle scale light pollution mapping.', icon: Zap },
+                  { title: 'Community Verification', desc: 'Live fireball reports are cross-referenced with satellite signals.', icon: ShieldCheck }
+                ].map((step, i) => (
+                  <div key={i} className="flex items-start space-x-6">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
+                      <step.icon size={24} />
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-bold mb-1">{step.title}</h4>
+                      <p className="text-sm text-gray-500 leading-relaxed">{step.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="relative">
+              <div className="absolute inset-0 bg-blue-500/10 blur-[100px] rounded-full" />
+              <div className="glass-card p-4 rounded-[3rem] border border-white/5 relative overflow-hidden aspect-square flex items-center justify-center">
+                <motion.div 
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 60, repeat: Infinity, ease: 'linear' }}
+                  className="relative w-full h-full border border-white/5 rounded-full flex items-center justify-center"
+                >
+                  <div className="absolute inset-0 border border-white/10 rounded-full scale-75" />
+                  <div className="absolute inset-0 border border-white/10 rounded-full scale-50" />
+                  <Globe className="text-blue-500/20" size={200} />
+                  
+                  {/* Orbiting points */}
+                  {[...Array(5)].map((_, i) => (
+                    <motion.div
+                      key={i}
+                      className="absolute w-2 h-2 bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]"
+                      animate={{ 
+                        rotate: 360,
+                        x: Math.cos(i * 72 * Math.PI / 180) * 150,
+                        y: Math.sin(i * 72 * Math.PI / 180) * 150
+                      }}
+                      transition={{ duration: 10 + i * 2, repeat: Infinity, ease: 'linear' }}
+                    />
+                  ))}
+                </motion.div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-center">
+                    <p className="text-[10px] font-bold tracking-[0.3em] uppercase text-blue-500 mb-2">System Status</p>
+                    <p className="text-2xl font-bold">NOMINAL</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Community Section */}
+      <section className="px-6 py-32 bg-white/[0.01]">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-20">
+            <SectionLabel color="purple">The Community</SectionLabel>
+            <SectionTitle>Join 500,000+ <br /> <span className="text-purple-500">Celestial Observers.</span></SectionTitle>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              { name: 'Dr. Sarah Chen', role: 'Astrophysicist', quote: 'Stargaze has revolutionized how I track orbital debris. The 3D globe is a masterpiece of data visualization.' },
+              { name: 'Marcus Thorne', role: 'Night Photographer', quote: 'The visibility maps are scarily accurate. I never waste a trip to the mountains anymore.' },
+              { name: 'Elena Rodriguez', role: 'Amateur Stargazer', quote: 'I saw my first fireball thanks to the live alerts. This app is pure magic for anyone who loves the sky.' }
+            ].map((testimonial, i) => (
+              <motion.div 
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="glass-card p-10 rounded-[2.5rem] border border-white/5 flex flex-col justify-between"
+              >
+                <p className="text-gray-400 italic leading-relaxed mb-8">"{testimonial.quote}"</p>
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-500">
+                    <Users size={20} />
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm">{testimonial.name}</p>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-widest">{testimonial.role}</p>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="px-6 py-32">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-20">
+            <SectionLabel color="orange">Common Questions</SectionLabel>
+            <SectionTitle>Frequently Asked <span className="text-orange-500">Questions.</span></SectionTitle>
+          </div>
+
+          <div className="space-y-4">
+            {[
+              { q: 'Is Stargaze free to use?', a: 'Yes, Stargaze is completely free. We believe in open access to celestial data for everyone.' },
+              { q: 'Where does the data come from?', a: 'We aggregate data from NASA, the International Meteor Organization (IMO), CelesTrak, and the American Meteor Society (AMS).' },
+              { q: 'How accurate are the visibility maps?', a: 'Our maps are updated hourly using Open-Meteo data and Bortle scale light pollution archives, providing high-fidelity visibility forecasts.' },
+              { q: 'Can I report my own sightings?', a: 'Absolutely. Use the "Live Reports" section to submit your observations and help the community verify celestial events.' }
+            ].map((faq, i) => (
+              <details key={i} className="glass-card rounded-2xl border border-white/5 group overflow-hidden">
+                <summary className="p-6 cursor-pointer flex items-center justify-between list-none">
+                  <span className="font-bold">{faq.q}</span>
+                  <ChevronDown size={18} className="text-orange-500 group-open:rotate-180 transition-transform" />
+                </summary>
+                <div className="px-6 pb-6 text-gray-400 text-sm leading-relaxed">
+                  {faq.a}
+                </div>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      <section className="px-6 py-32">
+        <div className="max-w-5xl mx-auto">
+          <div className="glass-card p-12 md:p-20 rounded-[4rem] border border-white/10 text-center relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-600/20 to-blue-600/20 blur-[100px]" />
+            <div className="relative z-10">
+              <SectionTitle>Ready to <span className="text-orange-500">Look Up?</span></SectionTitle>
+              <p className="text-xl text-white/70 font-light mb-12 max-w-2xl mx-auto">
+                Join the global network of stargazers and never miss a celestial event again. The universe is waiting.
+              </p>
+              <div className="flex flex-col md:flex-row items-center justify-center gap-6">
+                <Link to="/globe" className="w-full md:w-auto px-12 py-6 bg-white text-black rounded-2xl text-xs font-bold tracking-[0.2em] uppercase hover:bg-gray-200 transition-all flex items-center justify-center space-x-3">
+                  <span>Launch 3D Globe</span>
+                </Link>
+                <Link to="/live" className="w-full md:w-auto px-12 py-6 glass border border-white/10 text-white rounded-2xl text-xs font-bold tracking-[0.2em] uppercase hover:bg-white/5 transition-all flex items-center justify-center space-x-3">
+                  <span>View Live Reports</span>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </motion.div>
   );
 };
