@@ -17,6 +17,7 @@ interface SatelliteData {
 const CesiumGlobe: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Cesium.Viewer | null>(null);
+  const handlerRef = useRef<Cesium.ScreenSpaceEventHandler | null>(null);
   const [activeTab, setActiveTab] = useState<'satellites' | 'debris' | 'meteors' | 'ufo'>('satellites');
   const [loading, setLoading] = useState(true);
   const [satellites, setSatellites] = useState<SatelliteData[]>([]);
@@ -96,32 +97,37 @@ const CesiumGlobe: React.FC = () => {
 
     const initCesium = async () => {
       try {
+        // Disable Ion to prevent unnecessary network requests and potential crashes
+        Cesium.Ion.defaultAccessToken = '';
+
         // Initialize Cesium Viewer
         const viewer = new Cesium.Viewer(containerRef.current!, {
           terrainProvider: undefined,
           baseLayerPicker: false,
           geocoder: false,
           homeButton: false,
-          infoBox: true,
+          infoBox: false, // Reduced overhead
           navigationHelpButton: false,
           sceneModePicker: false,
           timeline: false,
           animation: false,
-          selectionIndicator: true,
+          selectionIndicator: false, // Custom logic used instead
           fullscreenButton: false,
         });
 
-        // Use a more reliable imagery provider as fallback
+        // Use a more reliable imagery provider
         try {
           const imageryProvider = await Cesium.ArcGisMapServerImageryProvider.fromUrl(
             'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer'
           );
+          viewer.imageryLayers.removeAll(); // Clear defaults
           viewer.imageryLayers.addImageryProvider(imageryProvider);
         } catch (e) {
           console.warn('Failed to load ArcGIS imagery, falling back to OSM');
           const osmProvider = new Cesium.OpenStreetMapImageryProvider({
             url: 'https://a.tile.openstreetmap.org/'
           });
+          viewer.imageryLayers.removeAll();
           viewer.imageryLayers.addImageryProvider(osmProvider);
         }
 
@@ -136,7 +142,8 @@ const CesiumGlobe: React.FC = () => {
 
         // Setup click handler for selection
         const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-      handler.setInputAction((movement: any) => {
+        handlerRef.current = handler;
+        handler.setInputAction((movement: any) => {
         const pickedObject = viewer.scene.pick(movement.position);
         if (Cesium.defined(pickedObject) && pickedObject.id instanceof Cesium.Entity) {
           const entity = pickedObject.id;
@@ -188,6 +195,10 @@ const CesiumGlobe: React.FC = () => {
 
     return () => {
       clearInterval(refreshInterval);
+      if (handlerRef.current) {
+        handlerRef.current.destroy();
+        handlerRef.current = null;
+      }
       if (viewerRef.current) {
         viewerRef.current.destroy();
         viewerRef.current = null;
@@ -220,8 +231,16 @@ const CesiumGlobe: React.FC = () => {
     if (!viewerRef.current) return;
     const viewer = viewerRef.current;
 
-    // Clear existing entities
-    entitiesRef.current.forEach(entity => viewer.entities.remove(entity));
+    // Clear existing entities safely
+    try {
+      entitiesRef.current.forEach(entity => {
+        if (Cesium.defined(entity) && viewer.entities.contains(entity)) {
+          viewer.entities.remove(entity);
+        }
+      });
+    } catch (e) {
+      console.warn('Error clearing entities:', e);
+    }
     entitiesRef.current = [];
 
     // Clear selections when switching tabs to prevent stale state
@@ -330,260 +349,280 @@ const CesiumGlobe: React.FC = () => {
     const viewer = viewerRef.current;
     const now = new Date();
 
-    data.slice(0, 500).forEach(sat => { // Limit to 500 for performance
-      try {
-        const satrec = satellite.twoline2satrec(sat.line1, sat.line2);
-        const positionAndVelocity = satellite.propagate(satrec, now);
-        
-        if (typeof positionAndVelocity.position !== 'object') return;
+    viewer.entities.suspendEvents();
+    try {
+      data.slice(0, 500).forEach(sat => { // Limit to 500 for performance
+        try {
+          const satrec = satellite.twoline2satrec(sat.line1, sat.line2);
+          const positionAndVelocity = satellite.propagate(satrec, now);
+          
+          if (typeof positionAndVelocity.position !== 'object') return;
 
-        const gmst = satellite.gstime(now);
-        const positionGd = satellite.eciToGeodetic(positionAndVelocity.position as satellite.EciVec3<number>, gmst);
-        
-        const longitude = satellite.degreesLong(positionGd.longitude);
-        const latitude = satellite.degreesLat(positionGd.latitude);
-        const height = positionGd.height * 1000;
+          const gmst = satellite.gstime(now);
+          const positionGd = satellite.eciToGeodetic(positionAndVelocity.position as satellite.EciVec3<number>, gmst);
+          
+          const longitude = satellite.degreesLong(positionGd.longitude);
+          const latitude = satellite.degreesLat(positionGd.latitude);
+          const height = positionGd.height * 1000;
 
-        if (isNaN(longitude) || isNaN(latitude)) return;
+          if (isNaN(longitude) || isNaN(latitude) || isNaN(height)) return;
 
-        const entity = viewer.entities.add({
-          name: sat.name,
-          position: Cesium.Cartesian3.fromDegrees(longitude, latitude, height),
-          point: {
-            pixelSize: 4,
-            color: color,
-            outlineColor: Cesium.Color.BLACK,
-            outlineWidth: 1,
-          },
-          properties: new Cesium.PropertyBag({
+          const entity = viewer.entities.add({
             name: sat.name,
-            line1: sat.line1,
-            line2: sat.line2,
-            inclination: sat.inclination,
-            eccentricity: sat.eccentricity
-          }),
-          description: `TLE Line 1: ${sat.line1}<br/>TLE Line 2: ${sat.line2}`,
-        });
-        entitiesRef.current.push(entity);
-      } catch (e) {
-        // Skip invalid TLEs
-      }
-    });
+            position: Cesium.Cartesian3.fromDegrees(longitude, latitude, height),
+            point: {
+              pixelSize: 6,
+              color: color,
+              outlineColor: Cesium.Color.WHITE,
+              outlineWidth: 1,
+            },
+            properties: new Cesium.PropertyBag({
+              ...sat,
+              type: 'satellite'
+            }),
+            description: `
+              <div style="font-family: sans-serif; padding: 10px;">
+                <h3 style="color: #38bdf8;">${sat.name}</h3>
+                <p><b>Inclination:</b> ${sat.inclination}°</p>
+                <p><b>Eccentricity:</b> ${sat.eccentricity}</p>
+                <p><b>Source:</b> CelesTrak Live</p>
+              </div>
+            `
+          });
+          entitiesRef.current.push(entity);
+        } catch (e) {
+          // Skip invalid TLEs
+        }
+      });
+    } finally {
+      viewer.entities.resumeEvents();
+    }
   };
 
   const renderMeteors = () => {
     if (!viewerRef.current) return;
     const viewer = viewerRef.current;
     const now = new Date();
+    const startTime = Cesium.JulianDate.fromDate(now);
     const gmst = satellite.gstime(now);
     const gmstDeg = (gmst * 180) / Math.PI;
 
-    // Use real data from our meteorShowers.json
-    // Mapping constellation to approximate RA/Dec for visualization
-    const constellationCoords: Record<string, { ra: number, dec: number }> = {
-      'Bootes': { ra: 230, dec: 49 },
-      'Lyra': { ra: 271, dec: 34 },
-      'Aquarius': { ra: 330, dec: -10 },
-      'Perseus': { ra: 48, dec: 58 },
-      'Orion': { ra: 88, dec: 15 },
-      'Leo': { ra: 153, dec: 22 },
-      'Gemini': { ra: 112, dec: 33 },
-      'Ursa Minor': { ra: 230, dec: 75 }
-    };
-
-    meteorShowersData.forEach(shower => {
-      const coords = constellationCoords[shower.constellation] || { ra: 0, dec: 0 };
-      const showerStart = new Date(shower.start);
-      const showerEnd = new Date(shower.end);
-      const isActive = now >= showerStart && now <= showerEnd;
-      
-      // Dynamic color based on ZHR intensity
-      const getIntensityColor = (zhr: number) => {
-        if (zhr > 100) return Cesium.Color.WHITE;
-        if (zhr > 70) return Cesium.Color.YELLOW;
-        if (zhr > 40) return Cesium.Color.ORANGE;
-        if (zhr > 20) return Cesium.Color.AQUA;
-        return Cesium.Color.SKYBLUE;
+    viewer.entities.suspendEvents();
+    try {
+      const constellationCoords: Record<string, { ra: number, dec: number }> = {
+        'Bootes': { ra: 230, dec: 49 },
+        'Lyra': { ra: 271, dec: 34 },
+        'Aquarius': { ra: 330, dec: -10 },
+        'Perseus': { ra: 48, dec: 58 },
+        'Orion': { ra: 88, dec: 15 },
+        'Leo': { ra: 153, dec: 22 },
+        'Gemini': { ra: 112, dec: 33 },
+        'Ursa Minor': { ra: 230, dec: 75 }
       };
 
-      const color = isActive ? getIntensityColor(shower.zhr) : (shower.zhr > 50 ? Cesium.Color.ORANGE : Cesium.Color.AQUA);
+      meteorShowersData.forEach(shower => {
+        const coords = constellationCoords[shower.constellation] || { ra: 0, dec: 0 };
+        const showerStart = new Date(shower.start);
+        const showerEnd = new Date(shower.end);
+        const isActive = now >= showerStart && now <= showerEnd;
+        
+        const getIntensityColor = (zhr: number) => {
+          if (zhr > 100) return Cesium.Color.WHITE;
+          if (zhr > 70) return Cesium.Color.YELLOW;
+          if (zhr > 40) return Cesium.Color.ORANGE;
+          if (zhr > 20) return Cesium.Color.AQUA;
+          return Cesium.Color.SKYBLUE;
+        };
 
-      // Convert RA/Dec to current Lat/Lon on Earth
-      let lon = coords.ra - gmstDeg;
-      while (lon < -180) lon += 360;
-      while (lon > 180) lon -= 360;
-      const lat = coords.dec;
+        const color = isActive ? getIntensityColor(shower.zhr) : (shower.zhr > 50 ? Cesium.Color.ORANGE : Cesium.Color.AQUA);
 
-      const radiantPos = Cesium.Cartesian3.fromDegrees(lon, lat, 2000000);
-      if (!Cesium.defined(radiantPos)) return;
+        let lon = coords.ra - gmstDeg;
+        while (lon < -180) lon += 360;
+        while (lon > 180) lon -= 360;
+        const lat = coords.dec;
 
-      // Radiant Point (High Altitude)
-      const radiant = viewer.entities.add({
-        name: `${shower.name} Radiant`,
-        position: radiantPos,
-        point: {
-          pixelSize: isActive ? 12 : 8,
-          color: color,
-          outlineColor: Cesium.Color.WHITE,
-          outlineWidth: isActive ? 3 : 2,
-        },
-        properties: new Cesium.PropertyBag({
-          type: 'meteor',
-          data: shower
-        }),
-        label: {
-          text: isActive ? `LIVE: ${shower.name}` : shower.name,
-          font: isActive ? 'bold 16px Space Grotesk, sans-serif' : '14px Space Grotesk, sans-serif',
-          fillColor: isActive ? Cesium.Color.YELLOW : Cesium.Color.WHITE,
-          outlineColor: Cesium.Color.BLACK,
-          outlineWidth: 2,
-          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-          pixelOffset: new Cesium.Cartesian2(0, -15),
-          distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 50000000),
-        },
-        description: `
-          <div style="font-family: sans-serif; padding: 10px;">
-            <h3 style="color: #f97316;">${shower.name} Meteor Shower</h3>
-            <p><b>Status:</b> ${isActive ? '<span style="color: #22c55e;">ACTIVE NOW</span>' : 'Inactive'}</p>
-            <p><b>Peak Date:</b> ${new Date(shower.peak).toLocaleDateString()}</p>
-            <p><b>Intensity:</b> ${shower.zhr} ZHR</p>
-            <p><b>Parent Body:</b> ${shower.parent}</p>
-            <p><b>Source:</b> International Meteor Organization (IMO)</p>
-          </div>
-        `
-      });
-      entitiesRef.current.push(radiant);
+        const radiantPos = Cesium.Cartesian3.fromDegrees(lon, lat, 2000000);
+        if (!Cesium.defined(radiantPos)) return;
 
-      // Dynamic Meteor Streaks
-      // Show streaks for active showers, or a very low chance for inactive ones near their peak
-      const isNearPeak = Math.abs(now.getTime() - new Date(shower.peak).getTime()) < 3 * 24 * 60 * 60 * 1000;
-      
-      if (isActive || isNearPeak) {
-        // Density based on ZHR and status
-        const isMajor = shower.zhr > 50;
-        const intensityMultiplier = isActive ? (isMajor ? 2.5 : 1.5) : 0.5;
-        const meteorCount = Math.floor(Math.max(2, (shower.zhr / 8)) * intensityMultiplier);
+        const radiant = viewer.entities.add({
+          name: `${shower.name} Radiant`,
+          position: radiantPos,
+          point: {
+            pixelSize: isActive ? 12 : 8,
+            color: color,
+            outlineColor: Cesium.Color.WHITE,
+            outlineWidth: isActive ? 3 : 2,
+          },
+          properties: new Cesium.PropertyBag({
+            type: 'meteor',
+            data: shower
+          }),
+          label: {
+            text: isActive ? `LIVE: ${shower.name}` : shower.name,
+            font: isActive ? 'bold 16px Space Grotesk, sans-serif' : '14px Space Grotesk, sans-serif',
+            fillColor: isActive ? Cesium.Color.YELLOW : Cesium.Color.WHITE,
+            outlineColor: Cesium.Color.BLACK,
+            outlineWidth: 2,
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+            pixelOffset: new Cesium.Cartesian2(0, -15),
+            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 50000000),
+          },
+          description: `
+            <div style="font-family: sans-serif; padding: 10px;">
+              <h3 style="color: #f97316;">${shower.name} Meteor Shower</h3>
+              <p><b>Status:</b> ${isActive ? '<span style="color: #22c55e;">ACTIVE NOW</span>' : 'Inactive'}</p>
+              <p><b>Peak Date:</b> ${new Date(shower.peak).toLocaleDateString()}</p>
+              <p><b>Intensity:</b> ${shower.zhr} ZHR</p>
+              <p><b>Parent Body:</b> ${shower.parent}</p>
+              <p><b>Source:</b> International Meteor Organization (IMO)</p>
+            </div>
+          `
+        });
+        entitiesRef.current.push(radiant);
 
-        for (let i = 0; i < meteorCount; i++) {
-          const startTime = Cesium.JulianDate.fromDate(now);
-          const duration = (0.15 + Math.random() * 0.45) * (1 - Math.min(shower.zhr / 400, 0.7)); 
-          const delay = Math.random() * 30; 
-          const startPos = Cesium.Cartesian3.fromDegrees(lon, lat, 2000000);
-          
-          const angle = Math.random() * Math.PI * 2;
-          const distBase = isActive ? (isMajor ? 40 : 25) : 15;
-          const dist = (distBase + Math.random() * 30) * (1 + Math.min(shower.zhr / 100, 2.0));
-          const endLon = lon + Math.cos(angle) * dist;
-          const endLat = lat + Math.sin(angle) * dist;
-          const endPos = Cesium.Cartesian3.fromDegrees(endLon, endLat, 100000);
+        const isNearPeak = Math.abs(now.getTime() - new Date(shower.peak).getTime()) < 3 * 24 * 60 * 60 * 1000;
+        
+        if (isActive || isNearPeak) {
+          const isMajor = shower.zhr > 50;
+          const intensityMultiplier = isActive ? (isMajor ? 2.5 : 1.5) : 0.5;
+          const meteorCount = Math.floor(Math.max(2, (shower.zhr / 8)) * intensityMultiplier);
 
-          if (!Cesium.defined(startPos) || !Cesium.defined(endPos)) continue;
+          for (let i = 0; i < meteorCount; i++) {
+            const duration = (0.15 + Math.random() * 0.45) * (1 - Math.min(shower.zhr / 400, 0.7)); 
+            const delay = Math.random() * 30; 
+            const startPos = Cesium.Cartesian3.fromDegrees(lon, lat, 2000000);
+            
+            const angle = Math.random() * Math.PI * 2;
+            const distBase = isActive ? (isMajor ? 40 : 25) : 15;
+            const dist = (distBase + Math.random() * 30) * (1 + Math.min(shower.zhr / 100, 2.0));
+            const endLon = lon + Math.cos(angle) * dist;
+            const endLat = lat + Math.sin(angle) * dist;
+            const endPos = Cesium.Cartesian3.fromDegrees(endLon, endLat, 100000);
 
-          const streakColor = Cesium.Color.lerp(color, Cesium.Color.WHITE, 0.4, new Cesium.Color());
+            if (!Cesium.defined(startPos) || !Cesium.defined(endPos)) continue;
 
-          // Color intensity and width based on ZHR
-          const glowPower = isActive ? 0.6 + (shower.zhr / 100) : 0.4;
-          const streakWidth = isActive ? 6 + (shower.zhr / 30) : 4;
+            const streakColor = Cesium.Color.lerp(color, Cesium.Color.WHITE, 0.4, new Cesium.Color());
+            const glowPower = isActive ? 0.6 + (shower.zhr / 100) : 0.4;
+            const streakWidth = isActive ? 6 + (shower.zhr / 30) : 4;
 
-          const meteor = viewer.entities.add({
-            polyline: {
-              positions: new Cesium.CallbackProperty((time) => {
-                if (!Cesium.defined(startPos) || !Cesium.defined(endPos)) return [];
-                const diff = Cesium.JulianDate.secondsDifference(time, startTime);
-                const t = ((diff + delay) % 30) / duration;
-                if (t < 0 || t > 1) return [];
-                
-                const currentPos = Cesium.Cartesian3.lerp(startPos, endPos, t, new Cesium.Cartesian3());
-                // Trail length (visual length of the streak) varies by ZHR
-                const trailLength = 0.3 + (shower.zhr / 300);
-                const trailPos = Cesium.Cartesian3.lerp(startPos, endPos, Math.max(0, t - trailLength), new Cesium.Cartesian3());
-                
-                if (!Cesium.defined(currentPos) || !Cesium.defined(trailPos)) return [];
-                return [trailPos, currentPos];
-              }, false),
-              width: streakWidth,
-              material: new Cesium.PolylineGlowMaterialProperty({
-                glowPower: glowPower,
-                color: streakColor.withAlpha(isActive ? 0.98 : 0.6),
-              }),
-            }
-          });
-          entitiesRef.current.push(meteor);
+            const meteor = viewer.entities.add({
+              polyline: {
+                positions: new Cesium.CallbackProperty((time) => {
+                  try {
+                    if (!Cesium.defined(startPos) || !Cesium.defined(endPos) || !Cesium.defined(time)) return [];
+                    const diff = Cesium.JulianDate.secondsDifference(time, startTime);
+                    const t = ((diff + delay) % 30) / duration;
+                    if (t < 0 || t > 1) return [];
+                    
+                    const currentPos = Cesium.Cartesian3.lerp(startPos, endPos, t, new Cesium.Cartesian3());
+                    const trailLength = 0.3 + (shower.zhr / 300);
+                    const trailPos = Cesium.Cartesian3.lerp(startPos, endPos, Math.max(0, t - trailLength), new Cesium.Cartesian3());
+                    
+                    if (!Cesium.defined(currentPos) || !Cesium.defined(trailPos)) return [];
+                    return [trailPos, currentPos];
+                  } catch (e) {
+                    return [];
+                  }
+                }, false),
+                width: streakWidth,
+                material: new Cesium.PolylineGlowMaterialProperty({
+                  glowPower: glowPower,
+                  color: streakColor.withAlpha(isActive ? 0.98 : 0.6),
+                }),
+              }
+            });
+            entitiesRef.current.push(meteor);
+          }
         }
-      }
-    });
+      });
+    } finally {
+      viewer.entities.resumeEvents();
+    }
   };
 
   const renderUFOs = () => {
     if (!viewerRef.current) return;
     const viewer = viewerRef.current;
     
-    // Generate dynamic "recent" UFO reports based on current time
-    const locations = [
-      { name: 'Roswell, NM', lat: 33.3943, lon: -104.5230 },
-      { name: 'Area 51, NV', lat: 37.2431, lon: -115.7930 },
-      { name: 'Rendlesham Forest, UK', lat: 52.0911, lon: 1.4392 },
-      { name: 'Bonnybridge, Scotland', lat: 56.0028, lon: -3.8886 },
-      { name: 'Wycliffe Well, Australia', lat: -20.7781, lon: 134.2344 },
-      { name: 'Varginha, Brazil', lat: -21.5517, lon: -45.4303 },
-    ];
+    viewer.entities.suspendEvents();
+    try {
+      const locations = [
+        { name: 'Roswell, NM', lat: 33.3943, lon: -104.5230 },
+        { name: 'Area 51, NV', lat: 37.2431, lon: -115.7930 },
+        { name: 'Rendlesham Forest, UK', lat: 52.0911, lon: 1.4392 },
+        { name: 'Bonnybridge, Scotland', lat: 56.0028, lon: -3.8886 },
+        { name: 'Wycliffe Well, Australia', lat: -20.7781, lon: 134.2344 },
+        { name: 'Varginha, Brazil', lat: -21.5517, lon: -45.4303 },
+      ];
 
-    locations.forEach((loc, i) => {
-      const entity = viewer.entities.add({
-        name: `UFO Sighting: ${loc.name}`,
-        position: Cesium.Cartesian3.fromDegrees(loc.lon, loc.lat, 50000),
-        point: {
-          pixelSize: 10,
-          color: Cesium.Color.LIME,
-          outlineColor: Cesium.Color.WHITE,
-          outlineWidth: 2,
-        },
-        label: {
-          text: 'UNIDENTIFIED SIGNAL',
-          font: '10px Space Grotesk, sans-serif',
-          fillColor: Cesium.Color.LIME,
-          outlineColor: Cesium.Color.BLACK,
-          outlineWidth: 2,
-          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-          pixelOffset: new Cesium.Cartesian2(0, -15),
-        },
-        properties: new Cesium.PropertyBag({
-          type: 'ufo',
-          data: { ...loc, timestamp: new Date(Date.now() - i * 3600000).toLocaleString() }
-        }),
-        description: `
-          <div style="font-family: sans-serif; padding: 10px;">
-            <h3 style="color: #22c55e;">UFO Sighting Report</h3>
-            <p><b>Location:</b> ${loc.name}</p>
-            <p><b>Timestamp:</b> ${new Date(Date.now() - i * 3600000).toLocaleString()}</p>
-            <p><b>Status:</b> Unverified Signal Detected</p>
-            <p><b>Data Source:</b> Open UFO Dataset (NUFORC Archive)</p>
-          </div>
-        `
-      });
-      entitiesRef.current.push(entity);
+      locations.forEach((loc, i) => {
+        const entity = viewer.entities.add({
+          name: `UFO Sighting: ${loc.name}`,
+          position: Cesium.Cartesian3.fromDegrees(loc.lon, loc.lat, 50000),
+          point: {
+            pixelSize: 10,
+            color: Cesium.Color.LIME,
+            outlineColor: Cesium.Color.WHITE,
+            outlineWidth: 2,
+          },
+          label: {
+            text: 'UNIDENTIFIED SIGNAL',
+            font: '10px Space Grotesk, sans-serif',
+            fillColor: Cesium.Color.LIME,
+            outlineColor: Cesium.Color.BLACK,
+            outlineWidth: 2,
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+            pixelOffset: new Cesium.Cartesian2(0, -15),
+          },
+          properties: new Cesium.PropertyBag({
+            type: 'ufo',
+            data: { ...loc, timestamp: new Date(Date.now() - i * 3600000).toLocaleString() }
+          }),
+          description: `
+            <div style="font-family: sans-serif; padding: 10px;">
+              <h3 style="color: #22c55e;">UFO Sighting Report</h3>
+              <p><b>Location:</b> ${loc.name}</p>
+              <p><b>Timestamp:</b> ${new Date(Date.now() - i * 3600000).toLocaleString()}</p>
+              <p><b>Status:</b> Unverified Signal Detected</p>
+              <p><b>Data Source:</b> Open UFO Dataset (NUFORC Archive)</p>
+            </div>
+          `
+        });
+        entitiesRef.current.push(entity);
 
-      // Add a pulsing effect
-      const pulseEntity = viewer.entities.add({
-        position: Cesium.Cartesian3.fromDegrees(loc.lon, loc.lat, 50000),
-        ellipse: {
-          semiMinorAxis: new Cesium.CallbackProperty((time) => {
-            const val = 50000 + Math.sin(time.secondsOfDay * 2) * 20000;
-            return Math.max(1, val);
-          }, false),
-          semiMajorAxis: new Cesium.CallbackProperty((time) => {
-            const val = 50000 + Math.sin(time.secondsOfDay * 2) * 20000;
-            return Math.max(1, val);
-          }, false),
-          material: Cesium.Color.LIME.withAlpha(0.1),
-          outline: true,
-          outlineColor: Cesium.Color.LIME.withAlpha(0.3),
-        }
+        const pulseEntity = viewer.entities.add({
+          position: Cesium.Cartesian3.fromDegrees(loc.lon, loc.lat, 50000),
+          ellipse: {
+            semiMinorAxis: new Cesium.CallbackProperty((time) => {
+              try {
+                if (!Cesium.defined(time)) return 1;
+                const val = 50000 + Math.sin(time.secondsOfDay * 2) * 20000;
+                return Math.max(1, val);
+              } catch (e) {
+                return 1;
+              }
+            }, false),
+            semiMajorAxis: new Cesium.CallbackProperty((time) => {
+              try {
+                if (!Cesium.defined(time)) return 1;
+                const val = 50000 + Math.sin(time.secondsOfDay * 2) * 20000;
+                return Math.max(1, val);
+              } catch (e) {
+                return 1;
+              }
+            }, false),
+            material: Cesium.Color.LIME.withAlpha(0.1),
+            outline: true,
+            outlineColor: Cesium.Color.LIME.withAlpha(0.3),
+          }
+        });
+        entitiesRef.current.push(pulseEntity);
       });
-      entitiesRef.current.push(pulseEntity);
-    });
+    } finally {
+      viewer.entities.resumeEvents();
+    }
   };
 
   return (
