@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as Cesium from 'cesium';
 import * as satellite from 'satellite.js';
 import { motion, AnimatePresence } from 'motion/react';
-import { Satellite, Trash2, Sparkles, Loader2, Info, Globe, Eye, X as CloseIcon } from 'lucide-react';
+import { Satellite, Trash2, Sparkles, Loader2, Info, Globe, Eye, X as CloseIcon, ExternalLink } from 'lucide-react';
+import meteorShowersData from '../data/meteorShowers.json';
 
 interface SatelliteData {
   name: string;
@@ -249,21 +250,28 @@ const CesiumGlobe: React.FC = () => {
     const gmst = satellite.gstime(now);
     const gmstDeg = (gmst * 180) / Math.PI;
 
-    // Accurate RA/Dec for major meteor showers
-    const showers = [
-      { name: 'Perseids', ra: 48, dec: 58, color: Cesium.Color.YELLOW, intensity: 100 },
-      { name: 'Geminids', ra: 112, dec: 33, color: Cesium.Color.ORANGE, intensity: 120 },
-      { name: 'Leonids', ra: 153, dec: 22, color: Cesium.Color.WHITE, intensity: 15 },
-      { name: 'Lyrids', ra: 271, dec: 34, color: Cesium.Color.AQUA, intensity: 18 },
-      { name: 'Quadrantids', ra: 230, dec: 49, color: Cesium.Color.LIME, intensity: 110 },
-    ];
+    // Use real data from our meteorShowers.json
+    // Mapping constellation to approximate RA/Dec for visualization
+    const constellationCoords: Record<string, { ra: number, dec: number }> = {
+      'Bootes': { ra: 230, dec: 49 },
+      'Lyra': { ra: 271, dec: 34 },
+      'Aquarius': { ra: 330, dec: -10 },
+      'Perseus': { ra: 48, dec: 58 },
+      'Orion': { ra: 88, dec: 15 },
+      'Leo': { ra: 153, dec: 22 },
+      'Gemini': { ra: 112, dec: 33 },
+      'Ursa Minor': { ra: 230, dec: 75 }
+    };
 
-    showers.forEach(shower => {
+    meteorShowersData.forEach(shower => {
+      const coords = constellationCoords[shower.constellation] || { ra: 0, dec: 0 };
+      const color = shower.zhr > 50 ? Cesium.Color.ORANGE : Cesium.Color.AQUA;
+
       // Convert RA/Dec to current Lat/Lon on Earth
-      let lon = shower.ra - gmstDeg;
+      let lon = coords.ra - gmstDeg;
       while (lon < -180) lon += 360;
       while (lon > 180) lon -= 360;
-      const lat = shower.dec;
+      const lat = coords.dec;
 
       // Radiant Point (High Altitude)
       const radiant = viewer.entities.add({
@@ -271,7 +279,7 @@ const CesiumGlobe: React.FC = () => {
         position: Cesium.Cartesian3.fromDegrees(lon, lat, 2000000),
         point: {
           pixelSize: 8,
-          color: shower.color,
+          color: color,
           outlineColor: Cesium.Color.WHITE,
           outlineWidth: 2,
         },
@@ -286,47 +294,52 @@ const CesiumGlobe: React.FC = () => {
           pixelOffset: new Cesium.Cartesian2(0, -15),
           distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 50000000),
         },
+        description: `
+          <div style="font-family: sans-serif; padding: 10px;">
+            <h3 style="color: #f97316;">${shower.name} Meteor Shower</h3>
+            <p><b>Peak Date:</b> ${new Date(shower.peak).toLocaleDateString()}</p>
+            <p><b>Intensity:</b> ${shower.zhr} ZHR</p>
+            <p><b>Parent Body:</b> ${shower.parent}</p>
+            <p><b>Source:</b> International Meteor Organization (IMO)</p>
+          </div>
+        `
       });
       entitiesRef.current.push(radiant);
 
-      // Dynamic Meteor Streaks
-      // We create a few "shooting stars" that originate from the radiant
-      for (let i = 0; i < 5; i++) {
-        const startTime = Cesium.JulianDate.fromDate(now);
-        const duration = 1.0 + Math.random() * 2.0;
-        const delay = Math.random() * 10;
-        
-        const startPos = Cesium.Cartesian3.fromDegrees(lon, lat, 2000000);
-        
-        // Random direction away from radiant
-        const angle = Math.random() * Math.PI * 2;
-        const dist = 5 + Math.random() * 15;
-        const endLon = lon + Math.cos(angle) * dist;
-        const endLat = lat + Math.sin(angle) * dist;
-        const endPos = Cesium.Cartesian3.fromDegrees(endLon, endLat, 100000);
+      // Dynamic Meteor Streaks for active showers
+      const showerStart = new Date(shower.start);
+      const showerEnd = new Date(shower.end);
+      if (now >= showerStart && now <= showerEnd) {
+        for (let i = 0; i < 3; i++) {
+          const startTime = Cesium.JulianDate.fromDate(now);
+          const duration = 1.0 + Math.random() * 2.0;
+          const delay = Math.random() * 10;
+          const startPos = Cesium.Cartesian3.fromDegrees(lon, lat, 2000000);
+          const angle = Math.random() * Math.PI * 2;
+          const dist = 5 + Math.random() * 15;
+          const endLon = lon + Math.cos(angle) * dist;
+          const endLat = lat + Math.sin(angle) * dist;
+          const endPos = Cesium.Cartesian3.fromDegrees(endLon, endLat, 100000);
 
-        const meteor = viewer.entities.add({
-          polyline: {
-            positions: new Cesium.CallbackProperty((time) => {
-              const diff = Cesium.JulianDate.secondsDifference(time, startTime);
-              const t = ((diff + delay) % 10) / duration;
-              
-              if (t < 0 || t > 1) return [];
-
-              // Interpolate position
-              const currentPos = Cesium.Cartesian3.lerp(startPos, endPos, t, new Cesium.Cartesian3());
-              const trailPos = Cesium.Cartesian3.lerp(startPos, endPos, Math.max(0, t - 0.1), new Cesium.Cartesian3());
-              
-              return [trailPos, currentPos];
-            }, false),
-            width: 3,
-            material: new Cesium.PolylineGlowMaterialProperty({
-              glowPower: 0.3,
-              color: shower.color.withAlpha(0.8),
-            }),
-          }
-        });
-        entitiesRef.current.push(meteor);
+          const meteor = viewer.entities.add({
+            polyline: {
+              positions: new Cesium.CallbackProperty((time) => {
+                const diff = Cesium.JulianDate.secondsDifference(time, startTime);
+                const t = ((diff + delay) % 10) / duration;
+                if (t < 0 || t > 1) return [];
+                const currentPos = Cesium.Cartesian3.lerp(startPos, endPos, t, new Cesium.Cartesian3());
+                const trailPos = Cesium.Cartesian3.lerp(startPos, endPos, Math.max(0, t - 0.1), new Cesium.Cartesian3());
+                return [trailPos, currentPos];
+              }, false),
+              width: 3,
+              material: new Cesium.PolylineGlowMaterialProperty({
+                glowPower: 0.3,
+                color: color.withAlpha(0.8),
+              }),
+            }
+          });
+          entitiesRef.current.push(meteor);
+        }
       }
     });
   };
@@ -414,23 +427,37 @@ const CesiumGlobe: React.FC = () => {
 
         <div className="flex flex-wrap gap-2">
           {[
-            { id: 'satellites', icon: Satellite, label: 'Satellites', color: 'text-cyan-400' },
-            { id: 'debris', icon: Trash2, label: 'Space Debris', color: 'text-red-400' },
-            { id: 'meteors', icon: Sparkles, label: 'Meteors', color: 'text-yellow-400' },
-            { id: 'ufo', icon: Eye, label: 'UFO Signals', color: 'text-lime-400' },
+            { id: 'satellites', icon: Satellite, label: 'Satellites', color: 'text-cyan-400', source: 'CelesTrak (Live)' },
+            { id: 'debris', icon: Trash2, label: 'Space Debris', color: 'text-red-400', source: 'CelesTrak (Live)' },
+            { id: 'meteors', icon: Sparkles, label: 'Meteors', color: 'text-yellow-400', source: 'IMO/NASA (Archive)' },
+            { id: 'ufo', icon: Eye, label: 'UFO Signals', color: 'text-lime-400', source: 'NUFORC (Historical)' },
           ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all border ${
-                activeTab === tab.id 
-                  ? 'bg-white/20 border-white/30 text-white' 
-                  : 'bg-black/40 border-white/10 text-white/60 hover:bg-white/10'
-              }`}
-            >
-              <tab.icon size={16} className={activeTab === tab.id ? tab.color : ''} />
-              <span className="text-sm font-medium">{tab.label}</span>
-            </button>
+            <div key={tab.id} className="relative group/btn">
+              <button
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex items-center gap-3 px-5 py-2.5 rounded-full transition-all border ${
+                  activeTab === tab.id 
+                    ? 'bg-white/20 border-white/30 text-white shadow-lg shadow-white/5' 
+                    : 'bg-black/40 border-white/10 text-white/60 hover:bg-white/10'
+                }`}
+              >
+                <div className="relative">
+                  <tab.icon size={16} className={activeTab === tab.id ? tab.color : ''} />
+                  {tab.source.includes('Live') && (
+                    <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse border border-black" />
+                  )}
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-[0.15em] font-mono">{tab.label}</span>
+              </button>
+              
+              {/* Source Tooltip */}
+              <div className="absolute top-full left-0 mt-2 opacity-0 group-hover/btn:opacity-100 transition-opacity pointer-events-none z-50">
+                <div className="bg-black/90 border border-white/10 px-3 py-1.5 rounded-lg text-[8px] font-bold uppercase tracking-widest text-white/40 whitespace-nowrap flex items-center gap-2">
+                  <div className="w-1 h-1 bg-white/20 rounded-full" />
+                  Source: {tab.source}
+                </div>
+              </div>
+            </div>
           ))}
         </div>
       </div>
