@@ -91,10 +91,14 @@ const CesiumGlobe: React.FC = () => {
             setSelectedMeteorShower(props.data);
             setSelectedSatellite(null);
             setSelectedUFO(null);
+            viewer.trackedEntity = undefined;
+            viewer.zoomTo(entity);
           } else if (props && props.type === 'ufo') {
             setSelectedUFO(props.data);
             setSelectedSatellite(null);
             setSelectedMeteorShower(null);
+            viewer.trackedEntity = undefined;
+            viewer.zoomTo(entity);
           } else if (props && props.line1 && props.line2) {
             setSelectedSatellite({
               name: props.name,
@@ -105,11 +109,13 @@ const CesiumGlobe: React.FC = () => {
             });
             setSelectedMeteorShower(null);
             setSelectedUFO(null);
+            viewer.trackedEntity = entity;
           }
         } else {
           setSelectedSatellite(null);
           setSelectedMeteorShower(null);
           setSelectedUFO(null);
+          viewer.trackedEntity = undefined;
         }
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
@@ -318,7 +324,16 @@ const CesiumGlobe: React.FC = () => {
       const showerEnd = new Date(shower.end);
       const isActive = now >= showerStart && now <= showerEnd;
       
-      const color = isActive ? Cesium.Color.YELLOW : (shower.zhr > 50 ? Cesium.Color.ORANGE : Cesium.Color.AQUA);
+      // Dynamic color based on ZHR intensity
+      const getIntensityColor = (zhr: number) => {
+        if (zhr > 100) return Cesium.Color.WHITE;
+        if (zhr > 70) return Cesium.Color.YELLOW;
+        if (zhr > 40) return Cesium.Color.ORANGE;
+        if (zhr > 20) return Cesium.Color.AQUA;
+        return Cesium.Color.SKYBLUE;
+      };
+
+      const color = isActive ? getIntensityColor(shower.zhr) : (shower.zhr > 50 ? Cesium.Color.ORANGE : Cesium.Color.AQUA);
 
       // Convert RA/Dec to current Lat/Lon on Earth
       let lon = coords.ra - gmstDeg;
@@ -369,33 +384,25 @@ const CesiumGlobe: React.FC = () => {
       const isNearPeak = Math.abs(now.getTime() - new Date(shower.peak).getTime()) < 3 * 24 * 60 * 60 * 1000;
       
       if (isActive || isNearPeak) {
-        // Density based on ZHR and status - more sensitive to intensity
-        // Major showers (ZHR > 50) get a significant boost in density
+        // Density based on ZHR and status
         const isMajor = shower.zhr > 50;
-        const intensityMultiplier = isActive ? (isMajor ? 2.0 : 1.2) : 0.5;
-        const meteorCount = Math.floor(Math.max(2, (shower.zhr / 10)) * intensityMultiplier);
+        const intensityMultiplier = isActive ? (isMajor ? 2.5 : 1.5) : 0.5;
+        const meteorCount = Math.floor(Math.max(2, (shower.zhr / 8)) * intensityMultiplier);
 
         for (let i = 0; i < meteorCount; i++) {
           const startTime = Cesium.JulianDate.fromDate(now);
-          // Duration varies by ZHR - more intense showers have faster, more energetic meteors
-          const duration = (0.2 + Math.random() * 0.6) * (1 - Math.min(shower.zhr / 400, 0.6)); 
+          const duration = (0.15 + Math.random() * 0.45) * (1 - Math.min(shower.zhr / 400, 0.7)); 
           const delay = Math.random() * 30; 
           const startPos = Cesium.Cartesian3.fromDegrees(lon, lat, 2000000);
           
           const angle = Math.random() * Math.PI * 2;
-          // Distance (length of the path) varies by ZHR - more intense showers have longer trails
-          const distBase = isActive ? (isMajor ? 35 : 20) : 15;
-          const dist = (distBase + Math.random() * 30) * (1 + Math.min(shower.zhr / 100, 1.5));
+          const distBase = isActive ? (isMajor ? 40 : 25) : 15;
+          const dist = (distBase + Math.random() * 30) * (1 + Math.min(shower.zhr / 100, 2.0));
           const endLon = lon + Math.cos(angle) * dist;
           const endLat = lat + Math.sin(angle) * dist;
           const endPos = Cesium.Cartesian3.fromDegrees(endLon, endLat, 100000);
 
-          // Subtle color gradient based on intensity (ZHR)
-          // Low ZHR: Aqua/Blue -> High ZHR: Yellow/Orange/White
-          const intensityFactor = Math.min(shower.zhr / 120, 1.0);
-          const baseColor = isActive ? Cesium.Color.YELLOW : Cesium.Color.AQUA;
-          const hotColor = Cesium.Color.WHITE;
-          const streakColor = Cesium.Color.lerp(baseColor, hotColor, intensityFactor * 0.5, new Cesium.Color());
+          const streakColor = Cesium.Color.lerp(color, Cesium.Color.WHITE, 0.4, new Cesium.Color());
 
           // Color intensity and width based on ZHR
           const glowPower = isActive ? 0.6 + (shower.zhr / 100) : 0.4;
@@ -477,7 +484,7 @@ const CesiumGlobe: React.FC = () => {
       entitiesRef.current.push(entity);
 
       // Add a pulsing effect
-      viewer.entities.add({
+      const pulseEntity = viewer.entities.add({
         position: Cesium.Cartesian3.fromDegrees(loc.lon, loc.lat, 50000),
         ellipse: {
           semiMinorAxis: new Cesium.CallbackProperty((time) => {
@@ -491,6 +498,7 @@ const CesiumGlobe: React.FC = () => {
           outlineColor: Cesium.Color.LIME.withAlpha(0.3),
         }
       });
+      entitiesRef.current.push(pulseEntity);
     });
   };
 
