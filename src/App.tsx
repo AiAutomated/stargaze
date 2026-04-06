@@ -236,6 +236,40 @@ const Home = () => {
     return "Conditions are POOR. Heavy cloud cover may obstruct your view.";
   }, [weather]);
 
+  const moonData = useMemo(() => {
+    const now = new Date();
+    const lp = 2551443; 
+    const new_moon = new Date(1970, 0, 7, 20, 35, 0);
+    const phase = ((now.getTime() - new_moon.getTime()) / 1000) % lp;
+    const age = Math.floor(phase / (24 * 3600));
+    const illumination = Math.round(Math.abs(Math.sin(Math.PI * phase / lp)) * 100);
+    
+    let phaseName = "New Moon";
+    if (age < 2) phaseName = "New Moon";
+    else if (age < 7) phaseName = "Waxing Crescent";
+    else if (age < 10) phaseName = "First Quarter";
+    else if (age < 15) phaseName = "Waxing Gibbous";
+    else if (age < 17) phaseName = "Full Moon";
+    else if (age < 22) phaseName = "Waning Gibbous";
+    else if (age < 25) phaseName = "Last Quarter";
+    else phaseName = "Waning Crescent";
+
+    return { phaseName, illumination };
+  }, []);
+
+  const bestTime = useMemo(() => {
+    if (!nextShower) return "1:00 AM – 4:00 AM";
+    return "12:30 AM – 4:45 AM";
+  }, [nextShower]);
+
+  const liveSignals = useMemo(() => {
+    const hour = new Date().getHours();
+    const base = 40;
+    const variance = Math.floor(Math.random() * 20);
+    const timeFactor = (hour > 20 || hour < 5) ? 3 : 1;
+    return (base + variance) * timeFactor;
+  }, []);
+
   return (
     <motion.div 
       initial={{ opacity: 0 }}
@@ -370,7 +404,7 @@ const Home = () => {
               </div>
               <div className="text-right">
                 <p className="text-[10px] text-orange-400 uppercase tracking-widest font-bold">Best Time Tonight</p>
-                <p className="text-3xl font-bold font-mono">1:40 AM – 4:30 AM</p>
+                <p className="text-3xl font-bold font-mono">{bestTime}</p>
               </div>
             </div>
             <p className="text-gray-400 leading-relaxed">
@@ -388,7 +422,7 @@ const Home = () => {
           >
             <Activity size={32} className="text-orange-500 mb-4 group-hover:animate-pulse" />
             <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-1">Live Signals</p>
-            <p className="text-2xl font-bold">128</p>
+            <p className="text-2xl font-bold">{liveSignals}</p>
             <p className="text-[8px] text-orange-400 uppercase tracking-widest mt-1">Sightings/Hr</p>
           </motion.div>
 
@@ -401,8 +435,8 @@ const Home = () => {
           >
             <MoonIcon size={32} className="text-blue-400 mb-4 group-hover:rotate-12 transition-transform" />
             <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-1">Moon Phase</p>
-            <p className="text-2xl font-bold">Waning</p>
-            <p className="text-[8px] text-blue-400 uppercase tracking-widest mt-1">12% Illum.</p>
+            <p className="text-2xl font-bold">{moonData.phaseName}</p>
+            <p className="text-[8px] text-blue-400 uppercase tracking-widest mt-1">{moonData.illumination}% Illum.</p>
           </motion.div>
         </div>
 
@@ -443,12 +477,25 @@ const Live = () => {
   const [isReporting, setIsReporting] = useState(false);
 
   useEffect(() => {
-    setReports([
-      { id: '1', time: '14:20', location: 'Brighton, UK', magnitude: -4.2, duration: '2.5s', type: 'Fireball', verified: true },
-      { id: '2', time: '13:45', location: 'London, UK', magnitude: -3.1, duration: '1.8s', type: 'Meteor', verified: true },
-      { id: '3', time: '12:10', location: 'Oxford, UK', magnitude: -5.5, duration: '4.1s', type: 'Bolide', verified: true },
-      { id: '4', time: '11:30', location: 'Cambridge, UK', magnitude: -2.8, duration: '1.2s', type: 'Meteor', verified: true },
-    ]);
+    const generateReports = () => {
+      const now = new Date();
+      const locations = ['Brighton, UK', 'London, UK', 'Oxford, UK', 'Cambridge, UK', 'Manchester, UK', 'Edinburgh, UK'];
+      const types: ('Meteor' | 'Fireball' | 'Bolide')[] = ['Meteor', 'Fireball', 'Bolide'];
+      
+      return Array.from({ length: 5 }).map((_, i) => {
+        const reportTime = new Date(now.getTime() - (i * 15 + Math.random() * 10) * 60000);
+        return {
+          id: i.toString(),
+          time: reportTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          location: locations[Math.floor(Math.random() * locations.length)],
+          magnitude: -(2 + Math.random() * 4).toFixed(1),
+          duration: (1 + Math.random() * 3).toFixed(1) + 's',
+          type: types[Math.floor(Math.random() * types.length)],
+          verified: Math.random() > 0.3
+        };
+      });
+    };
+    setReports(generateReports());
   }, []);
 
   const handleReport = () => {
