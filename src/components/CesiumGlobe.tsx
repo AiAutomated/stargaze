@@ -26,6 +26,12 @@ const CesiumGlobe: React.FC = () => {
   const [selectedUFO, setSelectedUFO] = useState<any | null>(null);
   const entitiesRef = useRef<Cesium.Entity[]>([]);
   const trailEntityRef = useRef<Cesium.Entity | null>(null);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -53,34 +59,47 @@ const CesiumGlobe: React.FC = () => {
     if (!containerRef.current) return;
 
     const initCesium = async () => {
-      // Initialize Cesium Viewer
-      const viewer = new Cesium.Viewer(containerRef.current!, {
-        terrainProvider: undefined, // Use default ellipsoid
-        baseLayerPicker: false,
-        geocoder: false,
-        homeButton: false,
-        infoBox: true,
-        navigationHelpButton: false,
-        sceneModePicker: false,
-        timeline: false,
-        animation: false,
-        selectionIndicator: true,
-        fullscreenButton: false,
-      });
+      try {
+        // Initialize Cesium Viewer
+        const viewer = new Cesium.Viewer(containerRef.current!, {
+          terrainProvider: undefined,
+          baseLayerPicker: false,
+          geocoder: false,
+          homeButton: false,
+          infoBox: true,
+          navigationHelpButton: false,
+          sceneModePicker: false,
+          timeline: false,
+          animation: false,
+          selectionIndicator: true,
+          fullscreenButton: false,
+        });
 
-      // Use a local or open imagery provider to avoid Ion token requirement for basic globe
-      const imageryProvider = await Cesium.TileMapServiceImageryProvider.fromUrl(
-        Cesium.buildModuleUrl('Assets/Textures/NaturalEarthII')
-      );
-      viewer.imageryLayers.addImageryProvider(imageryProvider);
+        // Use a more reliable imagery provider as fallback
+        try {
+          const imageryProvider = await Cesium.ArcGisMapServerImageryProvider.fromUrl(
+            'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer'
+          );
+          viewer.imageryLayers.addImageryProvider(imageryProvider);
+        } catch (e) {
+          console.warn('Failed to load ArcGIS imagery, falling back to OSM');
+          const osmProvider = new Cesium.OpenStreetMapImageryProvider({
+            url: 'https://a.tile.openstreetmap.org/'
+          });
+          viewer.imageryLayers.addImageryProvider(osmProvider);
+        }
 
-      // Remove credits for a cleaner look
-      (viewer.cesiumWidget.creditContainer as HTMLElement).style.display = 'none';
+        // Remove credits for a cleaner look
+        (viewer.cesiumWidget.creditContainer as HTMLElement).style.display = 'none';
 
-      viewerRef.current = viewer;
+        if (!isMounted.current) {
+          viewer.destroy();
+          return;
+        }
+        viewerRef.current = viewer;
 
-      // Setup click handler for selection
-      const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+        // Setup click handler for selection
+        const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
       handler.setInputAction((movement: any) => {
         const pickedObject = viewer.scene.pick(movement.position);
         if (Cesium.defined(pickedObject) && pickedObject.id instanceof Cesium.Entity) {
@@ -121,7 +140,10 @@ const CesiumGlobe: React.FC = () => {
 
       // Fetch data initially
       fetchData();
-    };
+    } catch (err) {
+      console.error('Cesium initialization failed:', err);
+    }
+  };
 
     initCesium();
 
@@ -166,6 +188,12 @@ const CesiumGlobe: React.FC = () => {
     entitiesRef.current.forEach(entity => viewer.entities.remove(entity));
     entitiesRef.current = [];
 
+    // Clear selections when switching tabs to prevent stale state
+    setSelectedSatellite(null);
+    setSelectedMeteorShower(null);
+    setSelectedUFO(null);
+    viewer.trackedEntity = undefined;
+
     if (activeTab === 'satellites') {
       renderSatellites(satellites, Cesium.Color.CYAN);
     } else if (activeTab === 'debris') {
@@ -179,22 +207,29 @@ const CesiumGlobe: React.FC = () => {
 
   const calculateOrbitPath = (sat: SatelliteData, durationHours: number) => {
     const points: Cesium.Cartesian3[] = [];
-    const satrec = satellite.twoline2satrec(sat.line1, sat.line2);
-    const now = new Date();
-    
-    // Calculate points every 10 minutes for requested duration
-    for (let i = 0; i <= durationHours * 60; i += 10) {
-      const time = new Date(now.getTime() + i * 60000);
-      const positionAndVelocity = satellite.propagate(satrec, time);
+    try {
+      const satrec = satellite.twoline2satrec(sat.line1, sat.line2);
+      const now = new Date();
       
-      if (typeof positionAndVelocity.position === 'object') {
-        const gmst = satellite.gstime(time);
-        const positionGd = satellite.eciToGeodetic(positionAndVelocity.position as satellite.EciVec3<number>, gmst);
-        const longitude = satellite.degreesLong(positionGd.longitude);
-        const latitude = satellite.degreesLat(positionGd.latitude);
-        const height = positionGd.height * 1000;
-        points.push(Cesium.Cartesian3.fromDegrees(longitude, latitude, height));
+      // Calculate points every 10 minutes for requested duration
+      for (let i = 0; i <= durationHours * 60; i += 10) {
+        const time = new Date(now.getTime() + i * 60000);
+        const positionAndVelocity = satellite.propagate(satrec, time);
+        
+        if (typeof positionAndVelocity.position === 'object') {
+          const gmst = satellite.gstime(time);
+          const positionGd = satellite.eciToGeodetic(positionAndVelocity.position as satellite.EciVec3<number>, gmst);
+          const longitude = satellite.degreesLong(positionGd.longitude);
+          const latitude = satellite.degreesLat(positionGd.latitude);
+          const height = positionGd.height * 1000;
+          
+          if (!isNaN(longitude) && !isNaN(latitude)) {
+            points.push(Cesium.Cartesian3.fromDegrees(longitude, latitude, height));
+          }
+        }
       }
+    } catch (e) {
+      console.error('Error calculating orbit path:', e);
     }
     return points;
   };
@@ -273,6 +308,8 @@ const CesiumGlobe: React.FC = () => {
         const latitude = satellite.degreesLat(positionGd.latitude);
         const height = positionGd.height * 1000;
 
+        if (isNaN(longitude) || isNaN(latitude)) return;
+
         const entity = viewer.entities.add({
           name: sat.name,
           position: Cesium.Cartesian3.fromDegrees(longitude, latitude, height),
@@ -341,10 +378,13 @@ const CesiumGlobe: React.FC = () => {
       while (lon > 180) lon -= 360;
       const lat = coords.dec;
 
+      const radiantPos = Cesium.Cartesian3.fromDegrees(lon, lat, 2000000);
+      if (!Cesium.defined(radiantPos)) return;
+
       // Radiant Point (High Altitude)
       const radiant = viewer.entities.add({
         name: `${shower.name} Radiant`,
-        position: Cesium.Cartesian3.fromDegrees(lon, lat, 2000000),
+        position: radiantPos,
         point: {
           pixelSize: isActive ? 12 : 8,
           color: color,
@@ -402,6 +442,8 @@ const CesiumGlobe: React.FC = () => {
           const endLat = lat + Math.sin(angle) * dist;
           const endPos = Cesium.Cartesian3.fromDegrees(endLon, endLat, 100000);
 
+          if (!Cesium.defined(startPos) || !Cesium.defined(endPos)) continue;
+
           const streakColor = Cesium.Color.lerp(color, Cesium.Color.WHITE, 0.4, new Cesium.Color());
 
           // Color intensity and width based on ZHR
@@ -411,13 +453,17 @@ const CesiumGlobe: React.FC = () => {
           const meteor = viewer.entities.add({
             polyline: {
               positions: new Cesium.CallbackProperty((time) => {
+                if (!Cesium.defined(startPos) || !Cesium.defined(endPos)) return [];
                 const diff = Cesium.JulianDate.secondsDifference(time, startTime);
                 const t = ((diff + delay) % 30) / duration;
                 if (t < 0 || t > 1) return [];
+                
                 const currentPos = Cesium.Cartesian3.lerp(startPos, endPos, t, new Cesium.Cartesian3());
                 // Trail length (visual length of the streak) varies by ZHR
                 const trailLength = 0.3 + (shower.zhr / 300);
                 const trailPos = Cesium.Cartesian3.lerp(startPos, endPos, Math.max(0, t - trailLength), new Cesium.Cartesian3());
+                
+                if (!Cesium.defined(currentPos) || !Cesium.defined(trailPos)) return [];
                 return [trailPos, currentPos];
               }, false),
               width: streakWidth,
@@ -488,10 +534,12 @@ const CesiumGlobe: React.FC = () => {
         position: Cesium.Cartesian3.fromDegrees(loc.lon, loc.lat, 50000),
         ellipse: {
           semiMinorAxis: new Cesium.CallbackProperty((time) => {
-            return 50000 + Math.sin(time.secondsOfDay * 2) * 20000;
+            const val = 50000 + Math.sin(time.secondsOfDay * 2) * 20000;
+            return Math.max(1, val);
           }, false),
           semiMajorAxis: new Cesium.CallbackProperty((time) => {
-            return 50000 + Math.sin(time.secondsOfDay * 2) * 20000;
+            const val = 50000 + Math.sin(time.secondsOfDay * 2) * 20000;
+            return Math.max(1, val);
           }, false),
           material: Cesium.Color.LIME.withAlpha(0.1),
           outline: true,
