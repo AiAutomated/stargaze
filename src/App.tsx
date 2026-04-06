@@ -6,13 +6,11 @@ import {
   Moon as MoonIcon, Sun, Star, MessageSquare, Map as MapIcon, 
   Cloud, Wind, Eye, Activity, Plus, ArrowRight, Twitter, 
   Github, Rocket, AlertTriangle, Globe, Users, 
-  Clock, Navigation, Compass, Shield, Share2, ShoppingBag, 
+  Clock, Navigation, Compass, Share2, ShoppingBag, 
   Bell, CheckCircle2, MapPin, Search, Filter,
   ShieldCheck, Zap, Database, ChevronDown
 } from 'lucide-react';
 import { useInView } from 'react-intersection-observer';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
 import Markdown from 'react-markdown';
 import CesiumGlobe from './components/CesiumGlobe';
 import meteorShowers from './data/meteorShowers.json';
@@ -40,6 +38,29 @@ interface SightingReport {
   type: string;
   verified: boolean;
 }
+
+interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning';
+  timestamp: number;
+}
+
+interface WatchlistContextType {
+  watchlist: string[];
+  toggleWatchlist: (id: string) => void;
+  notifications: Notification[];
+  dismissNotification: (id: string) => void;
+}
+
+const WatchlistContext = React.createContext<WatchlistContextType | null>(null);
+
+const useWatchlist = () => {
+  const context = React.useContext(WatchlistContext);
+  if (!context) throw new Error('useWatchlist must be used within a WatchlistProvider');
+  return context;
+};
 
 // --- Hooks ---
 
@@ -298,7 +319,7 @@ const Home = () => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="relative min-h-screen pt-32 pb-20 overflow-x-hidden"
+      className="relative min-h-screen pt-36 pb-20 overflow-x-hidden"
     >
       {/* Hero Section */}
       <section className="relative px-6 mb-32">
@@ -488,7 +509,7 @@ const Home = () => {
               <div className="space-y-8">
                 {[
                   { title: 'Data Aggregation', desc: 'We pull TLE data from CelesTrak and meteor schedules from NASA/IMO.', icon: Database },
-                  { title: 'Atmospheric Analysis', desc: 'Real-time cloud cover and Bortle scale light pollution mapping.', icon: Zap },
+                  { title: 'Atmospheric Analysis', desc: 'Real-time cloud cover and atmospheric transparency monitoring.', icon: Zap },
                   { title: 'Community Verification', desc: 'Live fireball reports are cross-referenced with satellite signals.', icon: ShieldCheck }
                 ].map((step, i) => (
                   <div key={i} className="flex items-start space-x-6">
@@ -553,7 +574,7 @@ const Home = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
               { name: 'Dr. Sarah Chen', role: 'Astrophysicist', quote: 'Stargaze has revolutionized how I track orbital debris. The 3D globe is a masterpiece of data visualization.' },
-              { name: 'Marcus Thorne', role: 'Night Photographer', quote: 'The visibility maps are scarily accurate. I never waste a trip to the mountains anymore.' },
+              { name: 'Marcus Thorne', role: 'Night Photographer', quote: 'The real-time cloud analysis is scarily accurate. I never waste a trip to the mountains anymore.' },
               { name: 'Elena Rodriguez', role: 'Amateur Stargazer', quote: 'I saw my first fireball thanks to the live alerts. This app is pure magic for anyone who loves the sky.' }
             ].map((testimonial, i) => (
               <motion.div 
@@ -679,7 +700,7 @@ const Live = () => {
   };
 
   return (
-    <div className="min-h-screen pt-32 pb-20 px-6">
+    <div className="min-h-screen pt-36 pb-20 px-6">
       <div className="max-w-5xl mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
           <div>
@@ -745,110 +766,10 @@ const Live = () => {
   );
 };
 
-const VisibilityMap = () => {
-  const { location } = useGeolocation();
-  const center: [number, number] = location ? [location.lat, location.lng] : [51.505, -0.09];
-
-  const darkSkySpots = [
-    { name: 'South Downs National Park', pos: [50.97, -0.62], rating: 'Bortle 3' },
-    { name: 'Exmoor Dark Sky Reserve', pos: [51.14, -3.65], rating: 'Bortle 2' },
-    { name: 'Galloway Forest Park', pos: [55.07, -4.47], rating: 'Bortle 1' },
-    { name: 'Brecon Beacons', pos: [51.88, -3.43], rating: 'Bortle 2' },
-  ];
-
-  return (
-    <div className="min-h-screen pt-32 pb-20 px-6">
-      <div className="max-w-7xl mx-auto">
-        <SectionLabel>Dark Sky Map</SectionLabel>
-        <HeroTitle>Find the <span className="text-blue-500 text-glow">Darkest</span> Spots</HeroTitle>
-        <p className="text-white/60 max-w-2xl mb-12 font-light leading-relaxed">
-          Light pollution is the biggest obstacle to a great stargazing experience. Use our interactive map to find certified 
-          Dark Sky Reserves and top-rated viewing locations. The Bortle scale ratings help you understand exactly how clear 
-          your view will be.
-        </p>
-        
-        <div className="glass-card w-full h-[600px] rounded-[3rem] border border-white/10 overflow-hidden relative">
-          <MapContainer center={center} zoom={6} scrollWheelZoom={false} style={{ height: '100%', width: '100%' }}>
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            {darkSkySpots.map((spot, i) => (
-              <Marker key={i} position={spot.pos as [number, number]} icon={L.divIcon({
-                className: 'custom-div-icon',
-                html: `<div style="background-color: #3b82f6; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px #3b82f6;"></div>`,
-                iconSize: [12, 12],
-                iconAnchor: [6, 6]
-              })}>
-                <Popup>
-                  <div className="p-2">
-                    <p className="font-bold text-sm mb-1">{spot.name}</p>
-                    <p className="text-[10px] text-blue-400 uppercase tracking-widest">{spot.rating}</p>
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
-            {location && (
-              <Marker position={center} icon={L.divIcon({
-                className: 'user-icon',
-                html: `<div style="background-color: #ef4444; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px #ef4444;"></div>`,
-                iconSize: [14, 14],
-                iconAnchor: [7, 7]
-              })}>
-                <Popup>You are here</Popup>
-              </Marker>
-            )}
-          </MapContainer>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
-          <div className="glass-card p-8 rounded-[2.5rem] border border-white/5">
-            <h4 className="text-lg font-bold mb-4 flex items-center space-x-3">
-              <Compass size={20} className="text-blue-500" />
-              <span>Recommended Spots Near You</span>
-            </h4>
-            <div className="space-y-4">
-              {darkSkySpots.map((spot, i) => (
-                <div key={i} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl">
-                  <div>
-                    <p className="font-bold text-sm">{spot.name}</p>
-                    <p className="text-[10px] text-gray-500 uppercase tracking-widest">Verified Reserve</p>
-                  </div>
-                  <span className="text-[10px] font-mono font-bold text-blue-400">{spot.rating}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="glass-card p-8 rounded-[2.5rem] border border-white/5">
-            <h4 className="text-lg font-bold mb-4 flex items-center space-x-3">
-              <Shield size={20} className="text-blue-500" />
-              <span>Viewing Tips</span>
-            </h4>
-            <ul className="space-y-4 text-sm text-gray-400 font-light">
-              <li className="flex items-start space-x-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5" />
-                <span>Let your eyes adjust to the dark for at least 20 minutes.</span>
-              </li>
-              <li className="flex items-start space-x-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5" />
-                <span>Avoid looking at your phone screen (blue light kills night vision).</span>
-              </li>
-              <li className="flex items-start space-x-3">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5" />
-                <span>Look about 45 degrees away from the radiant point for longer trails.</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const MeteorCalendar = () => {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'major' | 'minor'>('all');
+  const { watchlist, toggleWatchlist } = useWatchlist();
   const now = new Date();
 
   const filteredShowers = useMemo(() => {
@@ -871,7 +792,7 @@ const MeteorCalendar = () => {
   };
 
   return (
-    <div className="min-h-screen pt-32 pb-20 px-6">
+    <div className="min-h-screen pt-36 pb-20 px-6">
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-8">
           <div className="max-w-2xl">
@@ -1030,14 +951,28 @@ const MeteorCalendar = () => {
                       </div>
                     </div>
 
-                    <div className="mt-auto">
+                    <div className="mt-auto flex gap-3">
                       <Link 
                         to={`/shower/${shower.id}`} 
-                        className="w-full flex items-center justify-center space-x-3 py-4 glass rounded-2xl text-[10px] font-bold tracking-[0.2em] uppercase border border-white/10 hover:bg-white/10 hover:border-purple-500/30 transition-all group/btn"
+                        className="flex-1 flex items-center justify-center space-x-3 py-4 glass rounded-2xl text-[10px] font-bold tracking-[0.2em] uppercase border border-white/10 hover:bg-white/10 hover:border-purple-500/30 transition-all group/btn"
                       >
-                        <span>View Deep Dive</span>
+                        <span>Deep Dive</span>
                         <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
                       </Link>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          toggleWatchlist(shower.id);
+                        }}
+                        className={`w-12 h-12 flex items-center justify-center rounded-2xl border transition-all ${
+                          watchlist.includes(shower.id) 
+                            ? 'bg-purple-500 border-purple-500 text-white shadow-lg shadow-purple-500/20' 
+                            : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
+                        }`}
+                        title={watchlist.includes(shower.id) ? "Remove from watchlist" : "Notify me about this shower"}
+                      >
+                        <Bell size={18} className={watchlist.includes(shower.id) ? 'animate-pulse' : ''} />
+                      </button>
                     </div>
                   </div>
                 </motion.div>
@@ -1070,6 +1005,7 @@ const MeteorCalendar = () => {
 const ShowerDetail = () => {
   const { id } = useParams();
   const [shower, setShower] = useState<MeteorShower | null>(null);
+  const { watchlist, toggleWatchlist } = useWatchlist();
 
   useEffect(() => {
     const found = (meteorShowers as MeteorShower[]).find(s => s.id === id);
@@ -1081,7 +1017,7 @@ const ShowerDetail = () => {
   if (!shower) return null;
 
   return (
-    <div className="min-h-screen pt-32 pb-20 px-6">
+    <div className="min-h-screen pt-36 pb-20 px-6">
       <div className="max-w-6xl mx-auto">
         <Link to="/calendar" className="text-[10px] font-bold tracking-widest uppercase text-gray-500 flex items-center space-x-2 mb-12 hover:text-white transition-colors group">
           <ArrowRight size={12} className="rotate-180 group-hover:-translate-x-1 transition-transform" />
@@ -1194,10 +1130,23 @@ const ShowerDetail = () => {
                     <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-4">Radiant Constellation</p>
                     <ConstellationMap name={shower.constellation} />
                   </div>
-                  <Link to="/globe" className="w-full flex items-center justify-center space-x-3 py-4 bg-purple-600 text-white rounded-2xl text-[10px] font-bold tracking-[0.2em] uppercase hover:bg-purple-500 transition-all shadow-2xl shadow-purple-600/20">
-                    <Globe size={14} />
-                    <span>Track on 3D Globe</span>
-                  </Link>
+                  <div className="flex flex-col gap-4">
+                    <Link to="/globe" className="w-full flex items-center justify-center space-x-3 py-4 bg-purple-600 text-white rounded-2xl text-[10px] font-bold tracking-[0.2em] uppercase hover:bg-purple-500 transition-all shadow-2xl shadow-purple-600/20">
+                      <Globe size={14} />
+                      <span>Track on 3D Globe</span>
+                    </Link>
+                    <button 
+                      onClick={() => toggleWatchlist(shower.id)}
+                      className={`w-full flex items-center justify-center space-x-3 py-4 rounded-2xl text-[10px] font-bold tracking-[0.2em] uppercase border transition-all ${
+                        watchlist.includes(shower.id)
+                          ? 'bg-purple-500/10 border-purple-500 text-purple-500'
+                          : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
+                      }`}
+                    >
+                      <Bell size={14} className={watchlist.includes(shower.id) ? 'animate-pulse' : ''} />
+                      <span>{watchlist.includes(shower.id) ? 'Watching for Activity' : 'Notify Me of Peak'}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1220,7 +1169,7 @@ const ShowerDetail = () => {
 
 const About = () => {
   return (
-    <div className="min-h-screen pt-32 pb-20 px-6">
+    <div className="min-h-screen pt-36 pb-20 px-6">
       <div className="max-w-4xl mx-auto">
         <SectionLabel>Our Mission</SectionLabel>
         <HeroTitle>Know Exactly <br /> <span className="text-orange-500">When to Look Up.</span></HeroTitle>
@@ -1298,18 +1247,24 @@ const Navbar = () => {
     { name: 'Home', path: '/', icon: Sun },
     { name: 'Globe', path: '/globe', icon: Globe },
     { name: 'Live', path: '/live', icon: Activity },
-    { name: 'Map', path: '/map', icon: MapIcon },
     { name: 'Calendar', path: '/calendar', icon: Calendar },
     { name: 'About', path: '/about', icon: Info },
   ];
 
+  const isHome = location.pathname === '/';
+  const shouldShowBg = scrolled || !isHome;
+
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-700 ${scrolled ? 'py-4' : 'py-8'}`}>
+    <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-700 ${scrolled ? 'py-3' : 'py-5'}`}>
       <div className="max-w-7xl mx-auto px-6">
         <motion.div 
           initial={{ y: -100 }}
           animate={{ y: 0 }}
-          className={`glass rounded-[2.5rem] px-8 py-4 flex items-center justify-between transition-all duration-500 ${scrolled ? 'bg-black/40 backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)]' : 'bg-transparent border-transparent'}`}
+          className={`glass rounded-[2.5rem] px-8 py-3 flex items-center justify-between transition-all duration-500 ${
+            shouldShowBg 
+              ? 'bg-black/60 backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-white/10' 
+              : 'bg-transparent border-transparent'
+          }`}
         >
           <Link to="/" className="flex items-center space-x-3 group">
             <motion.div 
@@ -1390,7 +1345,7 @@ const PrivacyPolicy = () => (
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
     exit={{ opacity: 0 }}
-    className="min-h-screen pt-32 pb-20 px-6"
+    className="min-h-screen pt-36 pb-20 px-6"
   >
     <div className="max-w-4xl mx-auto prose prose-invert">
       <SectionLabel>Legal</SectionLabel>
@@ -1418,7 +1373,7 @@ const TermsOfService = () => (
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
     exit={{ opacity: 0 }}
-    className="min-h-screen pt-32 pb-20 px-6"
+    className="min-h-screen pt-36 pb-20 px-6"
   >
     <div className="max-w-4xl mx-auto prose prose-invert">
       <SectionLabel>Legal</SectionLabel>
@@ -1464,7 +1419,6 @@ const Footer = () => (
             { name: 'Home', path: '/' },
             { name: 'Globe', path: '/globe' },
             { name: 'Live Reports', path: '/live' },
-            { name: 'Visibility Map', path: '/map' },
             { name: 'Calendar', path: '/calendar' }
           ].map((item, i) => (
             <Link key={i} to={item.path} className="block text-white text-sm hover:text-orange-500 transition-colors">{item.name}</Link>
@@ -1492,47 +1446,152 @@ const Footer = () => (
 );
 
 const App = () => {
-  return (
-    <Router>
-      <ScrollToTop />
-      <div className="bg-[#020205] text-white font-sans selection:bg-orange-500/30 min-h-screen relative overflow-x-hidden">
-        <div className="atmosphere" />
-        <div className="stars-layer" />
-        
-        {/* Random Meteor Trails */}
-        <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-          {[...Array(12)].map((_, i) => (
-            <div 
-              key={i}
-              className="meteor-trail"
-              style={{
-                top: `${Math.random() * 100}%`,
-                left: `${Math.random() * 100}%`,
-                opacity: 0.05 + Math.random() * 0.15,
-                animationDelay: `${Math.random() * 20}s`,
-                animationDuration: `${3 + Math.random() * 7}s`
-              }}
-            />
-          ))}
-        </div>
+  const [watchlist, setWatchlist] = useState<string[]>(() => {
+    const saved = localStorage.getItem('stargaze_watchlist');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
-        <Navbar />
-        <AnimatePresence mode="wait">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/globe" element={<CesiumGlobe />} />
-            <Route path="/live" element={<Live />} />
-            <Route path="/map" element={<VisibilityMap />} />
-            <Route path="/calendar" element={<MeteorCalendar />} />
-            <Route path="/shower/:id" element={<ShowerDetail />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/privacy" element={<PrivacyPolicy />} />
-            <Route path="/terms" element={<TermsOfService />} />
-          </Routes>
-        </AnimatePresence>
-        <Footer />
-      </div>
-    </Router>
+  useEffect(() => {
+    localStorage.setItem('stargaze_watchlist', JSON.stringify(watchlist));
+  }, [watchlist]);
+
+  // Check for notifications
+  useEffect(() => {
+    const checkInterval = setInterval(() => {
+      const now = new Date();
+      watchlist.forEach(id => {
+        const shower = (meteorShowers as MeteorShower[]).find(s => s.id === id);
+        if (!shower) return;
+
+        const peak = new Date(shower.peak);
+        const start = new Date(shower.start);
+        const end = new Date(shower.end);
+        
+        const diffToPeak = peak.getTime() - now.getTime();
+        const hoursToPeak = diffToPeak / (1000 * 60 * 60);
+
+        // Notify if peak is within 24 hours and we haven't notified recently
+        if (hoursToPeak > 0 && hoursToPeak < 24) {
+          const notificationId = `peak-${id}-${peak.toDateString()}`;
+          if (!notifications.find(n => n.id === notificationId)) {
+            setNotifications(prev => [...prev, {
+              id: notificationId,
+              title: `${shower.name} Peak Approaching!`,
+              message: `The ${shower.name} will reach its peak in ${Math.round(hoursToPeak)} hours. Get your gear ready!`,
+              type: 'warning',
+              timestamp: Date.now()
+            }]);
+          }
+        }
+
+        // Notify if currently active
+        if (now >= start && now <= end) {
+          const notificationId = `active-${id}-${now.toDateString()}`;
+          if (!notifications.find(n => n.id === notificationId)) {
+            setNotifications(prev => [...prev, {
+              id: notificationId,
+              title: `${shower.name} is Active!`,
+              message: `The ${shower.name} meteor shower is currently active. Clear skies tonight?`,
+              type: 'success',
+              timestamp: Date.now()
+            }]);
+          }
+        }
+      });
+    }, 60000); // Check every minute
+
+    return () => clearInterval(checkInterval);
+  }, [watchlist, notifications]);
+
+  const toggleWatchlist = (id: string) => {
+    setWatchlist(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const dismissNotification = (id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
+  return (
+    <WatchlistContext.Provider value={{ watchlist, toggleWatchlist, notifications, dismissNotification }}>
+      <Router>
+        <ScrollToTop />
+        <div className="bg-[#020205] text-white font-sans selection:bg-orange-500/30 min-h-screen relative overflow-x-hidden">
+          <div className="atmosphere" />
+          <div className="stars-layer" />
+          
+          {/* Notification Toasts */}
+          <div className="fixed bottom-8 right-8 z-[200] flex flex-col gap-4 pointer-events-none">
+            <AnimatePresence>
+              {notifications.map((n) => (
+                <motion.div
+                  key={n.id}
+                  initial={{ opacity: 0, x: 50, scale: 0.9 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: 20, scale: 0.9 }}
+                  className="glass-card p-6 rounded-2xl border border-white/10 shadow-2xl pointer-events-auto max-w-sm relative overflow-hidden group"
+                >
+                  <div className={`absolute top-0 left-0 w-1 h-full ${
+                    n.type === 'success' ? 'bg-green-500' : n.type === 'warning' ? 'bg-orange-500' : 'bg-blue-500'
+                  }`} />
+                  <div className="flex items-start gap-4">
+                    <div className={`p-2 rounded-xl ${
+                      n.type === 'success' ? 'bg-green-500/10 text-green-500' : n.type === 'warning' ? 'bg-orange-500/10 text-orange-500' : 'bg-blue-500/10 text-blue-500'
+                    }`}>
+                      {n.type === 'success' ? <CheckCircle2 size={20} /> : n.type === 'warning' ? <AlertTriangle size={20} /> : <Bell size={20} />}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-bold text-sm mb-1">{n.title}</h4>
+                      <p className="text-xs text-white/60 leading-relaxed">{n.message}</p>
+                    </div>
+                    <button 
+                      onClick={() => dismissNotification(n.id)}
+                      className="text-white/20 hover:text-white transition-colors"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+
+          {/* Random Meteor Trails */}
+          <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+            {[...Array(12)].map((_, i) => (
+              <div 
+                key={i}
+                className="meteor-trail"
+                style={{
+                  top: `${Math.random() * 100}%`,
+                  left: `${Math.random() * 100}%`,
+                  opacity: 0.05 + Math.random() * 0.15,
+                  animationDelay: `${Math.random() * 20}s`,
+                  animationDuration: `${3 + Math.random() * 7}s`
+                }}
+              />
+            ))}
+          </div>
+
+          <Navbar />
+          <AnimatePresence mode="wait">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/globe" element={<CesiumGlobe />} />
+              <Route path="/live" element={<Live />} />
+              <Route path="/calendar" element={<MeteorCalendar />} />
+              <Route path="/shower/:id" element={<ShowerDetail />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<TermsOfService />} />
+            </Routes>
+          </AnimatePresence>
+          <Footer />
+        </div>
+      </Router>
+    </WatchlistContext.Provider>
   );
 };
 

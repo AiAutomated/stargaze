@@ -9,6 +9,8 @@ interface SatelliteData {
   name: string;
   line1: string;
   line2: string;
+  inclination?: number;
+  eccentricity?: number;
   entity?: Cesium.Entity;
 }
 
@@ -20,6 +22,8 @@ const CesiumGlobe: React.FC = () => {
   const [satellites, setSatellites] = useState<SatelliteData[]>([]);
   const [debris, setDebris] = useState<SatelliteData[]>([]);
   const [selectedSatellite, setSelectedSatellite] = useState<SatelliteData | null>(null);
+  const [selectedMeteorShower, setSelectedMeteorShower] = useState<any | null>(null);
+  const [selectedUFO, setSelectedUFO] = useState<any | null>(null);
   const entitiesRef = useRef<Cesium.Entity[]>([]);
   const trailEntityRef = useRef<Cesium.Entity | null>(null);
 
@@ -81,16 +85,31 @@ const CesiumGlobe: React.FC = () => {
         const pickedObject = viewer.scene.pick(movement.position);
         if (Cesium.defined(pickedObject) && pickedObject.id instanceof Cesium.Entity) {
           const entity = pickedObject.id;
-          const satProps = entity.properties?.getValue(Cesium.JulianDate.now());
-          if (satProps && satProps.line1 && satProps.line2) {
+          const props = entity.properties?.getValue(Cesium.JulianDate.now());
+          
+          if (props && props.type === 'meteor') {
+            setSelectedMeteorShower(props.data);
+            setSelectedSatellite(null);
+            setSelectedUFO(null);
+          } else if (props && props.type === 'ufo') {
+            setSelectedUFO(props.data);
+            setSelectedSatellite(null);
+            setSelectedMeteorShower(null);
+          } else if (props && props.line1 && props.line2) {
             setSelectedSatellite({
-              name: satProps.name,
-              line1: satProps.line1,
-              line2: satProps.line2
+              name: props.name,
+              line1: props.line1,
+              line2: props.line2,
+              inclination: props.inclination,
+              eccentricity: props.eccentricity
             });
+            setSelectedMeteorShower(null);
+            setSelectedUFO(null);
           }
         } else {
           setSelectedSatellite(null);
+          setSelectedMeteorShower(null);
+          setSelectedUFO(null);
         }
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
@@ -117,10 +136,16 @@ const CesiumGlobe: React.FC = () => {
     const results: SatelliteData[] = [];
     for (let i = 0; i < lines.length; i += 3) {
       if (lines[i] && lines[i+1] && lines[i+2]) {
+        const line2 = lines[i+2];
+        const inclination = parseFloat(line2.substring(8, 16));
+        const eccentricity = parseFloat('0.' + line2.substring(26, 33));
+        
         results.push({
           name: lines[i],
           line1: lines[i+1],
-          line2: lines[i+2],
+          line2: line2,
+          inclination,
+          eccentricity
         });
       }
     }
@@ -172,34 +197,56 @@ const CesiumGlobe: React.FC = () => {
     if (!viewerRef.current) return;
     const viewer = viewerRef.current;
 
-    // Clear existing trail
-    if (trailEntityRef.current) {
-      viewer.entities.remove(trailEntityRef.current);
-      trailEntityRef.current = null;
-    }
+    const updatePath = () => {
+      // Clear existing trail
+      if (trailEntityRef.current) {
+        viewer.entities.remove(trailEntityRef.current);
+        trailEntityRef.current = null;
+      }
 
+      if (selectedSatellite) {
+        const path = calculateOrbitPath(selectedSatellite, 24);
+        const isDebris = debris.some(d => d.name === selectedSatellite.name);
+        const trailColor = isDebris ? Cesium.Color.RED : Cesium.Color.CYAN;
+
+        trailEntityRef.current = viewer.entities.add({
+          name: `${selectedSatellite.name} 24h Orbit Path`,
+          polyline: {
+            positions: path,
+            width: 2,
+            material: new Cesium.PolylineGlowMaterialProperty({
+              glowPower: 0.2,
+              color: trailColor.withAlpha(0.6),
+            }),
+          },
+        });
+      }
+    };
+
+    updatePath();
+
+    // Reset tracking and zoom only on initial selection
     if (selectedSatellite) {
-      const path = calculateOrbitPath(selectedSatellite, 24);
-      trailEntityRef.current = viewer.entities.add({
-        name: `${selectedSatellite.name} 24h Orbit Path`,
-        polyline: {
-          positions: path,
-          width: 2,
-          material: new Cesium.PolylineGlowMaterialProperty({
-            glowPower: 0.2,
-            color: Cesium.Color.CYAN.withAlpha(0.6),
-          }),
-        },
-      });
-      
-      // Zoom to satellite if selected
-      // Find the entity for this satellite to zoom to it
       const entity = entitiesRef.current.find(e => e.name === selectedSatellite.name);
       if (entity) {
-        viewer.zoomTo(entity);
+        viewer.trackedEntity = entity;
+        viewer.zoomTo(entity, new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-45), 1000000));
       }
+    } else {
+      viewer.trackedEntity = undefined;
     }
-  }, [selectedSatellite]);
+
+    // Refresh path every 60 seconds to keep it "dynamic" as time progresses
+    const pathInterval = setInterval(updatePath, 60000);
+
+    return () => {
+      clearInterval(pathInterval);
+      if (trailEntityRef.current && viewerRef.current) {
+        viewerRef.current.entities.remove(trailEntityRef.current);
+        trailEntityRef.current = null;
+      }
+    };
+  }, [selectedSatellite, debris]);
 
   const renderSatellites = (data: SatelliteData[], color: Cesium.Color) => {
     if (!viewerRef.current) return;
@@ -232,7 +279,9 @@ const CesiumGlobe: React.FC = () => {
           properties: new Cesium.PropertyBag({
             name: sat.name,
             line1: sat.line1,
-            line2: sat.line2
+            line2: sat.line2,
+            inclination: sat.inclination,
+            eccentricity: sat.eccentricity
           }),
           description: `TLE Line 1: ${sat.line1}<br/>TLE Line 2: ${sat.line2}`,
         });
@@ -265,7 +314,11 @@ const CesiumGlobe: React.FC = () => {
 
     meteorShowersData.forEach(shower => {
       const coords = constellationCoords[shower.constellation] || { ra: 0, dec: 0 };
-      const color = shower.zhr > 50 ? Cesium.Color.ORANGE : Cesium.Color.AQUA;
+      const showerStart = new Date(shower.start);
+      const showerEnd = new Date(shower.end);
+      const isActive = now >= showerStart && now <= showerEnd;
+      
+      const color = isActive ? Cesium.Color.YELLOW : (shower.zhr > 50 ? Cesium.Color.ORANGE : Cesium.Color.AQUA);
 
       // Convert RA/Dec to current Lat/Lon on Earth
       let lon = coords.ra - gmstDeg;
@@ -278,15 +331,19 @@ const CesiumGlobe: React.FC = () => {
         name: `${shower.name} Radiant`,
         position: Cesium.Cartesian3.fromDegrees(lon, lat, 2000000),
         point: {
-          pixelSize: 8,
+          pixelSize: isActive ? 12 : 8,
           color: color,
           outlineColor: Cesium.Color.WHITE,
-          outlineWidth: 2,
+          outlineWidth: isActive ? 3 : 2,
         },
+        properties: new Cesium.PropertyBag({
+          type: 'meteor',
+          data: shower
+        }),
         label: {
-          text: shower.name,
-          font: '14px Space Grotesk, sans-serif',
-          fillColor: Cesium.Color.WHITE,
+          text: isActive ? `LIVE: ${shower.name}` : shower.name,
+          font: isActive ? 'bold 16px Space Grotesk, sans-serif' : '14px Space Grotesk, sans-serif',
+          fillColor: isActive ? Cesium.Color.YELLOW : Cesium.Color.WHITE,
           outlineColor: Cesium.Color.BLACK,
           outlineWidth: 2,
           style: Cesium.LabelStyle.FILL_AND_OUTLINE,
@@ -297,6 +354,7 @@ const CesiumGlobe: React.FC = () => {
         description: `
           <div style="font-family: sans-serif; padding: 10px;">
             <h3 style="color: #f97316;">${shower.name} Meteor Shower</h3>
+            <p><b>Status:</b> ${isActive ? '<span style="color: #22c55e;">ACTIVE NOW</span>' : 'Inactive'}</p>
             <p><b>Peak Date:</b> ${new Date(shower.peak).toLocaleDateString()}</p>
             <p><b>Intensity:</b> ${shower.zhr} ZHR</p>
             <p><b>Parent Body:</b> ${shower.parent}</p>
@@ -306,35 +364,51 @@ const CesiumGlobe: React.FC = () => {
       });
       entitiesRef.current.push(radiant);
 
-      // Dynamic Meteor Streaks for active showers
-      const showerStart = new Date(shower.start);
-      const showerEnd = new Date(shower.end);
-      if (now >= showerStart && now <= showerEnd) {
-        for (let i = 0; i < 3; i++) {
+      // Dynamic Meteor Streaks
+      // Show streaks for active showers, or a very low chance for inactive ones near their peak
+      const isNearPeak = Math.abs(now.getTime() - new Date(shower.peak).getTime()) < 3 * 24 * 60 * 60 * 1000;
+      
+      if (isActive || isNearPeak) {
+        // Density based on ZHR and status - more sensitive to intensity
+        // For major showers (ZHR > 100), we want a lot more streaks
+        const intensityMultiplier = isActive ? 1.5 : 0.5;
+        const meteorCount = Math.floor(Math.max(3, (shower.zhr / 8)) * intensityMultiplier);
+
+        for (let i = 0; i < meteorCount; i++) {
           const startTime = Cesium.JulianDate.fromDate(now);
-          const duration = 1.0 + Math.random() * 2.0;
-          const delay = Math.random() * 10;
+          // Duration varies by ZHR - more intense showers have faster, more energetic meteors
+          const duration = (0.2 + Math.random() * 0.6) * (1 - Math.min(shower.zhr / 400, 0.6)); 
+          const delay = Math.random() * 30; // Longer delay for more spread out meteors
           const startPos = Cesium.Cartesian3.fromDegrees(lon, lat, 2000000);
+          
           const angle = Math.random() * Math.PI * 2;
-          const dist = 5 + Math.random() * 15;
+          // Distance (length of the path) varies by ZHR - more intense showers have longer trails
+          const distBase = isActive ? 25 : 15;
+          const dist = (distBase + Math.random() * 30) * (1 + Math.min(shower.zhr / 150, 1.0));
           const endLon = lon + Math.cos(angle) * dist;
           const endLat = lat + Math.sin(angle) * dist;
           const endPos = Cesium.Cartesian3.fromDegrees(endLon, endLat, 100000);
+
+          // Color intensity and width based on ZHR
+          const glowPower = isActive ? 0.6 + (shower.zhr / 100) : 0.4;
+          const streakWidth = isActive ? 6 + (shower.zhr / 30) : 4;
 
           const meteor = viewer.entities.add({
             polyline: {
               positions: new Cesium.CallbackProperty((time) => {
                 const diff = Cesium.JulianDate.secondsDifference(time, startTime);
-                const t = ((diff + delay) % 10) / duration;
+                const t = ((diff + delay) % 30) / duration;
                 if (t < 0 || t > 1) return [];
                 const currentPos = Cesium.Cartesian3.lerp(startPos, endPos, t, new Cesium.Cartesian3());
-                const trailPos = Cesium.Cartesian3.lerp(startPos, endPos, Math.max(0, t - 0.1), new Cesium.Cartesian3());
+                // Trail length (visual length of the streak) varies by ZHR
+                const trailLength = 0.3 + (shower.zhr / 400);
+                const trailPos = Cesium.Cartesian3.lerp(startPos, endPos, Math.max(0, t - trailLength), new Cesium.Cartesian3());
                 return [trailPos, currentPos];
               }, false),
-              width: 3,
+              width: streakWidth,
               material: new Cesium.PolylineGlowMaterialProperty({
-                glowPower: 0.3,
-                color: color.withAlpha(0.8),
+                glowPower: glowPower,
+                color: color.withAlpha(isActive ? 0.98 : 0.6),
               }),
             }
           });
@@ -378,6 +452,10 @@ const CesiumGlobe: React.FC = () => {
           verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
           pixelOffset: new Cesium.Cartesian2(0, -15),
         },
+        properties: new Cesium.PropertyBag({
+          type: 'ufo',
+          data: { ...loc, timestamp: new Date(Date.now() - i * 3600000).toLocaleString() }
+        }),
         description: `
           <div style="font-family: sans-serif; padding: 10px;">
             <h3 style="color: #22c55e;">UFO Sighting Report</h3>
@@ -395,10 +473,10 @@ const CesiumGlobe: React.FC = () => {
         position: Cesium.Cartesian3.fromDegrees(loc.lon, loc.lat, 50000),
         ellipse: {
           semiMinorAxis: new Cesium.CallbackProperty((time) => {
-            return 50000 + Math.sin(Cesium.JulianDate.secondsDifference(time, Cesium.JulianDate.now()) * 2) * 20000;
+            return 50000 + Math.sin(time.secondsOfDay * 2) * 20000;
           }, false),
           semiMajorAxis: new Cesium.CallbackProperty((time) => {
-            return 50000 + Math.sin(Cesium.JulianDate.secondsDifference(time, Cesium.JulianDate.now()) * 2) * 20000;
+            return 50000 + Math.sin(time.secondsOfDay * 2) * 20000;
           }, false),
           material: Cesium.Color.LIME.withAlpha(0.1),
           outline: true,
@@ -413,7 +491,7 @@ const CesiumGlobe: React.FC = () => {
       <div ref={containerRef} className="w-full h-full" />
 
       {/* UI Overlay */}
-      <div className="absolute top-6 left-6 z-10 flex flex-col gap-4">
+      <div className="absolute top-28 left-6 z-10 flex flex-col gap-4">
         <motion.div 
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -491,12 +569,18 @@ const CesiumGlobe: React.FC = () => {
                 </button>
               </div>
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                  debris.some(d => d.name === selectedSatellite.name) ? 'bg-red-500/20 text-red-400' : 'bg-cyan-500/20 text-cyan-400'
+                }`}>
                   <Satellite size={20} />
                 </div>
                 <div>
                   <h3 className="font-bold text-sm leading-tight">{selectedSatellite.name}</h3>
-                  <p className="text-[10px] text-cyan-400 uppercase tracking-widest font-bold">Selected Object</p>
+                  <p className={`text-[10px] uppercase tracking-widest font-bold ${
+                    debris.some(d => d.name === selectedSatellite.name) ? 'text-red-400' : 'text-cyan-400'
+                  }`}>
+                    {debris.some(d => d.name === selectedSatellite.name) ? 'Space Debris' : 'Active Satellite'}
+                  </p>
                 </div>
               </div>
               <div className="space-y-3">
@@ -505,9 +589,149 @@ const CesiumGlobe: React.FC = () => {
                   <p className="text-[10px] text-white/80">Visualizing 24-hour orbital path based on current TLE data.</p>
                 </div>
                 <div className="p-3 bg-white/5 rounded-xl border border-white/5">
+                  <p className="text-[8px] text-gray-500 uppercase tracking-widest mb-1">Orbit Parameters</p>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[10px] text-white/60">Inclination:</span>
+                    <span className="text-[10px] text-white font-medium">{selectedSatellite.inclination?.toFixed(4)}°</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-white/60">Eccentricity:</span>
+                    <span className="text-[10px] text-white font-medium">{selectedSatellite.eccentricity?.toFixed(7)}</span>
+                  </div>
+                </div>
+                <div className="p-3 bg-white/5 rounded-xl border border-white/5">
                   <p className="text-[8px] text-gray-500 uppercase tracking-widest mb-1">TLE Data</p>
                   <p className="text-[8px] font-mono text-white/40 break-all">{selectedSatellite.line1}</p>
                   <p className="text-[8px] font-mono text-white/40 break-all mt-1">{selectedSatellite.line2}</p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {selectedMeteorShower && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="glass p-6 rounded-[2rem] border border-yellow-500/30 text-white relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 p-4">
+                <button 
+                  onClick={() => setSelectedMeteorShower(null)}
+                  className="text-white/40 hover:text-white transition-colors"
+                >
+                  <CloseIcon size={16} />
+                </button>
+              </div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center text-yellow-400">
+                  <Sparkles size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm leading-tight">{selectedMeteorShower.name}</h3>
+                  <p className="text-[10px] text-yellow-400 uppercase tracking-widest font-bold">Meteor Shower Radiant</p>
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="p-3 bg-white/5 rounded-xl border border-white/5">
+                  <p className="text-[8px] text-gray-500 uppercase tracking-widest mb-1">Parent Body Details</p>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[10px] text-white/60">Object:</span>
+                    <span className="text-[10px] text-white font-medium">{selectedMeteorShower.parent}</span>
+                  </div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[10px] text-white/60">Orbital Period:</span>
+                    <span className="text-[10px] text-white font-medium">{selectedMeteorShower.orbitalPeriod}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-white/60">Composition:</span>
+                    <span className="text-[10px] text-white font-medium">{selectedMeteorShower.composition}</span>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-white/5 rounded-xl border border-white/5">
+                  <p className="text-[8px] text-gray-500 uppercase tracking-widest mb-1">Historical Visibility</p>
+                  <p className="text-[10px] text-white/80 leading-relaxed">{selectedMeteorShower.historicalVisibility}</p>
+                </div>
+
+                <div className="p-3 bg-white/5 rounded-xl border border-white/5">
+                  <p className="text-[8px] text-gray-500 uppercase tracking-widest mb-1">Historical Storms</p>
+                  <p className="text-[10px] text-white/80 leading-relaxed">{selectedMeteorShower.historicalStorms}</p>
+                </div>
+
+                <div className="p-3 bg-white/5 rounded-xl border border-white/5">
+                  <p className="text-[8px] text-gray-500 uppercase tracking-widest mb-1">Observation Data</p>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[10px] text-white/60">Peak Rate:</span>
+                    <span className="text-[10px] text-yellow-400 font-bold">{selectedMeteorShower.zhr} ZHR</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-white/60">Constellation:</span>
+                    <span className="text-[10px] text-white font-medium">{selectedMeteorShower.constellation}</span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {selectedUFO && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="glass p-6 rounded-[2rem] border border-lime-500/30 text-white relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 p-4">
+                <button 
+                  onClick={() => setSelectedUFO(null)}
+                  className="text-white/40 hover:text-white transition-colors"
+                >
+                  <CloseIcon size={16} />
+                </button>
+              </div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-lime-500/20 flex items-center justify-center text-lime-400">
+                  <Eye size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm leading-tight">Unidentified Signal</h3>
+                  <p className="text-[10px] text-lime-400 uppercase tracking-widest font-bold">UFO Sighting Report</p>
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="p-3 bg-white/5 rounded-xl border border-white/5">
+                  <p className="text-[8px] text-gray-500 uppercase tracking-widest mb-1">Location Details</p>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[10px] text-white/60">Site:</span>
+                    <span className="text-[10px] text-white font-medium">{selectedUFO.name}</span>
+                  </div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[10px] text-white/60">Latitude:</span>
+                    <span className="text-[10px] text-white font-medium">{selectedUFO.lat.toFixed(4)}°</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-white/60">Longitude:</span>
+                    <span className="text-[10px] text-white font-medium">{selectedUFO.lon.toFixed(4)}°</span>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-white/5 rounded-xl border border-white/5">
+                  <p className="text-[8px] text-gray-500 uppercase tracking-widest mb-1">Sighting Info</p>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[10px] text-white/60">Timestamp:</span>
+                    <span className="text-[10px] text-white font-medium">{selectedUFO.timestamp}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-white/60">Status:</span>
+                    <span className="text-[10px] text-lime-400 font-bold">UNVERIFIED</span>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-white/5 rounded-xl border border-white/5">
+                  <p className="text-[8px] text-gray-500 uppercase tracking-widest mb-1">Analysis</p>
+                  <p className="text-[10px] text-white/80 leading-relaxed">Signal characteristics suggest non-ballistic trajectory. Multiple witness reports archived in NUFORC database.</p>
                 </div>
               </div>
             </motion.div>

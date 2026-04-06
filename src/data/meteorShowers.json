@@ -8,7 +8,11 @@
     "zhr": 120,
     "parent": "Asteroid 2003 EH1",
     "constellation": "Bootes",
-    "description": "One of the best annual meteor showers, known for bright fireball meteors."
+    "description": "One of the best annual meteor showers, known for bright fireball meteors.",
+    "orbitalPeriod": "5.5 years",
+    "composition": "Rocky/Silicate (Extinct Comet)",
+    "historicalStorms": "Consistent high rates, but no major 'storms' in recent history.",
+    "historicalVisibility": "Best visibility in the Northern Hemisphere; known for bright, long-lasting fireballs."
   },
   {
     "id": "lyrids",
@@ -19,7 +23,11 @@
     "zhr": 18,
     "parent": "Comet C/1861 G1 Thatcher",
     "constellation": "Lyra",
-    "description": "One of the oldest known meteor showers, recorded for 2,700 years."
+    "description": "One of the oldest known meteor showers, recorded for 2,700 years.",
+    "orbitalPeriod": "415 years",
+    "composition": "Icy/Dusty",
+    "historicalStorms": "Major outbursts recorded in 1803, 1922, 1945, and 1982.",
+    "historicalVisibility": "Visible from both hemispheres, but better from the Northern Hemisphere."
   },
   {
     "id": "eta-aquariids",
@@ -30,7 +38,11 @@
     "zhr": 50,
     "parent": "Comet 1P/Halley",
     "constellation": "Aquarius",
-    "description": "Known for their high speed and long glowing trails."
+    "description": "Known for their high speed and long glowing trails.",
+    "orbitalPeriod": "76 years",
+    "composition": "Icy/Volatile-rich",
+    "historicalStorms": "Consistent activity; Halley's debris produces two annual showers.",
+    "historicalVisibility": "Best seen from the Southern Hemisphere and tropics."
   },
   {
     "id": "delta-aquariids",
@@ -41,7 +53,11 @@
     "zhr": 20,
     "parent": "Comet 96P/Machholz",
     "constellation": "Aquarius",
-    "description": "Best seen from the southern hemisphere and southern latitudes of the northern hemisphere."
+    "description": "Best seen from the southern hemisphere and southern latitudes of the northern hemisphere.",
+    "orbitalPeriod": "5.3 years",
+    "composition": "Complex Carbonaceous",
+    "historicalStorms": "Steady rates; Machholz is a unique comet with a very small perihelion.",
+    "historicalVisibility": "Faint meteors, best viewed from the Southern Hemisphere."
   },
   {
     "id": "perseids",
@@ -52,7 +68,11 @@
     "zhr": 100,
     "parent": "Comet 109P/Swift-Tuttle",
     "constellation": "Perseus",
-    "description": "The most popular meteor shower of the year, occurring in warm summer nights."
+    "description": "The most popular meteor shower of the year, occurring in warm summer nights.",
+    "orbitalPeriod": "133 years",
+    "composition": "Icy/Silicate Mix",
+    "historicalStorms": "Major outbursts in 1991-1993 following the parent comet's return.",
+    "historicalVisibility": "Excellent visibility from the Northern Hemisphere; famous for fireballs."
   },
   {
     "id": "orionids",
@@ -63,7 +83,11 @@
     "zhr": 20,
     "parent": "Comet 1P/Halley",
     "constellation": "Orion",
-    "description": "Fast meteors that often leave persistent trains."
+    "description": "Fast meteors that often leave persistent trains.",
+    "orbitalPeriod": "76 years",
+    "composition": "Icy/Volatile-rich",
+    "historicalStorms": "Enhanced activity periods roughly every 12 years due to Jupiter's influence.",
+    "historicalVisibility": "Visible from both hemispheres; radiant is near the celestial equator."
   },
   {
     "id": "leonids",
@@ -74,7 +98,11 @@
     "zhr": 15,
     "parent": "Comet 55P/Tempel-Tuttle",
     "constellation": "Leo",
-    "description": "Known for spectacular meteor storms every 33 years."
+    "description": "Known for spectacular meteor storms every 33 years.",
+    "orbitalPeriod": "33 years",
+    "composition": "Icy/Dusty",
+    "historicalStorms": "Famous storms in 1833, 1866, 1966, and 1999-2002 with thousands of meteors per hour.",
+    "historicalVisibility": "Best seen from the Northern Hemisphere; radiant rises after midnight."
   },
   {
     "id": "geminids",
@@ -85,7 +113,11 @@
     "zhr": 120,
     "parent": "Asteroid 3200 Phaethon",
     "constellation": "Gemini",
-    "description": "The strongest and most reliable annual meteor shower."
+    "description": "The strongest and most reliable annual meteor shower.",
+    "orbitalPeriod": "1.4 years",
+    "composition": "Rocky/Sodium-depleted",
+    "historicalStorms": "Consistently increasing in intensity over the last century.",
+    "historicalVisibility": "Visible from both hemispheres; best in the Northern Hemisphere."
   },
   {
     "id": "ursids",
@@ -96,6 +128,10 @@
     "zhr": 10,
     "parent": "Comet 8P/Tuttle",
     "constellation": "Ursa Minor",
-    "description": "A minor shower that often produces unexpected bursts of activity."
+    "description": "A minor shower that often produces unexpected bursts of activity.",
+    "orbitalPeriod": "13.6 years",
+    "composition": "Icy/Dusty",
+    "historicalStorms": "Significant bursts observed in 1945 and 1986.",
+    "historicalVisibility": "Only visible from the Northern Hemisphere; radiant is circumpolar."
   }
 ]
