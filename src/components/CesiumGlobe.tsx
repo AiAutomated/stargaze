@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as Cesium from 'cesium';
 import * as satellite from 'satellite.js';
 import { motion, AnimatePresence } from 'motion/react';
-import { Satellite, Trash2, Sparkles, Loader2, Info, Globe, Eye, X as CloseIcon, ExternalLink } from 'lucide-react';
+import { Satellite, Trash2, Sparkles, Loader2, Info, Globe, Eye, X as CloseIcon, ExternalLink, RefreshCw, AlertCircle } from 'lucide-react';
 import meteorShowersData from '../data/meteorShowers.json';
 
 interface SatelliteData {
@@ -21,6 +21,8 @@ const CesiumGlobe: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [satellites, setSatellites] = useState<SatelliteData[]>([]);
   const [debris, setDebris] = useState<SatelliteData[]>([]);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [selectedSatellite, setSelectedSatellite] = useState<SatelliteData | null>(null);
   const [selectedMeteorShower, setSelectedMeteorShower] = useState<any | null>(null);
   const [selectedUFO, setSelectedUFO] = useState<any | null>(null);
@@ -35,22 +37,39 @@ const CesiumGlobe: React.FC = () => {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setFetchError(null);
     try {
-      // Fetch Active Satellites
-      const satRes = await fetch('https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle');
+      // Fetch Active Satellites with a timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+      const satRes = await fetch('https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle', {
+        signal: controller.signal
+      });
+      
+      if (!satRes.ok) throw new Error(`Satellites fetch failed: ${satRes.statusText}`);
       const satText = await satRes.text();
       const parsedSats = parseTLE(satText);
+      
+      if (parsedSats.length === 0) throw new Error('No satellite data parsed');
       setSatellites(parsedSats);
 
       // Fetch Debris
-      const debrisRes = await fetch('https://celestrak.org/NORAD/elements/gp.php?GROUP=debris&FORMAT=tle');
+      const debrisRes = await fetch('https://celestrak.org/NORAD/elements/gp.php?GROUP=debris&FORMAT=tle', {
+        signal: controller.signal
+      });
+      
+      if (!debrisRes.ok) throw new Error(`Debris fetch failed: ${debrisRes.statusText}`);
       const debrisText = await debrisRes.text();
       const parsedDebris = parseTLE(debrisText);
+      
       setDebris(parsedDebris);
-
-      setLoading(false);
-    } catch (error) {
+      setLastUpdated(new Date());
+      clearTimeout(timeoutId);
+    } catch (error: any) {
       console.error('Error fetching TLE data:', error);
+      setFetchError(error.message || 'Failed to fetch orbital data. Please try again.');
+    } finally {
       setLoading(false);
     }
   }, []);
@@ -564,10 +583,17 @@ const CesiumGlobe: React.FC = () => {
           <h1 className="text-xl font-bold text-white flex items-center gap-2">
             <Globe className="text-blue-400" /> Stargaze Globe
           </h1>
-          <p className="text-xs text-white/60 mt-1">Real-time orbital tracking</p>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-xs text-white/60">Real-time orbital tracking</p>
+            {lastUpdated && (
+              <p className="text-[10px] text-white/40 font-mono">
+                Updated: {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </p>
+            )}
+          </div>
         </motion.div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
           {[
             { id: 'satellites', icon: Satellite, label: 'Satellites', color: 'text-cyan-400', source: 'CelesTrak (Live)' },
             { id: 'debris', icon: Trash2, label: 'Space Debris', color: 'text-red-400', source: 'CelesTrak (Live)' },
@@ -601,7 +627,41 @@ const CesiumGlobe: React.FC = () => {
               </div>
             </div>
           ))}
+
+          {/* Manual Refresh Button */}
+          <button
+            onClick={() => fetchData()}
+            disabled={loading}
+            className={`p-2.5 rounded-full border border-white/10 bg-black/40 text-white/60 hover:bg-white/10 hover:text-white transition-all ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title="Refresh Data"
+          >
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          </button>
         </div>
+
+        {/* Error Message */}
+        <AnimatePresence>
+          {fetchError && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="bg-red-500/20 border border-red-500/30 p-3 rounded-xl flex items-start gap-3 backdrop-blur-md"
+            >
+              <AlertCircle className="text-red-400 shrink-0" size={16} />
+              <div className="flex-1">
+                <p className="text-[10px] text-red-200 font-bold uppercase tracking-wider">Fetch Error</p>
+                <p className="text-[10px] text-red-200/70 mt-0.5">{fetchError}</p>
+                <button 
+                  onClick={() => fetchData()}
+                  className="text-[9px] text-red-400 font-bold uppercase tracking-widest mt-2 hover:text-red-300 transition-colors"
+                >
+                  Try Again
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Loading State */}
