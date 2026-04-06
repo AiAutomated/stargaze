@@ -425,8 +425,13 @@ const CesiumGlobe: React.FC = () => {
         const showerStart = new Date(shower.start);
         const showerEnd = new Date(shower.end);
         const isActive = now >= showerStart && now <= showerEnd;
-        
-        const getIntensityColor = (zhr: number) => {
+        const isUpcoming = now < showerStart && (showerStart.getTime() - now.getTime()) < 30 * 24 * 60 * 60 * 1000;
+        const isPast = now > showerEnd;
+
+        if (isPast) return; // Don't render past showers
+
+        const getIntensityColor = (zhr: number, active: boolean, upcoming: boolean) => {
+          if (!active && upcoming) return Cesium.Color.GRAY.withAlpha(0.6);
           if (zhr > 100) return Cesium.Color.WHITE;
           if (zhr > 70) return Cesium.Color.YELLOW;
           if (zhr > 40) return Cesium.Color.ORANGE;
@@ -434,7 +439,12 @@ const CesiumGlobe: React.FC = () => {
           return Cesium.Color.SKYBLUE;
         };
 
-        const color = isActive ? getIntensityColor(shower.zhr) : (shower.zhr > 50 ? Cesium.Color.ORANGE : Cesium.Color.AQUA);
+        const color = getIntensityColor(shower.zhr, isActive, isUpcoming);
+        
+        // Size based on intensity and status
+        const baseSize = isActive ? 10 : 6;
+        const intensitySize = Math.min(shower.zhr / 10, 10);
+        const pixelSize = baseSize + intensitySize;
 
         let lon = coords.ra - gmstDeg;
         while (lon < -180) lon += 360;
@@ -448,30 +458,31 @@ const CesiumGlobe: React.FC = () => {
           name: `${shower.name} Radiant`,
           position: radiantPos,
           point: {
-            pixelSize: isActive ? 12 : 8,
+            pixelSize: pixelSize,
             color: color,
-            outlineColor: Cesium.Color.WHITE,
-            outlineWidth: isActive ? 3 : 2,
+            outlineColor: isActive ? Cesium.Color.WHITE : Cesium.Color.GRAY,
+            outlineWidth: isActive ? 3 : 1,
           },
           properties: new Cesium.PropertyBag({
             type: 'meteor',
-            data: shower
+            data: { ...shower, status: isActive ? 'ACTIVE' : (isUpcoming ? 'UPCOMING' : 'INACTIVE') }
           }),
           label: {
-            text: isActive ? `LIVE: ${shower.name}` : shower.name,
-            font: isActive ? 'bold 16px Space Grotesk, sans-serif' : '14px Space Grotesk, sans-serif',
-            fillColor: isActive ? Cesium.Color.YELLOW : Cesium.Color.WHITE,
+            text: isActive ? `LIVE: ${shower.name}` : (isUpcoming ? `UPCOMING: ${shower.name}` : shower.name),
+            font: isActive ? 'bold 16px Space Grotesk, sans-serif' : '12px Space Grotesk, sans-serif',
+            fillColor: isActive ? Cesium.Color.YELLOW : (isUpcoming ? Cesium.Color.LIGHTGRAY : Cesium.Color.WHITE),
             outlineColor: Cesium.Color.BLACK,
             outlineWidth: 2,
             style: Cesium.LabelStyle.FILL_AND_OUTLINE,
             verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-            pixelOffset: new Cesium.Cartesian2(0, -15),
+            pixelOffset: new Cesium.Cartesian2(0, -pixelSize - 5),
             distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 50000000),
           },
           description: `
             <div style="font-family: sans-serif; padding: 10px;">
               <h3 style="color: #f97316;">${shower.name} Meteor Shower</h3>
-              <p><b>Status:</b> ${isActive ? '<span style="color: #22c55e;">ACTIVE NOW</span>' : 'Inactive'}</p>
+              <p><b>Status:</b> ${isActive ? '<span style="color: #22c55e;">ACTIVE NOW</span>' : (isUpcoming ? '<span style="color: #38bdf8;">UPCOMING</span>' : 'Inactive')}</p>
+              <p><b>Starts:</b> ${new Date(shower.start).toLocaleDateString()}</p>
               <p><b>Peak Date:</b> ${new Date(shower.peak).toLocaleDateString()}</p>
               <p><b>Intensity:</b> ${shower.zhr} ZHR</p>
               <p><b>Parent Body:</b> ${shower.parent}</p>
@@ -809,11 +820,31 @@ const CesiumGlobe: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="font-bold text-sm leading-tight">{selectedMeteorShower.name}</h3>
-                  <p className="text-[10px] text-yellow-400 uppercase tracking-widest font-bold">Meteor Shower Radiant</p>
+                  <p className="text-[10px] text-yellow-400 uppercase tracking-widest font-bold">
+                    {selectedMeteorShower.status || 'Meteor Shower Radiant'}
+                  </p>
                 </div>
               </div>
               
               <div className="space-y-3">
+                <div className="p-3 bg-white/5 rounded-xl border border-white/5">
+                  <p className="text-[8px] text-gray-500 uppercase tracking-widest mb-1">Timing & Intensity</p>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[10px] text-white/60">Peak Date:</span>
+                    <span className="text-[10px] text-white font-medium">{new Date(selectedMeteorShower.peak).toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[10px] text-white/60">Intensity:</span>
+                    <span className="text-[10px] text-yellow-400 font-bold">{selectedMeteorShower.zhr} ZHR</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-white/60">Status:</span>
+                    <span className={`text-[10px] font-bold ${selectedMeteorShower.status === 'ACTIVE' ? 'text-green-400' : 'text-blue-400'}`}>
+                      {selectedMeteorShower.status}
+                    </span>
+                  </div>
+                </div>
+
                 <div className="p-3 bg-white/5 rounded-xl border border-white/5">
                   <p className="text-[8px] text-gray-500 uppercase tracking-widest mb-1">Parent Body Details</p>
                   <div className="flex justify-between items-center mb-1">
