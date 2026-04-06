@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as Cesium from 'cesium';
 import * as satellite from 'satellite.js';
-import { motion } from 'motion/react';
-import { Satellite, Trash2, Sparkles, Loader2, Info, Globe, Eye } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Satellite, Trash2, Sparkles, Loader2, Info, Globe, Eye, X as CloseIcon } from 'lucide-react';
 
 interface SatelliteData {
   name: string;
@@ -18,7 +18,31 @@ const CesiumGlobe: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [satellites, setSatellites] = useState<SatelliteData[]>([]);
   const [debris, setDebris] = useState<SatelliteData[]>([]);
+  const [selectedSatellite, setSelectedSatellite] = useState<SatelliteData | null>(null);
   const entitiesRef = useRef<Cesium.Entity[]>([]);
+  const trailEntityRef = useRef<Cesium.Entity | null>(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      // Fetch Active Satellites
+      const satRes = await fetch('https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle');
+      const satText = await satRes.text();
+      const parsedSats = parseTLE(satText);
+      setSatellites(parsedSats);
+
+      // Fetch Debris
+      const debrisRes = await fetch('https://celestrak.org/NORAD/elements/gp.php?GROUP=debris&FORMAT=tle');
+      const debrisText = await debrisRes.text();
+      const parsedDebris = parseTLE(debrisText);
+      setDebris(parsedDebris);
+
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching TLE data:', error);
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -45,46 +69,47 @@ const CesiumGlobe: React.FC = () => {
       );
       viewer.imageryLayers.addImageryProvider(imageryProvider);
 
-      // Remove credits for a cleaner look (optional, but requested "minimalist")
+      // Remove credits for a cleaner look
       (viewer.cesiumWidget.creditContainer as HTMLElement).style.display = 'none';
 
       viewerRef.current = viewer;
 
-      // Fetch data
+      // Setup click handler for selection
+      const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+      handler.setInputAction((movement: any) => {
+        const pickedObject = viewer.scene.pick(movement.position);
+        if (Cesium.defined(pickedObject) && pickedObject.id instanceof Cesium.Entity) {
+          const entity = pickedObject.id;
+          const satProps = entity.properties?.getValue(Cesium.JulianDate.now());
+          if (satProps && satProps.line1 && satProps.line2) {
+            setSelectedSatellite({
+              name: satProps.name,
+              line1: satProps.line1,
+              line2: satProps.line2
+            });
+          }
+        } else {
+          setSelectedSatellite(null);
+        }
+      }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+      // Fetch data initially
       fetchData();
     };
 
     initCesium();
 
+    // Periodic refresh every 30 minutes
+    const refreshInterval = setInterval(fetchData, 30 * 60 * 1000);
+
     return () => {
+      clearInterval(refreshInterval);
       if (viewerRef.current) {
         viewerRef.current.destroy();
         viewerRef.current = null;
       }
     };
-  }, []);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      // Fetch Active Satellites
-      const satRes = await fetch('https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle');
-      const satText = await satRes.text();
-      const parsedSats = parseTLE(satText);
-      setSatellites(parsedSats);
-
-      // Fetch Debris
-      const debrisRes = await fetch('https://celestrak.org/NORAD/elements/gp.php?GROUP=debris&FORMAT=tle');
-      const debrisText = await debrisRes.text();
-      const parsedDebris = parseTLE(debrisText);
-      setDebris(parsedDebris);
-
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching TLE data:', error);
-      setLoading(false);
-    }
-  };
+  }, [fetchData]);
 
   const parseTLE = (text: string): SatelliteData[] => {
     const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
@@ -120,6 +145,61 @@ const CesiumGlobe: React.FC = () => {
     }
   }, [activeTab, satellites, debris]);
 
+  const calculateOrbitPath = (sat: SatelliteData, durationHours: number) => {
+    const points: Cesium.Cartesian3[] = [];
+    const satrec = satellite.twoline2satrec(sat.line1, sat.line2);
+    const now = new Date();
+    
+    // Calculate points every 10 minutes for requested duration
+    for (let i = 0; i <= durationHours * 60; i += 10) {
+      const time = new Date(now.getTime() + i * 60000);
+      const positionAndVelocity = satellite.propagate(satrec, time);
+      
+      if (typeof positionAndVelocity.position === 'object') {
+        const gmst = satellite.gstime(time);
+        const positionGd = satellite.eciToGeodetic(positionAndVelocity.position as satellite.EciVec3<number>, gmst);
+        const longitude = satellite.degreesLong(positionGd.longitude);
+        const latitude = satellite.degreesLat(positionGd.latitude);
+        const height = positionGd.height * 1000;
+        points.push(Cesium.Cartesian3.fromDegrees(longitude, latitude, height));
+      }
+    }
+    return points;
+  };
+
+  useEffect(() => {
+    if (!viewerRef.current) return;
+    const viewer = viewerRef.current;
+
+    // Clear existing trail
+    if (trailEntityRef.current) {
+      viewer.entities.remove(trailEntityRef.current);
+      trailEntityRef.current = null;
+    }
+
+    if (selectedSatellite) {
+      const path = calculateOrbitPath(selectedSatellite, 24);
+      trailEntityRef.current = viewer.entities.add({
+        name: `${selectedSatellite.name} 24h Orbit Path`,
+        polyline: {
+          positions: path,
+          width: 2,
+          material: new Cesium.PolylineGlowMaterialProperty({
+            glowPower: 0.2,
+            color: Cesium.Color.CYAN.withAlpha(0.6),
+          }),
+        },
+      });
+      
+      // Zoom to satellite if selected
+      // Find the entity for this satellite to zoom to it
+      const entity = entitiesRef.current.find(e => e.name === selectedSatellite.name);
+      if (entity) {
+        viewer.zoomTo(entity);
+      }
+    }
+  }, [selectedSatellite]);
+
   const renderSatellites = (data: SatelliteData[], color: Cesium.Color) => {
     if (!viewerRef.current) return;
     const viewer = viewerRef.current;
@@ -148,6 +228,11 @@ const CesiumGlobe: React.FC = () => {
             outlineColor: Cesium.Color.BLACK,
             outlineWidth: 1,
           },
+          properties: new Cesium.PropertyBag({
+            name: sat.name,
+            line1: sat.line1,
+            line2: sat.line2
+          }),
           description: `TLE Line 1: ${sat.line1}<br/>TLE Line 2: ${sat.line2}`,
         });
         entitiesRef.current.push(entity);
@@ -361,7 +446,47 @@ const CesiumGlobe: React.FC = () => {
       )}
 
       {/* Info Panel */}
-      <div className="absolute bottom-6 right-6 z-10 max-w-xs">
+      <div className="absolute bottom-6 right-6 z-10 flex flex-col gap-4 max-w-xs">
+        <AnimatePresence>
+          {selectedSatellite && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="glass p-6 rounded-[2rem] border border-cyan-500/30 text-white relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 p-4">
+                <button 
+                  onClick={() => setSelectedSatellite(null)}
+                  className="text-white/40 hover:text-white transition-colors"
+                >
+                  <CloseIcon size={16} />
+                </button>
+              </div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400">
+                  <Satellite size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm leading-tight">{selectedSatellite.name}</h3>
+                  <p className="text-[10px] text-cyan-400 uppercase tracking-widest font-bold">Selected Object</p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="p-3 bg-white/5 rounded-xl border border-white/5">
+                  <p className="text-[8px] text-gray-500 uppercase tracking-widest mb-1">Orbit Prediction</p>
+                  <p className="text-[10px] text-white/80">Visualizing 24-hour orbital path based on current TLE data.</p>
+                </div>
+                <div className="p-3 bg-white/5 rounded-xl border border-white/5">
+                  <p className="text-[8px] text-gray-500 uppercase tracking-widest mb-1">TLE Data</p>
+                  <p className="text-[8px] font-mono text-white/40 break-all">{selectedSatellite.line1}</p>
+                  <p className="text-[8px] font-mono text-white/40 break-all mt-1">{selectedSatellite.line2}</p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

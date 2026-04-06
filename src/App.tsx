@@ -847,65 +847,221 @@ const VisibilityMap = () => {
 };
 
 const MeteorCalendar = () => {
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<'all' | 'major' | 'minor'>('all');
+  const now = new Date();
+
+  const filteredShowers = useMemo(() => {
+    return (meteorShowers as MeteorShower[]).filter(shower => {
+      const matchesSearch = shower.name.toLowerCase().includes(search.toLowerCase());
+      const isMajor = shower.zhr >= 50;
+      const matchesFilter = filter === 'all' || (filter === 'major' && isMajor) || (filter === 'minor' && !isMajor);
+      return matchesSearch && matchesFilter;
+    });
+  }, [search, filter]);
+
+  const getStatus = (shower: MeteorShower) => {
+    const peak = new Date(shower.peak);
+    const start = new Date(shower.start);
+    const end = new Date(shower.end);
+    
+    if (now > end) return { label: 'Past', color: 'text-gray-500', bg: 'bg-gray-500/10' };
+    if (now >= start && now <= end) return { label: 'Active', color: 'text-green-500', bg: 'bg-green-500/10' };
+    return { label: 'Upcoming', color: 'text-blue-500', bg: 'bg-blue-500/10' };
+  };
+
   return (
     <div className="min-h-screen pt-32 pb-20 px-6">
-      <div className="max-w-6xl mx-auto">
-        <SectionLabel>2026 Schedule</SectionLabel>
-        <HeroTitle>The Yearly <span className="text-purple-500 text-glow">Rhythm</span></HeroTitle>
-        <p className="text-white/60 max-w-2xl mb-12 font-light leading-relaxed">
-          Plan your astronomical adventures with our complete 2026 meteor shower calendar. 
-          From the intense Perseids to the reliable Geminids, we track every major and minor peak 
-          to help you never miss a celestial show.
-        </p>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {(meteorShowers as MeteorShower[]).map((shower) => (
-            <motion.div 
-              key={shower.id}
-              whileHover={{ y: -10 }}
-              className="glass-card p-8 rounded-[2.5rem] border border-white/5 relative overflow-hidden group"
-            >
-              <MeteorVisualizer intensity={shower.zhr} />
-              
-              <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
-                <Star size={80} />
-              </div>
-              
-              <div className="relative z-10">
-                <div className="flex justify-between items-start mb-6">
-                  <div>
-                    <p className="text-purple-500 font-mono text-[10px] tracking-widest uppercase mb-2">{new Date(shower.peak).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
-                    <h3 className="text-2xl font-bold group-hover:text-purple-400 transition-colors">{shower.name}</h3>
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-8">
+          <div className="max-w-2xl">
+            <SectionLabel>2026 Schedule</SectionLabel>
+            <HeroTitle>The Yearly <span className="text-purple-500 text-glow">Rhythm</span></HeroTitle>
+            <p className="text-white/60 font-light leading-relaxed">
+              Plan your astronomical adventures with our complete 2026 meteor shower calendar. 
+              From the intense Perseids to the reliable Geminids, we track every major and minor peak 
+              to help you never miss a celestial show.
+            </p>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-purple-500 transition-colors" size={16} />
+              <input 
+                type="text" 
+                placeholder="Search showers..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-12 pr-6 py-3 bg-white/5 border border-white/10 rounded-2xl text-sm focus:outline-none focus:border-purple-500/50 transition-all w-full sm:w-64"
+              />
+            </div>
+            <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10">
+              {(['all', 'major', 'minor'] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`px-6 py-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all ${
+                    filter === f ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/20' : 'text-gray-500 hover:text-white'
+                  }`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Featured Event */}
+        {filter === 'all' && !search && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-20 glass-card p-12 rounded-[4rem] border border-white/10 relative overflow-hidden group"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-600/20 via-transparent to-blue-600/10 opacity-50" />
+            <div className="absolute -right-20 -top-20 w-96 h-96 bg-purple-500/10 blur-[120px] rounded-full" />
+            <div className="absolute -left-20 -bottom-20 w-96 h-96 bg-blue-500/10 blur-[120px] rounded-full" />
+            
+            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+              <div>
+                <div className="flex items-center space-x-3 mb-8">
+                  <div className="px-4 py-1.5 bg-purple-500 text-white rounded-full text-[10px] font-bold uppercase tracking-widest">Featured Event</div>
+                  <div className="px-4 py-1.5 bg-white/5 text-purple-400 rounded-full text-[10px] font-bold uppercase tracking-widest border border-white/5">Major Peak</div>
+                </div>
+                <h2 className="text-5xl md:text-7xl font-bold mb-8 leading-tight">The <span className="text-purple-500">Perseids</span> <br /> 2026</h2>
+                <p className="text-xl text-white/60 font-light leading-relaxed mb-12 max-w-xl">
+                  The most popular meteor shower of the year returns this August. With warm summer nights and up to 100 meteors per hour, it's the perfect event for both beginners and experts.
+                </p>
+                <div className="flex flex-wrap gap-6 mb-12">
+                  <div className="flex items-center space-x-3">
+                    <Calendar className="text-purple-500" size={20} />
+                    <span className="text-sm font-bold">August 13, 2026</span>
                   </div>
-                  <div className="px-3 py-1 bg-purple-500/10 rounded-full border border-purple-500/20">
-                    <span className="text-[8px] font-bold text-purple-400 uppercase tracking-widest">{shower.zhr} ZHR</span>
+                  <div className="flex items-center space-x-3">
+                    <Activity className="text-purple-500" size={20} />
+                    <span className="text-sm font-bold">100 ZHR</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Navigation className="text-purple-500" size={20} />
+                    <span className="text-sm font-bold">Perseus</span>
                   </div>
                 </div>
-
-                <p className="text-gray-500 text-xs leading-relaxed mb-6 line-clamp-2">{shower.description}</p>
-                
-                <div className="mb-6">
-                  <ConstellationMap name={shower.constellation} />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mb-8">
-                  <div className="p-3 bg-white/5 rounded-2xl">
-                    <p className="text-[8px] text-gray-500 uppercase tracking-widest mb-1">Parent Body</p>
-                    <p className="text-xs font-bold truncate">{shower.parent}</p>
-                  </div>
-                  <div className="p-3 bg-white/5 rounded-2xl">
-                    <p className="text-[8px] text-gray-500 uppercase tracking-widest mb-1">Constellation</p>
-                    <p className="text-xs font-bold truncate">{shower.constellation}</p>
-                  </div>
-                </div>
-
-                <Link to={`/shower/${shower.id}`} className="w-full block text-center py-3 glass rounded-xl text-[9px] font-bold tracking-widest uppercase border border-white/5 hover:bg-white/10 transition-colors">
-                  View Deep Dive
+                <Link to="/shower/perseids" className="inline-flex items-center space-x-4 px-10 py-5 bg-white text-black rounded-3xl text-xs font-bold uppercase tracking-widest hover:bg-purple-500 hover:text-white transition-all shadow-2xl shadow-white/10">
+                  <span>Explore the Perseids</span>
+                  <ArrowRight size={16} />
                 </Link>
               </div>
-            </motion.div>
-          ))}
+              <div className="relative aspect-square lg:aspect-video rounded-[3rem] overflow-hidden border border-white/10 bg-black/40 flex items-center justify-center">
+                <MeteorVisualizer intensity={100} />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Star size={120} className="text-white/5 animate-pulse" />
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <AnimatePresence mode="popLayout">
+            {filteredShowers.map((shower) => {
+              const status = getStatus(shower);
+              const intensityPercent = Math.min((shower.zhr / 120) * 100, 100);
+              
+              return (
+                <motion.div 
+                  key={shower.id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  whileHover={{ y: -10 }}
+                  className="glass-card p-8 rounded-[3rem] border border-white/5 relative overflow-hidden group flex flex-col"
+                >
+                  <MeteorVisualizer intensity={shower.zhr} />
+                  
+                  <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+                    <Star size={100} />
+                  </div>
+                  
+                  <div className="relative z-10 flex flex-col h-full">
+                    <div className="flex justify-between items-start mb-8">
+                      <div className={`px-3 py-1 rounded-full border ${status.bg} border-white/5`}>
+                        <span className={`text-[8px] font-bold uppercase tracking-widest ${status.color}`}>{status.label}</span>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-purple-500 font-mono text-[10px] tracking-widest uppercase mb-1">
+                          {new Date(shower.peak).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </p>
+                        <p className="text-[8px] text-gray-500 uppercase tracking-widest">Peak Date</p>
+                      </div>
+                    </div>
+
+                    <h3 className="text-3xl font-bold mb-4 group-hover:text-purple-400 transition-colors leading-tight">{shower.name}</h3>
+                    <p className="text-gray-400 text-sm leading-relaxed mb-8 line-clamp-2 font-light">{shower.description}</p>
+                    
+                    <div className="mb-8 p-1 bg-white/5 rounded-2xl border border-white/5 overflow-hidden">
+                      <ConstellationMap name={shower.constellation} />
+                    </div>
+
+                    <div className="space-y-6 mb-8">
+                      <div>
+                        <div className="flex justify-between items-end mb-2">
+                          <p className="text-[9px] text-gray-500 uppercase tracking-widest font-bold">Peak Intensity</p>
+                          <p className="text-xs font-bold text-purple-400">{shower.zhr} ZHR</p>
+                        </div>
+                        <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                          <motion.div 
+                            initial={{ width: 0 }}
+                            whileInView={{ width: `${intensityPercent}%` }}
+                            className="h-full bg-gradient-to-r from-purple-600 to-blue-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
+                          <p className="text-[8px] text-gray-500 uppercase tracking-widest mb-1">Parent Body</p>
+                          <p className="text-xs font-bold truncate text-white/90">{shower.parent}</p>
+                        </div>
+                        <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
+                          <p className="text-[8px] text-gray-500 uppercase tracking-widest mb-1">Constellation</p>
+                          <p className="text-xs font-bold truncate text-white/90">{shower.constellation}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-auto">
+                      <Link 
+                        to={`/shower/${shower.id}`} 
+                        className="w-full flex items-center justify-center space-x-3 py-4 glass rounded-2xl text-[10px] font-bold tracking-[0.2em] uppercase border border-white/10 hover:bg-white/10 hover:border-purple-500/30 transition-all group/btn"
+                      >
+                        <span>View Deep Dive</span>
+                        <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
+                      </Link>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
+
+        {filteredShowers.length === 0 && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-32"
+          >
+            <AlertTriangle className="mx-auto text-gray-500 mb-4" size={48} />
+            <p className="text-gray-400 font-light">No meteor showers found matching your criteria.</p>
+            <button 
+              onClick={() => { setSearch(''); setFilter('all'); }}
+              className="mt-6 text-purple-500 font-bold text-xs uppercase tracking-widest hover:text-purple-400 transition-colors"
+            >
+              Clear all filters
+            </button>
+          </motion.div>
+        )}
       </div>
     </div>
   );
@@ -926,43 +1082,135 @@ const ShowerDetail = () => {
 
   return (
     <div className="min-h-screen pt-32 pb-20 px-6">
-      <div className="max-w-4xl mx-auto">
-        <Link to="/calendar" className="text-[10px] font-bold tracking-widest uppercase text-gray-500 flex items-center space-x-2 mb-8 hover:text-white transition-colors">
-          <ArrowRight size={12} className="rotate-180" />
-          <span>Back to Calendar</span>
+      <div className="max-w-6xl mx-auto">
+        <Link to="/calendar" className="text-[10px] font-bold tracking-widest uppercase text-gray-500 flex items-center space-x-2 mb-12 hover:text-white transition-colors group">
+          <ArrowRight size={12} className="rotate-180 group-hover:-translate-x-1 transition-transform" />
+          <span>Back to Schedule</span>
         </Link>
         
-        <SectionLabel color="purple">{shower.parent}</SectionLabel>
-        <HeroTitle>{shower.name} <span className="text-purple-500">Guide</span></HeroTitle>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-          <div className="glass-card p-6 rounded-3xl border border-white/5">
-            <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Peak Date</p>
-            <p className="text-lg font-bold">{new Date(shower.peak).toLocaleDateString('en-US', { dateStyle: 'full' })}</p>
-          </div>
-          <div className="glass-card p-6 rounded-3xl border border-white/5">
-            <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Intensity</p>
-            <p className="text-lg font-bold">{shower.zhr} Meteors/Hr</p>
-          </div>
-          <div className="glass-card p-6 rounded-3xl border border-white/5">
-            <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-1">Velocity</p>
-            <p className="text-lg font-bold">59 km/s</p>
-          </div>
-        </div>
-
-        <div className="glass-card p-10 rounded-[3rem] border border-white/10">
-          <div className="prose prose-invert max-w-none prose-purple">
-            <h3 className="text-2xl font-bold mb-4">About the {shower.name}</h3>
-            <p className="text-gray-400 leading-relaxed mb-6">
-              {shower.description}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
+          <div className="lg:col-span-7">
+            <SectionLabel color="purple">{shower.parent}</SectionLabel>
+            <HeroTitle>{shower.name} <span className="text-purple-500">Analysis</span></HeroTitle>
+            
+            <p className="text-xl text-white/70 font-light leading-relaxed mb-12">
+              {shower.description} This annual event occurs when Earth passes through the debris trail left by {shower.parent}.
             </p>
-            <h4 className="text-xl font-bold mb-4">Viewing Tips</h4>
-            <ul className="list-disc pl-6 space-y-2 text-gray-400">
-              <li>Find a dark location away from city lights.</li>
-              <li>Allow your eyes to adjust to the dark for at least 20 minutes.</li>
-              <li>Lie flat on your back and look up, taking in as much of the sky as possible.</li>
-              <li>The best viewing time is usually between midnight and dawn.</li>
-            </ul>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-16">
+              <div className="glass-card p-8 rounded-[2.5rem] border border-white/5">
+                <div className="flex items-center space-x-4 mb-6">
+                  <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-500">
+                    <Clock size={24} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Peak Window</p>
+                    <p className="text-lg font-bold">Midnight - Dawn</p>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-400 leading-relaxed">
+                  The best viewing time is typically between midnight and dawn local time, when the radiant point is highest in the sky.
+                </p>
+              </div>
+
+              <div className="glass-card p-8 rounded-[2.5rem] border border-white/5">
+                <div className="flex items-center space-x-4 mb-6">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+                    <Navigation size={24} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Radiant Point</p>
+                    <p className="text-lg font-bold">{shower.constellation}</p>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-400 leading-relaxed">
+                  Look towards the {shower.constellation} constellation, but keep your gaze wide to catch meteors with longer trails.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-12">
+              <section>
+                <h3 className="text-2xl font-bold mb-6 flex items-center space-x-3">
+                  <div className="w-1.5 h-8 bg-purple-500 rounded-full" />
+                  <span>Viewing Tips</span>
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {[
+                    { title: 'Dark Skies', desc: 'Find a location at least 30 miles from city lights.' },
+                    { title: 'Adaptation', desc: 'Give your eyes 20-30 minutes to adjust to the dark.' },
+                    { title: 'Equipment', desc: 'No telescopes needed. Your naked eyes are best.' },
+                    { title: 'Comfort', desc: 'Bring a reclining chair and warm blankets.' }
+                  ].map((tip, i) => (
+                    <div key={i} className="p-6 bg-white/5 rounded-3xl border border-white/5">
+                      <p className="font-bold text-sm mb-1">{tip.title}</p>
+                      <p className="text-xs text-gray-500 leading-relaxed">{tip.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section>
+                <h3 className="text-2xl font-bold mb-6 flex items-center space-x-3">
+                  <div className="w-1.5 h-8 bg-blue-500 rounded-full" />
+                  <span>Historical Context</span>
+                </h3>
+                <p className="text-gray-400 leading-relaxed font-light">
+                  The {shower.name} have been observed for centuries. The parent body, {shower.parent}, 
+                  was first identified as the source of this shower in the late 19th century. 
+                  Each year, Earth's orbit intersects the dust and ice particles shed by this {shower.parent.includes('Comet') ? 'comet' : 'asteroid'} 
+                  as it orbits the Sun.
+                </p>
+              </section>
+            </div>
+          </div>
+
+          <div className="lg:col-span-5 space-y-8 sticky top-32">
+            <div className="glass-card p-10 rounded-[3rem] border border-white/10 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-600/10 to-transparent" />
+              <div className="relative z-10">
+                <p className="text-[10px] text-purple-400 uppercase tracking-widest font-bold mb-8">Technical Specifications</p>
+                
+                <div className="space-y-8">
+                  {[
+                    { label: 'Peak Date', value: new Date(shower.peak).toLocaleDateString('en-US', { dateStyle: 'long' }), icon: Calendar },
+                    { label: 'Intensity (ZHR)', value: `${shower.zhr} Meteors/Hr`, icon: Activity },
+                    { label: 'Entry Velocity', value: '59 km/s', icon: Wind },
+                    { label: 'Activity Period', value: `${shower.start} to ${shower.end}`, icon: Clock },
+                    { label: 'Radiant RA/Dec', value: '02h 31m / +59°', icon: MapIcon }
+                  ].map((spec, i) => (
+                    <div key={i} className="flex items-center justify-between group">
+                      <div className="flex items-center space-x-4">
+                        <spec.icon size={16} className="text-gray-500 group-hover:text-purple-400 transition-colors" />
+                        <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">{spec.label}</span>
+                      </div>
+                      <span className="text-sm font-bold text-white/90">{spec.value}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-12 pt-12 border-t border-white/5">
+                  <div className="mb-6">
+                    <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-4">Radiant Constellation</p>
+                    <ConstellationMap name={shower.constellation} />
+                  </div>
+                  <Link to="/globe" className="w-full flex items-center justify-center space-x-3 py-4 bg-purple-600 text-white rounded-2xl text-[10px] font-bold tracking-[0.2em] uppercase hover:bg-purple-500 transition-all shadow-2xl shadow-purple-600/20">
+                    <Globe size={14} />
+                    <span>Track on 3D Globe</span>
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            <div className="glass-card p-8 rounded-[2.5rem] border border-white/5 bg-orange-500/5">
+              <div className="flex items-center space-x-3 mb-4 text-orange-500">
+                <AlertTriangle size={18} />
+                <p className="text-[10px] font-bold uppercase tracking-widest">Visibility Alert</p>
+              </div>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Moonlight can significantly impact visibility. Check the <Link to="/" className="text-orange-500 hover:underline">Home page</Link> for current moon phase and local cloud cover analysis.
+              </p>
+            </div>
           </div>
         </div>
       </div>
