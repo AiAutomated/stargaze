@@ -659,6 +659,15 @@ const Home = () => {
 const Live = () => {
   const [reports, setReports] = useState<SightingReport[]>([]);
   const [isReporting, setIsReporting] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [formData, setFormData] = useState({
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    location: '',
+    magnitude: -2.0,
+    duration: '1.0',
+    type: 'Meteor' as 'Meteor' | 'Fireball' | 'Bolide',
+    verified: false
+  });
 
   useEffect(() => {
     const generateReports = () => {
@@ -682,20 +691,32 @@ const Live = () => {
     setReports(generateReports());
   }, []);
 
-  const handleReport = () => {
+  const handleReportSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
     setIsReporting(true);
+    
     setTimeout(() => {
       const newReport: SightingReport = {
         id: Math.random().toString(),
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        location: 'Your Location',
-        magnitude: -2.5,
-        duration: '1.5s',
-        type: 'Meteor',
-        verified: false
+        time: formData.time,
+        location: formData.location || 'Unknown Location',
+        magnitude: Number(formData.magnitude),
+        duration: formData.duration + 's',
+        type: formData.type,
+        verified: formData.verified
       };
       setReports(prev => [newReport, ...prev]);
       setIsReporting(false);
+      setShowReportModal(false);
+      // Reset form
+      setFormData({
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        location: '',
+        magnitude: -2.0,
+        duration: '1.0',
+        type: 'Meteor',
+        verified: false
+      });
     }, 1000);
   };
 
@@ -712,14 +733,128 @@ const Live = () => {
             </p>
           </div>
           <button 
-            onClick={handleReport}
-            disabled={isReporting}
-            className="px-8 py-4 bg-orange-600 text-white rounded-2xl text-[10px] font-bold tracking-widest uppercase hover:bg-orange-500 transition-all flex items-center space-x-3 disabled:opacity-50"
+            onClick={() => setShowReportModal(true)}
+            className="px-8 py-4 bg-orange-600 text-white rounded-2xl text-[10px] font-bold tracking-widest uppercase hover:bg-orange-500 transition-all flex items-center space-x-3"
           >
-            {isReporting ? <Activity className="animate-spin" size={16} /> : <Sparkles size={16} />}
-            <span>{isReporting ? 'Submitting...' : 'Report a Sighting'}</span>
+            <Sparkles size={16} />
+            <span>Report a Sighting</span>
           </button>
         </div>
+
+        {/* Report Modal */}
+        <AnimatePresence>
+          {showReportModal && (
+            <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowReportModal(false)}
+                className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="glass-card w-full max-w-lg rounded-[2.5rem] border border-white/10 p-10 relative z-10 overflow-hidden"
+              >
+                <div className="flex justify-between items-center mb-8">
+                  <h3 className="text-2xl font-bold">Submit Sighting</h3>
+                  <button onClick={() => setShowReportModal(false)} className="text-white/40 hover:text-white transition-colors">
+                    <X size={24} />
+                  </button>
+                </div>
+
+                <form onSubmit={handleReportSubmit} className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Time (UTC)</label>
+                      <input 
+                        type="text" 
+                        value={formData.time}
+                        onChange={(e) => setFormData({...formData, time: e.target.value})}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none transition-colors"
+                        placeholder="HH:MM"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Type</label>
+                      <select 
+                        value={formData.type}
+                        onChange={(e) => setFormData({...formData, type: e.target.value as any})}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none transition-colors appearance-none"
+                      >
+                        <option value="Meteor">Meteor</option>
+                        <option value="Fireball">Fireball</option>
+                        <option value="Bolide">Bolide</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Location</label>
+                    <input 
+                      type="text" 
+                      value={formData.location}
+                      onChange={(e) => setFormData({...formData, location: e.target.value})}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none transition-colors"
+                      placeholder="City, Country"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Magnitude</label>
+                      <input 
+                        type="number" 
+                        step="0.1"
+                        value={formData.magnitude}
+                        onChange={(e) => setFormData({...formData, magnitude: Number(e.target.value)})}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none transition-colors"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Duration (s)</label>
+                      <input 
+                        type="number" 
+                        step="0.1"
+                        value={formData.duration}
+                        onChange={(e) => setFormData({...formData, duration: e.target.value})}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-orange-500 outline-none transition-colors"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-3 p-4 bg-white/5 rounded-2xl border border-white/5">
+                    <input 
+                      type="checkbox" 
+                      id="verified"
+                      checked={formData.verified}
+                      onChange={(e) => setFormData({...formData, verified: e.target.checked})}
+                      className="w-5 h-5 rounded-lg bg-white/10 border-white/20 text-orange-500 focus:ring-orange-500"
+                    />
+                    <label htmlFor="verified" className="text-xs text-gray-400 cursor-pointer select-none">
+                      I am a verified astronomical observer
+                    </label>
+                  </div>
+
+                  <button 
+                    type="submit"
+                    disabled={isReporting}
+                    className="w-full py-4 bg-orange-600 text-white rounded-2xl text-[10px] font-bold tracking-widest uppercase hover:bg-orange-500 transition-all flex items-center justify-center space-x-3 disabled:opacity-50"
+                  >
+                    {isReporting ? <Activity className="animate-spin" size={16} /> : <Send size={16} />}
+                    <span>{isReporting ? 'Submitting Signal...' : 'Transmit Report'}</span>
+                  </button>
+                </form>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
         
         <div className="grid grid-cols-1 gap-4">
           <AnimatePresence mode="popLayout">

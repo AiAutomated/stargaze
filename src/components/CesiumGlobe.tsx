@@ -370,24 +370,32 @@ const CesiumGlobe: React.FC = () => {
       
       if (isActive || isNearPeak) {
         // Density based on ZHR and status - more sensitive to intensity
-        // For major showers (ZHR > 100), we want a lot more streaks
-        const intensityMultiplier = isActive ? 1.5 : 0.5;
-        const meteorCount = Math.floor(Math.max(3, (shower.zhr / 8)) * intensityMultiplier);
+        // Major showers (ZHR > 50) get a significant boost in density
+        const isMajor = shower.zhr > 50;
+        const intensityMultiplier = isActive ? (isMajor ? 2.0 : 1.2) : 0.5;
+        const meteorCount = Math.floor(Math.max(2, (shower.zhr / 10)) * intensityMultiplier);
 
         for (let i = 0; i < meteorCount; i++) {
           const startTime = Cesium.JulianDate.fromDate(now);
           // Duration varies by ZHR - more intense showers have faster, more energetic meteors
           const duration = (0.2 + Math.random() * 0.6) * (1 - Math.min(shower.zhr / 400, 0.6)); 
-          const delay = Math.random() * 30; // Longer delay for more spread out meteors
+          const delay = Math.random() * 30; 
           const startPos = Cesium.Cartesian3.fromDegrees(lon, lat, 2000000);
           
           const angle = Math.random() * Math.PI * 2;
           // Distance (length of the path) varies by ZHR - more intense showers have longer trails
-          const distBase = isActive ? 25 : 15;
-          const dist = (distBase + Math.random() * 30) * (1 + Math.min(shower.zhr / 150, 1.0));
+          const distBase = isActive ? (isMajor ? 35 : 20) : 15;
+          const dist = (distBase + Math.random() * 30) * (1 + Math.min(shower.zhr / 100, 1.5));
           const endLon = lon + Math.cos(angle) * dist;
           const endLat = lat + Math.sin(angle) * dist;
           const endPos = Cesium.Cartesian3.fromDegrees(endLon, endLat, 100000);
+
+          // Subtle color gradient based on intensity (ZHR)
+          // Low ZHR: Aqua/Blue -> High ZHR: Yellow/Orange/White
+          const intensityFactor = Math.min(shower.zhr / 120, 1.0);
+          const baseColor = isActive ? Cesium.Color.YELLOW : Cesium.Color.AQUA;
+          const hotColor = Cesium.Color.WHITE;
+          const streakColor = Cesium.Color.lerp(baseColor, hotColor, intensityFactor * 0.5, new Cesium.Color());
 
           // Color intensity and width based on ZHR
           const glowPower = isActive ? 0.6 + (shower.zhr / 100) : 0.4;
@@ -401,14 +409,14 @@ const CesiumGlobe: React.FC = () => {
                 if (t < 0 || t > 1) return [];
                 const currentPos = Cesium.Cartesian3.lerp(startPos, endPos, t, new Cesium.Cartesian3());
                 // Trail length (visual length of the streak) varies by ZHR
-                const trailLength = 0.3 + (shower.zhr / 400);
+                const trailLength = 0.3 + (shower.zhr / 300);
                 const trailPos = Cesium.Cartesian3.lerp(startPos, endPos, Math.max(0, t - trailLength), new Cesium.Cartesian3());
                 return [trailPos, currentPos];
               }, false),
               width: streakWidth,
               material: new Cesium.PolylineGlowMaterialProperty({
                 glowPower: glowPower,
-                color: color.withAlpha(isActive ? 0.98 : 0.6),
+                color: streakColor.withAlpha(isActive ? 0.98 : 0.6),
               }),
             }
           });
