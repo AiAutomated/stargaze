@@ -37,53 +37,94 @@ const CesiumGlobe: React.FC = () => {
   }, []);
 
   const fetchData = useCallback(async () => {
+    if (!isMounted.current) return;
     setLoading(true);
     setFetchError(null);
-    try {
-      // Fetch Active Satellites with a timeout and fallback
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000); // Increased to 20s
 
-      let satRes;
+    const fetchTLE = async (url: string, timeout = 15000) => {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeout);
       try {
-        satRes = await fetch('https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle', {
-          signal: controller.signal
+        const response = await fetch(url, { 
+          signal: controller.signal,
+          // Adding cache: 'no-cache' can sometimes help with 403s if they are cached blocks
+          cache: 'no-cache'
         });
-      } catch (e) {
-        // If 'active' fails (often due to size), try 'visual' which is smaller and more reliable
-        console.warn('Active satellites fetch failed, trying visual group...');
-        satRes = await fetch('https://celestrak.org/NORAD/elements/gp.php?GROUP=visual&FORMAT=tle', {
-          signal: controller.signal
-        });
+        clearTimeout(id);
+        return response;
+      } catch (e: any) {
+        clearTimeout(id);
+        if (e.name === 'AbortError') {
+          throw new Error('Request timed out');
+        }
+        throw e;
       }
+    };
+
+    try {
+      // 1. Fetch Satellites
+      let satText = '';
+      const satUrls = [
+        'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle',
+        'https://celestrak.com/NORAD/elements/gp.php?GROUP=active&FORMAT=tle',
+        'https://celestrak.org/NORAD/elements/gp.php?GROUP=visual&FORMAT=tle',
+        'https://celestrak.com/NORAD/elements/gp.php?GROUP=visual&FORMAT=tle'
+      ];
+
+      let satSuccess = false;
+      for (const url of satUrls) {
+        try {
+          const res = await fetchTLE(url);
+          if (res.ok) {
+            satText = await res.text();
+            if (satText && satText.length > 100) {
+              satSuccess = true;
+              break;
+            }
+          } else if (res.status === 403) {
+            console.warn(`403 Forbidden from ${url}, trying next...`);
+          }
+        } catch (e) {
+          console.warn(`Failed to fetch from ${url}:`, e);
+        }
+      }
+
+      if (!satSuccess) throw new Error('Could not fetch satellite data from any source. Celestrak might be rate-limiting requests.');
       
-      if (!satRes.ok) throw new Error(`Satellites fetch failed: ${satRes.status} ${satRes.statusText}`);
-      const satText = await satRes.text();
       const parsedSats = parseTLE(satText);
-      
       if (parsedSats.length === 0) throw new Error('No satellite data parsed');
       setSatellites(parsedSats);
 
-      // Fetch Debris with fallback
-      let debrisRes;
-      try {
-        debrisRes = await fetch('https://celestrak.org/NORAD/elements/gp.php?GROUP=debris&FORMAT=tle', {
-          signal: controller.signal
-        });
-      } catch (e) {
-        console.warn('Debris fetch failed, trying smaller group...');
-        debrisRes = await fetch('https://celestrak.org/NORAD/elements/gp.php?GROUP=iridium-33-debris&FORMAT=tle', {
-          signal: controller.signal
-        });
+      // 2. Fetch Debris
+      let debrisText = '';
+      const debrisUrls = [
+        'https://celestrak.org/NORAD/elements/gp.php?GROUP=debris&FORMAT=tle',
+        'https://celestrak.com/NORAD/elements/gp.php?GROUP=debris&FORMAT=tle',
+        'https://celestrak.org/NORAD/elements/gp.php?GROUP=iridium-33-debris&FORMAT=tle'
+      ];
+
+      let debrisSuccess = false;
+      for (const url of debrisUrls) {
+        try {
+          const res = await fetchTLE(url);
+          if (res.ok) {
+            debrisText = await res.text();
+            if (debrisText && debrisText.length > 100) {
+              debrisSuccess = true;
+              break;
+            }
+          }
+        } catch (e) {
+          console.warn(`Failed to fetch debris from ${url}:`, e);
+        }
+      }
+
+      if (debrisSuccess) {
+        const parsedDebris = parseTLE(debrisText);
+        setDebris(parsedDebris);
       }
       
-      if (!debrisRes.ok) throw new Error(`Debris fetch failed: ${debrisRes.status} ${debrisRes.statusText}`);
-      const debrisText = await debrisRes.text();
-      const parsedDebris = parseTLE(debrisText);
-      
-      setDebris(parsedDebris);
       setLastUpdated(new Date());
-      clearTimeout(timeoutId);
     } catch (error: any) {
       console.error('Error fetching TLE data:', error);
       setFetchError(error.message || 'Failed to fetch orbital data. Please try again.');
