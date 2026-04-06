@@ -39,27 +39,44 @@ const CesiumGlobe: React.FC = () => {
     setLoading(true);
     setFetchError(null);
     try {
-      // Fetch Active Satellites with a timeout
+      // Fetch Active Satellites with a timeout and fallback
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 20000); // Increased to 20s
 
-      const satRes = await fetch('https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle', {
-        signal: controller.signal
-      });
+      let satRes;
+      try {
+        satRes = await fetch('https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle', {
+          signal: controller.signal
+        });
+      } catch (e) {
+        // If 'active' fails (often due to size), try 'visual' which is smaller and more reliable
+        console.warn('Active satellites fetch failed, trying visual group...');
+        satRes = await fetch('https://celestrak.org/NORAD/elements/gp.php?GROUP=visual&FORMAT=tle', {
+          signal: controller.signal
+        });
+      }
       
-      if (!satRes.ok) throw new Error(`Satellites fetch failed: ${satRes.statusText}`);
+      if (!satRes.ok) throw new Error(`Satellites fetch failed: ${satRes.status} ${satRes.statusText}`);
       const satText = await satRes.text();
       const parsedSats = parseTLE(satText);
       
       if (parsedSats.length === 0) throw new Error('No satellite data parsed');
       setSatellites(parsedSats);
 
-      // Fetch Debris
-      const debrisRes = await fetch('https://celestrak.org/NORAD/elements/gp.php?GROUP=debris&FORMAT=tle', {
-        signal: controller.signal
-      });
+      // Fetch Debris with fallback
+      let debrisRes;
+      try {
+        debrisRes = await fetch('https://celestrak.org/NORAD/elements/gp.php?GROUP=debris&FORMAT=tle', {
+          signal: controller.signal
+        });
+      } catch (e) {
+        console.warn('Debris fetch failed, trying smaller group...');
+        debrisRes = await fetch('https://celestrak.org/NORAD/elements/gp.php?GROUP=iridium-33-debris&FORMAT=tle', {
+          signal: controller.signal
+        });
+      }
       
-      if (!debrisRes.ok) throw new Error(`Debris fetch failed: ${debrisRes.statusText}`);
+      if (!debrisRes.ok) throw new Error(`Debris fetch failed: ${debrisRes.status} ${debrisRes.statusText}`);
       const debrisText = await debrisRes.text();
       const parsedDebris = parseTLE(debrisText);
       
