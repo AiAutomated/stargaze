@@ -227,7 +227,7 @@ function Navbar({ watched, notifications }: { watched: WatchedShower[]; notifica
             <Sparkles size={14} className="text-white" />
           </div>
           <span className="font-space font-bold text-white text-sm tracking-wide">
-            Stargaze<span className="text-blue-400">.io</span>
+            Stargaze
           </span>
         </Link>
 
@@ -313,7 +313,7 @@ function Footer() {
               <div className="w-6 h-6 rounded-md bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
                 <Sparkles size={11} className="text-white" />
               </div>
-              <span className="font-space font-bold text-sm">Stargaze<span className="text-blue-400">.io</span></span>
+              <span className="font-space font-bold text-sm">Stargaze</span>
             </div>
             <p className="text-xs text-white/40 leading-relaxed">
               Free, real-time meteor shower tracking and celestial event calendar. Open to all stargazers.
@@ -339,7 +339,7 @@ function Footer() {
           </div>
         </div>
         <div className="border-t border-white/5 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-white/22">© {new Date().getFullYear()} Stargaze.io — All rights reserved</p>
+          <p className="text-xs text-white/22">© {new Date().getFullYear()} Stargaze — All rights reserved</p>
           <p className="text-xs text-white/22">Data: IMO · NASA · Open-Meteo · CelesTrak · WhereTheISS</p>
         </div>
       </div>
@@ -1542,7 +1542,7 @@ function About() {
           <p className="section-label text-purple-400 mb-2">About the Project</p>
           <h1 className="text-4xl font-bold font-space mb-3">Built for <span className="text-gradient">Stargazers</span></h1>
           <p className="text-white/50 leading-relaxed max-w-2xl">
-            Stargaze.io is a free, open-source celestial tracking platform. We aggregate data from NASA, IMO, CelesTrak,
+            Stargaze is a free, open-source celestial tracking platform. We aggregate data from NASA, IMO, CelesTrak,
             Open-Meteo, and more to bring you real-time meteor shower tracking without subscriptions or ads.
           </p>
         </div>
@@ -1637,7 +1637,7 @@ function PrivacyPolicy() {
           {[
             { h: 'Information We Collect',     p: 'We collect minimal information necessary to provide our services. This may include location data (if you grant permission) to show local meteor visibility and weather conditions. We do not collect personal information without consent.' },
             { h: 'How We Use Your Information', p: 'Location data is used solely to fetch local weather and observing conditions from Open-Meteo. This data is sent directly from your browser to the weather API and is not stored on our servers.' },
-            { h: 'Third-Party Services',        p: 'Stargaze.io uses NASA\'s APOD API, Open-Meteo, CelesTrak, and WhereTheISS. These are external services with their own privacy policies. No personal data is shared with these services beyond what is required for their API calls.' },
+            { h: 'Third-Party Services',        p: 'Stargaze uses NASA\'s APOD API, Open-Meteo, CelesTrak, and WhereTheISS. These are external services with their own privacy policies. No personal data is shared with these services beyond what is required for their API calls.' },
             { h: 'Cookies',                     p: 'We use localStorage to save your watchlist preferences. No tracking cookies or advertising cookies are used.' },
             { h: 'Contact',                     p: 'Questions about this policy? Use the contact form on the About page.' },
           ].map(({ h, p }) => (
@@ -1666,8 +1666,8 @@ function TermsOfService() {
         <p className="text-xs text-white/30 font-mono mb-8">Last updated: January 2026</p>
         <div className="glass-card p-6 rounded-2xl space-y-6">
           {[
-            { h: 'Acceptance of Terms',     p: 'By using Stargaze.io, you agree to these terms. This is a free educational tool — please use it responsibly.' },
-            { h: 'Use of Service',          p: 'Stargaze.io is provided free of charge for personal, non-commercial use. You may not attempt to disrupt, reverse-engineer, or misuse the service.' },
+            { h: 'Acceptance of Terms',     p: 'By using Stargaze, you agree to these terms. This is a free educational tool — please use it responsibly.' },
+            { h: 'Use of Service',          p: 'Stargaze is provided free of charge for personal, non-commercial use. You may not attempt to disrupt, reverse-engineer, or misuse the service.' },
             { h: 'User-Submitted Content',  p: 'Sighting reports you submit may be displayed publicly. Submit only genuine observations. False reports may be removed.' },
             { h: 'Accuracy Disclaimer',     p: 'Celestial data (ZHR, peak dates, conditions) is provided for educational purposes. Real viewing conditions may vary. We make no guarantee of accuracy for time-sensitive decisions.' },
             { h: 'Third-Party Data',        p: 'We aggregate data from NASA, IMO, CelesTrak, and Open-Meteo. These sources may have their own terms regarding data reuse.' },
