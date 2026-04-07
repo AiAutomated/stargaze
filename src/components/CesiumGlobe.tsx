@@ -870,14 +870,15 @@ const CesiumGlobe: React.FC = () => {
           Desktop: right side panel
       */}
       <div className="absolute bottom-0 left-0 right-0 sm:bottom-6 sm:left-auto sm:right-5 sm:w-80
-                      z-10 flex flex-col gap-3 sm:max-h-[calc(100vh-8rem)] sm:overflow-y-auto">
+                      z-10 flex flex-col gap-0 sm:gap-3
+                      max-h-[65vh] overflow-y-auto sm:max-h-[calc(100vh-8rem)]">
         <AnimatePresence>
           {selectedSatellite && (
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="p-5 rounded-2xl text-white relative"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="p-5 rounded-t-2xl sm:rounded-2xl text-white relative"
               style={{ background: 'rgba(3,0,20,0.90)', border: '1px solid rgba(34,211,238,0.25)', backdropFilter: 'blur(16px)' }}
             >
               <div className="absolute top-0 right-0 p-4">
@@ -930,10 +931,10 @@ const CesiumGlobe: React.FC = () => {
 
           {selectedMeteorShower && (
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="p-5 rounded-2xl text-white relative"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="p-5 rounded-t-2xl sm:rounded-2xl text-white relative"
               style={{ background: 'rgba(3,0,20,0.90)', border: '1px solid rgba(251,191,36,0.25)', backdropFilter: 'blur(16px)' }}
             >
               <div className="absolute top-0 right-0 p-4">
@@ -1018,10 +1019,10 @@ const CesiumGlobe: React.FC = () => {
 
           {selectedUFO && (
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="p-5 rounded-2xl text-white relative"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="p-5 rounded-t-2xl sm:rounded-2xl text-white relative"
               style={{ background: 'rgba(3,0,20,0.90)', border: '1px solid rgba(132,204,22,0.25)', backdropFilter: 'blur(16px)' }}
             >
               <div className="absolute top-0 right-0 p-4">

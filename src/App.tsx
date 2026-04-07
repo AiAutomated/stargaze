@@ -1684,11 +1684,62 @@ function TermsOfService() {
   );
 }
 
+// ─── NOT FOUND (404) ─────────────────────────────────────────────────────────
+function NotFound() {
+  const navigate = useNavigate();
+  return (
+    <div className="relative z-10 min-h-[75vh] flex flex-col items-center justify-center px-4 pt-20 text-center">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-md">
+        <p className="text-7xl mb-4 select-none leading-none">🔭</p>
+        <p className="text-[7rem] font-bold font-mono leading-none text-white/6 select-none -mt-2 mb-4">404</p>
+        <h1 className="text-3xl font-bold font-space mb-3 -mt-6">Lost in Space</h1>
+        <p className="text-white/40 text-sm leading-relaxed mb-8 max-w-xs mx-auto">
+          That page drifted out of orbit. It may have moved, been removed, or never existed.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <button onClick={() => navigate(-1)} className="btn-secondary">
+            <ChevronRight size={14} className="rotate-180" /> Go Back
+          </button>
+          <Link to="/" className="btn-primary">
+            <Sparkles size={14} /> Back to Home
+          </Link>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 // ─── SCROLL TO TOP ────────────────────────────────────────────────────────────
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, [pathname]);
   return null;
+}
+
+// ─── ANIMATED ROUTES ─────────────────────────────────────────────────────────
+// Routes must be inside a component that can call useLocation() so AnimatePresence
+// receives a changing key on navigation — without this, enter/exit animations never fire.
+function AnimatedRoutes({ watched, addNotification, toggleWatch }: {
+  watched: WatchedShower[];
+  addNotification: (n: Omit<Notification, 'id' | 'timestamp'>) => void;
+  toggleWatch: (s: MeteorShower) => void;
+}) {
+  const location = useLocation();
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route path="/"           element={<Home watched={watched} addNotification={addNotification} toggleWatch={toggleWatch} />} />
+        <Route path="/calendar"   element={<MeteorCalendar watched={watched} toggleWatch={toggleWatch} addNotification={addNotification} />} />
+        <Route path="/shower/:id" element={<ShowerDetail watched={watched} toggleWatch={toggleWatch} />} />
+        <Route path="/live"       element={<LiveFeed addNotification={addNotification} />} />
+        <Route path="/globe"      element={<GlobePage />} />
+        <Route path="/about"      element={<About />} />
+        <Route path="/privacy"    element={<PrivacyPolicy />} />
+        <Route path="/terms"      element={<TermsOfService />} />
+        <Route path="*"           element={<NotFound />} />
+      </Routes>
+    </AnimatePresence>
+  );
 }
 
 // ─── ROOT APP ─────────────────────────────────────────────────────────────────
@@ -1702,26 +1753,33 @@ export default function App() {
     localStorage.setItem('stargaze_watched', JSON.stringify(watched));
   }, [watched]);
 
-  // Check for upcoming peaks on mount
+  // Check for upcoming peaks on mount — max 1 notification to avoid spamming
   useEffect(() => {
     const checkPeaks = () => {
-      showers.forEach(s => {
-        const hoursUntilPeak = (new Date(s.peak).getTime() - Date.now()) / 3600000;
-        const status = getShowerStatus(s);
-        if (hoursUntilPeak > 0 && hoursUntilPeak < 48) {
-          addNotification({
-            title: `${s.name} Peak in ${Math.round(hoursUntilPeak)}h`,
-            message: `Peak rate: up to ${s.zhr} meteors/hour. Clear skies!`,
-            type: 'info',
-          });
-        } else if (status === 'active') {
-          addNotification({
-            title: `${s.name} is Active!`,
-            message: 'Go outside and look up — conditions permitting.',
-            type: 'success',
-          });
-        }
-      });
+      // Prioritise the soonest shower with a peak within 48h
+      const soonest = showers
+        .filter(s => { const h = (new Date(s.peak).getTime() - Date.now()) / 3600000; return h > 0 && h < 48; })
+        .sort((a, b) => new Date(a.peak).getTime() - new Date(b.peak).getTime())[0];
+      if (soonest) {
+        const h = Math.round((new Date(soonest.peak).getTime() - Date.now()) / 3600000);
+        addNotification({
+          title: `${soonest.name} Peak in ${h}h`,
+          message: `Up to ${soonest.zhr} meteors/hour at peak. Clear skies!`,
+          type: 'info',
+        });
+        return;
+      }
+      // Otherwise surface the highest-ZHR currently active shower
+      const active = showers
+        .filter(s => getShowerStatus(s) === 'active')
+        .sort((a, b) => b.zhr - a.zhr)[0];
+      if (active) {
+        addNotification({
+          title: `${active.name} is Active Now!`,
+          message: `Up to ${active.zhr} meteors/hour. Go outside and look up!`,
+          type: 'success',
+        });
+      }
     };
     const id = setTimeout(checkPeaks, 2000);
     return () => clearTimeout(id);
@@ -1754,18 +1812,7 @@ export default function App() {
         <Navbar watched={watched} notifications={notifications} />
         <NotificationToasts notifications={notifications} dismiss={dismissNotification} />
 
-        <AnimatePresence mode="wait">
-          <Routes>
-            <Route path="/"          element={<Home watched={watched} addNotification={addNotification} toggleWatch={toggleWatch} />} />
-            <Route path="/calendar"  element={<MeteorCalendar watched={watched} toggleWatch={toggleWatch} addNotification={addNotification} />} />
-            <Route path="/shower/:id" element={<ShowerDetail watched={watched} toggleWatch={toggleWatch} />} />
-            <Route path="/live"      element={<LiveFeed addNotification={addNotification} />} />
-            <Route path="/globe"     element={<GlobePage />} />
-            <Route path="/about"     element={<About />} />
-            <Route path="/privacy"   element={<PrivacyPolicy />} />
-            <Route path="/terms"     element={<TermsOfService />} />
-          </Routes>
-        </AnimatePresence>
+        <AnimatedRoutes watched={watched} addNotification={addNotification} toggleWatch={toggleWatch} />
 
         <Footer />
       </div>
