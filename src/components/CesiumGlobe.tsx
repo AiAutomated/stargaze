@@ -711,113 +711,113 @@ const CesiumGlobe: React.FC = () => {
       <div ref={containerRef} className="w-full h-full" />
 
       {/* ── Left Control Panel ── */}
-      <div className="absolute top-20 left-3 sm:left-6 z-10 flex flex-col gap-3 max-w-[calc(100vw-1.5rem)] sm:max-w-xs">
+      <div className="absolute top-20 left-3 sm:left-5 z-10 flex flex-col gap-2 sm:gap-3"
+           style={{ maxWidth: 'min(calc(100vw - 1.5rem), 22rem)' }}>
 
-        {/* Header */}
+        {/* Header — compact on mobile */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="backdrop-blur-xl rounded-2xl p-3 sm:p-4"
-          style={{ background: 'rgba(3,0,20,0.82)', border: '1px solid rgba(255,255,255,0.10)' }}
+          className="backdrop-blur-xl rounded-xl sm:rounded-2xl px-3 py-2 sm:p-4"
+          style={{ background: 'rgba(3,0,20,0.88)', border: '1px solid rgba(255,255,255,0.10)' }}
         >
-          <div className="flex items-center justify-between">
-            <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-              <Globe size={16} className="text-blue-400 flex-shrink-0" />
-              <span>Stargaze Globe</span>
+          <div className="flex items-center justify-between gap-2">
+            <h1 className="text-sm sm:text-base font-bold text-white flex items-center gap-2 min-w-0">
+              <Globe size={15} className="text-blue-400 flex-shrink-0" />
+              <span className="truncate">Stargaze Globe</span>
             </h1>
-            {!loading && (
-              <div className="flex items-center gap-1.5 ml-2">
-                <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-                <span className="text-[10px] text-green-400 font-mono font-semibold">LIVE</span>
-              </div>
-            )}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {!loading && activeTabCount > 0 && (
+                <span className="text-[10px] font-mono text-white/50 hidden sm:inline">
+                  {activeTabCount.toLocaleString()} objects
+                </span>
+              )}
+              {!loading && (
+                <div className="flex items-center gap-1">
+                  <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+                  <span className="text-[10px] text-green-400 font-mono font-semibold hidden sm:inline">LIVE</span>
+                </div>
+              )}
+              {loading && <RefreshCw size={12} className="text-blue-400 animate-spin" />}
+            </div>
           </div>
-          <div className="flex items-center justify-between mt-1">
-            <p className="text-[11px] text-white/50">Real-time orbital tracking</p>
+          {/* Subtitle row — hidden on small mobile */}
+          <div className="hidden sm:flex items-center justify-between mt-1">
+            <p className="text-[11px] text-white/45">Real-time orbital tracking</p>
             {lastUpdated && (
-              <p className="text-[10px] text-white/35 font-mono">
+              <p className="text-[10px] text-white/30 font-mono">
                 {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </p>
             )}
           </div>
-          {/* Object count */}
-          {!loading && activeTabCount > 0 && (
-            <div className="mt-2 pt-2 border-t border-white/6">
-              <p className="text-[10px] font-mono text-white/40">
-                <span className="text-white/70 font-semibold">{activeTabCount.toLocaleString()}</span>{' '}
-                {activeTab === 'satellites' ? 'objects tracked' :
-                 activeTab === 'debris'     ? 'debris objects' :
-                 activeTab === 'meteors'    ? 'shower radiants' :
-                                             'sighting locations'}
-              </p>
-            </div>
-          )}
         </motion.div>
 
-        {/* Tab switcher */}
+        {/* Tab switcher — 2×2 grid on mobile, single row on sm+ */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.1 }}
-          className="flex flex-wrap gap-1.5 p-1.5 backdrop-blur-xl rounded-2xl"
-          style={{ background: 'rgba(3,0,20,0.82)', border: '1px solid rgba(255,255,255,0.10)' }}
+          className="backdrop-blur-xl rounded-xl sm:rounded-2xl p-1.5"
+          style={{ background: 'rgba(3,0,20,0.88)', border: '1px solid rgba(255,255,255,0.10)' }}
         >
-          {[
-            { id: 'satellites', icon: Satellite, label: 'Satellites', color: 'text-cyan-400',   dotColor: '#22d3ee', isLive: true },
-            { id: 'debris',     icon: Trash2,    label: 'Debris',     color: 'text-red-400',    dotColor: '#ef4444', isLive: true },
-            { id: 'meteors',    icon: Sparkles,  label: 'Meteors',    color: 'text-yellow-400', dotColor: '#fbbf24', isLive: false },
-            { id: 'ufo',        icon: Eye,       label: 'UFOs',       color: 'text-lime-400',   dotColor: '#84cc16', isLive: false },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`relative flex items-center gap-2 px-3 py-2 rounded-xl flex-1 min-w-0 transition-all duration-200 ${
-                activeTab === tab.id
-                  ? 'text-white bg-white/10 border border-white/15'
-                  : 'text-white/40 hover:text-white/75 hover:bg-white/5'
-              }`}
-              title={tab.id === 'satellites' ? 'Active satellites (CelesTrak live)' :
-                     tab.id === 'debris'     ? 'Space debris (CelesTrak live)' :
-                     tab.id === 'meteors'    ? 'Meteor shower radiants (IMO data)' :
-                                              'Historical UFO sighting locations'}
-            >
-              <div className="relative flex-shrink-0">
-                <tab.icon size={13} className={activeTab === tab.id ? tab.color : ''} />
-                {tab.isLive && (
-                  <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-green-500 rounded-full border border-black" />
-                )}
-              </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider font-mono truncate">{tab.label}</span>
-            </button>
-          ))}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1">
+            {[
+              { id: 'satellites', icon: Satellite, label: 'Sats',      labelFull: 'Satellites', color: 'text-cyan-400',   isLive: true  },
+              { id: 'debris',     icon: Trash2,    label: 'Debris',     labelFull: 'Debris',     color: 'text-red-400',    isLive: true  },
+              { id: 'meteors',    icon: Sparkles,  label: 'Meteors',    labelFull: 'Meteors',    color: 'text-yellow-400', isLive: false },
+              { id: 'ufo',        icon: Eye,       label: 'UFOs',       labelFull: 'UFOs',       color: 'text-lime-400',   isLive: false },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`relative flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg transition-all duration-200 ${
+                  activeTab === tab.id
+                    ? 'text-white bg-white/12 border border-white/15'
+                    : 'text-white/40 hover:text-white/75 hover:bg-white/5 border border-transparent'
+                }`}
+              >
+                <div className="relative flex-shrink-0">
+                  <tab.icon size={12} className={activeTab === tab.id ? tab.color : ''} />
+                  {tab.isLive && (
+                    <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-green-500 rounded-full border border-black" />
+                  )}
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider font-mono">
+                  <span className="sm:hidden">{tab.label}</span>
+                  <span className="hidden sm:inline">{tab.labelFull}</span>
+                </span>
+              </button>
+            ))}
+          </div>
 
-          <div className="w-full border-t border-white/6 pt-1 mt-0.5 flex items-center justify-between px-1">
-            <span className="text-[9px] text-white/25 font-mono uppercase tracking-wider">Click any object to inspect</span>
+          <div className="border-t border-white/6 pt-1 mt-1 flex items-center justify-between px-1">
+            <span className="text-[9px] text-white/22 font-mono uppercase tracking-wider hidden sm:inline">Tap any object to inspect</span>
+            <span className="text-[9px] text-white/22 font-mono uppercase tracking-wider sm:hidden">Tap to inspect</span>
             <button
               onClick={() => fetchData()}
               disabled={loading}
-              className={`p-1.5 rounded-lg text-white/35 hover:text-white hover:bg-white/8 transition-all ${loading ? 'opacity-40 cursor-not-allowed' : ''}`}
-              title="Refresh orbital data"
+              className={`p-1 rounded-lg text-white/35 hover:text-white transition-all ${loading ? 'opacity-40 cursor-not-allowed' : ''}`}
+              title="Refresh data"
             >
-              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+              <RefreshCw size={11} className={loading ? 'animate-spin' : ''} />
             </button>
           </div>
         </motion.div>
 
-        {/* Color Legend */}
+        {/* Color Legend — hidden on small mobile to save space */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.2 }}
-          className="backdrop-blur-xl rounded-xl p-3"
+          className="hidden sm:block backdrop-blur-xl rounded-xl p-3"
           style={{ background: 'rgba(3,0,20,0.75)', border: '1px solid rgba(255,255,255,0.07)' }}
         >
-          <p className="text-[9px] text-white/30 uppercase tracking-widest font-mono mb-2">Legend</p>
+          <p className="text-[9px] text-white/28 uppercase tracking-widest font-mono mb-2">Legend</p>
           <div className="space-y-1.5">
             {legendItems.map(({ color, label }) => (
               <div key={label} className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
-                <span className="text-[10px] text-white/55">{label}</span>
+                <span className="text-[10px] text-white/52">{label}</span>
               </div>
             ))}
           </div>
@@ -834,13 +834,13 @@ const CesiumGlobe: React.FC = () => {
               style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.30)' }}
             >
               <div className="flex items-start gap-2">
-                <AlertCircle className="text-red-400 flex-shrink-0 mt-0.5" size={14} />
+                <AlertCircle className="text-red-400 flex-shrink-0 mt-0.5" size={13} />
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] text-red-300 font-bold uppercase tracking-wider mb-0.5">Data Error</p>
-                  <p className="text-[10px] text-red-300/65 leading-relaxed">{fetchError}</p>
+                  <p className="text-[10px] text-red-300/65 leading-relaxed line-clamp-2">{fetchError}</p>
                   <button
                     onClick={() => fetchData()}
-                    className="text-[9px] text-red-400 font-bold uppercase tracking-widest mt-2 hover:text-red-300 transition-colors"
+                    className="text-[9px] text-red-400 font-bold uppercase tracking-widest mt-1.5 hover:text-red-300 transition-colors"
                   >
                     Retry →
                   </button>
@@ -853,7 +853,8 @@ const CesiumGlobe: React.FC = () => {
 
       {/* Loading State */}
       {loading && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }}>
+        <div className="absolute inset-0 z-20 flex items-center justify-center"
+             style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }}>
           <div className="flex flex-col items-center gap-4 text-center px-4">
             <div className="w-12 h-12 rounded-full border-2 border-blue-500/30 border-t-blue-400 animate-spin" />
             <div>
@@ -864,8 +865,12 @@ const CesiumGlobe: React.FC = () => {
         </div>
       )}
 
-      {/* Info Panel */}
-      <div className="absolute bottom-4 right-3 sm:bottom-6 sm:right-6 z-10 flex flex-col gap-4 w-72 sm:w-80 max-h-[calc(100vh-8rem)] overflow-y-auto">
+      {/* ── Info Panel ──
+          Mobile: bottom sheet (full width, pinned to bottom edge)
+          Desktop: right side panel
+      */}
+      <div className="absolute bottom-0 left-0 right-0 sm:bottom-6 sm:left-auto sm:right-5 sm:w-80
+                      z-10 flex flex-col gap-3 sm:max-h-[calc(100vh-8rem)] sm:overflow-y-auto">
         <AnimatePresence>
           {selectedSatellite && (
             <motion.div
