@@ -701,34 +701,43 @@ const CesiumGlobe: React.FC = () => {
           </div>
         </motion.div>
 
-        <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex items-center gap-2 p-1.5 glass rounded-[2rem] border border-white/10 backdrop-blur-xl">
           {[
             { id: 'satellites', icon: Satellite, label: 'Satellites', color: 'text-cyan-400', source: 'CelesTrak (Live)' },
-            { id: 'debris', icon: Trash2, label: 'Space Debris', color: 'text-red-400', source: 'CelesTrak (Live)' },
+            { id: 'debris', icon: Trash2, label: 'Debris', color: 'text-red-400', source: 'CelesTrak (Live)' },
             { id: 'meteors', icon: Sparkles, label: 'Meteors', color: 'text-yellow-400', source: 'IMO/NASA (Archive)' },
-            { id: 'ufo', icon: Eye, label: 'UFO Signals', color: 'text-lime-400', source: 'NUFORC (Historical)' },
+            { id: 'ufo', icon: Eye, label: 'UFOs', color: 'text-lime-400', source: 'NUFORC (Historical)' },
           ].map((tab) => (
             <div key={tab.id} className="relative group/btn">
               <button
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-3 px-5 py-2.5 rounded-full transition-all border ${
+                className={`relative flex items-center gap-2.5 px-4 py-2 rounded-full transition-all duration-300 ${
                   activeTab === tab.id 
-                    ? 'bg-white/20 border-white/30 text-white shadow-lg shadow-white/5' 
-                    : 'bg-black/40 border-white/10 text-white/60 hover:bg-white/10'
+                    ? 'text-white' 
+                    : 'text-white/40 hover:text-white/70'
                 }`}
               >
-                <div className="relative">
-                  <tab.icon size={16} className={activeTab === tab.id ? tab.color : ''} />
-                  {tab.source.includes('Live') && (
-                    <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse border border-black" />
-                  )}
+                {activeTab === tab.id && (
+                  <motion.div 
+                    layoutId="activeTab"
+                    className="absolute inset-0 bg-white/10 rounded-full border border-white/10"
+                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                  />
+                )}
+                <div className="relative z-10 flex items-center gap-2.5">
+                  <div className="relative">
+                    <tab.icon size={14} className={activeTab === tab.id ? tab.color : ''} />
+                    {tab.source.includes('Live') && (
+                      <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse border border-black" />
+                    )}
+                  </div>
+                  <span className="text-[9px] font-bold uppercase tracking-[0.2em] font-mono">{tab.label}</span>
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-[0.15em] font-mono">{tab.label}</span>
               </button>
               
               {/* Source Tooltip */}
-              <div className="absolute top-full left-0 mt-2 opacity-0 group-hover/btn:opacity-100 transition-opacity pointer-events-none z-50">
-                <div className="bg-black/90 border border-white/10 px-3 py-1.5 rounded-lg text-[8px] font-bold uppercase tracking-widest text-white/40 whitespace-nowrap flex items-center gap-2">
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 opacity-0 group-hover/btn:opacity-100 transition-all duration-300 pointer-events-none z-50 translate-y-1 group-hover/btn:translate-y-0">
+                <div className="bg-black/90 border border-white/10 px-3 py-1.5 rounded-lg text-[8px] font-bold uppercase tracking-widest text-white/40 whitespace-nowrap flex items-center gap-2 backdrop-blur-md">
                   <div className="w-1 h-1 bg-white/20 rounded-full" />
                   Source: {tab.source}
                 </div>
@@ -736,14 +745,16 @@ const CesiumGlobe: React.FC = () => {
             </div>
           ))}
 
+          <div className="w-px h-4 bg-white/10 mx-1" />
+
           {/* Manual Refresh Button */}
           <button
             onClick={() => fetchData()}
             disabled={loading}
-            className={`p-2.5 rounded-full border border-white/10 bg-black/40 text-white/60 hover:bg-white/10 hover:text-white transition-all ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`p-2 rounded-full text-white/40 hover:text-white hover:bg-white/5 transition-all ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
             title="Refresh Data"
           >
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>
 
@@ -989,17 +1000,6 @@ const CesiumGlobe: React.FC = () => {
             </motion.div>
           )}
         </AnimatePresence>
-
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass p-4 rounded-2xl border border-white/10 text-white/80 text-xs leading-relaxed"
-        >
-          <div className="flex items-center gap-2 mb-2 text-white font-bold uppercase tracking-wider">
-            <Info size={14} /> Data Sources
-          </div>
-          <p>Satellite and debris data provided by CelesTrak (NORAD GP elements). Meteor radiants based on IMO/NASA records. UFO signals derived from NUFORC open archives. All data is live and open-source.</p>
-        </motion.div>
       </div>
     </div>
   );
