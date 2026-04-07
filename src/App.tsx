@@ -549,20 +549,23 @@ function Home({ watched, addNotification, toggleWatch }: {
   const nextShower = getNextShower();
   const moon = getMoonPhase();
   const [apod, setApod] = useState<{ title: string; url: string; explanation: string; media_type: string } | null>(null);
+  const [apodLoading, setApodLoading] = useState(true);
   const [weather, setWeather] = useState<{ cloudCover: number; humidity: number } | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(false);
+  const [weatherDenied, setWeatherDenied] = useState(false);
   const [ref, inView] = useInView({ triggerOnce: true, threshold: 0.1 });
 
   useEffect(() => {
-    const apiKey = (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) || 'DEMO_KEY';
-    fetch(`https://api.nasa.gov/planetary/apod?api_key=${apiKey}`)
+    setApodLoading(true);
+    fetch(`https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY`)
       .then(r => r.json())
-      .then(d => setApod(d))
-      .catch(() => {});
+      .then(d => { if (d.url || d.hdurl) setApod(d); })
+      .catch(() => {})
+      .finally(() => setApodLoading(false));
   }, []);
 
   useEffect(() => {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) { setWeatherDenied(true); return; }
     setWeatherLoading(true);
     navigator.geolocation.getCurrentPosition(async pos => {
       try {
@@ -571,7 +574,7 @@ function Home({ watched, addNotification, toggleWatch }: {
         setWeather({ cloudCover: d.current.cloud_cover, humidity: d.current.relative_humidity_2m });
       } catch {}
       setWeatherLoading(false);
-    }, () => setWeatherLoading(false));
+    }, () => { setWeatherLoading(false); setWeatherDenied(true); });
   }, []);
 
   const activeShowers = showers.filter(s => getShowerStatus(s) === 'active');
@@ -617,10 +620,16 @@ function Home({ watched, addNotification, toggleWatch }: {
         className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10"
       >
         {[
-          { label: 'Active Showers', value: activeShowers.length.toString(), icon: Activity, color: 'text-green-400' },
+          {
+            label: activeShowers.length > 0 ? 'Active Showers' : 'Next Shower',
+            value: activeShowers.length > 0 ? activeShowers.length.toString() : (nextShower ? `${getDaysUntilPeak(nextShower)}d` : '—'),
+            sub: activeShowers.length > 0 ? 'happening now' : (nextShower ? nextShower.name : undefined),
+            icon: Activity,
+            color: activeShowers.length > 0 ? 'text-green-400' : 'text-blue-400'
+          },
           { label: 'Moon Phase', value: moon.emoji, sub: moon.phase, icon: Moon, color: 'text-yellow-300' },
-          { label: 'Illumination', value: `${moon.illumination}%`, icon: Eye, color: 'text-blue-400' },
-          { label: 'Cloud Cover', value: weather ? `${weather.cloudCover}%` : '—', icon: Cloud, color: 'text-purple-400' },
+          { label: 'Illumination', value: `${moon.illumination}%`, sub: moon.illumination > 60 ? 'affects viewing' : 'good for viewing', icon: Eye, color: 'text-blue-400' },
+          { label: 'Cloud Cover', value: weather ? `${weather.cloudCover}%` : weatherDenied ? 'Allow location' : '…', sub: weather ? (weather.cloudCover < 30 ? 'clear skies' : weather.cloudCover < 60 ? 'partly cloudy' : 'overcast') : undefined, icon: Cloud, color: 'text-purple-400' },
         ].map(({ label, value, sub, icon: Icon, color }) => (
           <div key={label} className="glass-card p-4 rounded-2xl">
             <Icon size={16} className={`${color} mb-2`} />
@@ -769,63 +778,102 @@ function Home({ watched, addNotification, toggleWatch }: {
         </div>
       </div>
 
-      {/* NASA APOD */}
-      {apod && (
-        <div className="mb-10">
-          <div className="flex items-center gap-2 mb-4">
-            <Rocket size={14} className="text-orange-400" />
-            <h2 className="text-lg font-bold font-space">NASA Astronomy Picture of the Day</h2>
-          </div>
-          <div className="glass-card rounded-2xl overflow-hidden">
-            {apod.media_type === 'image' ? (
+      {/* NASA APOD — always render */}
+      <div className="mb-10">
+        <div className="flex items-center gap-2 mb-4">
+          <Rocket size={14} className="text-orange-400" />
+          <h2 className="text-lg font-bold font-space">NASA Astronomy Picture of the Day</h2>
+        </div>
+        <div className="glass-card rounded-2xl overflow-hidden">
+          {apodLoading ? (
+            <div className="h-56 flex items-center justify-center bg-gradient-to-br from-blue-950/40 to-purple-950/40 animate-pulse">
+              <div className="text-center">
+                <Rocket size={28} className="text-orange-400/40 mx-auto mb-2" />
+                <p className="text-xs text-white/25 font-mono">Fetching from NASA…</p>
+              </div>
+            </div>
+          ) : apod ? (
+            apod.media_type === 'image' ? (
               <img src={apod.url} alt={apod.title} className="w-full h-56 object-cover" loading="lazy" />
             ) : (
               <div className="h-56 bg-gradient-to-br from-blue-900/20 to-purple-900/20 flex items-center justify-center">
                 <a href={apod.url} target="_blank" rel="noopener noreferrer" className="btn-primary">
-                  <ExternalLink size={12} /> Watch Video
+                  <ExternalLink size={12} /> Watch on NASA
                 </a>
               </div>
-            )}
+            )
+          ) : (
+            /* Fallback: beautiful static space gradient with link to APOD */
+            <div className="h-56 relative overflow-hidden bg-gradient-to-br from-[#050520] via-[#0a0540] to-[#0d0228] flex items-center justify-center">
+              <div className="absolute inset-0 opacity-30" style={{ background: 'radial-gradient(circle at 30% 50%, rgba(79,142,247,0.4) 0%, transparent 60%), radial-gradient(circle at 70% 30%, rgba(139,92,246,0.3) 0%, transparent 50%)' }} />
+              <div className="relative text-center">
+                <p className="text-4xl mb-2">🔭</p>
+                <p className="text-sm font-semibold text-white/70 mb-1">Astronomy Picture of the Day</p>
+                <p className="text-xs text-white/35 mb-4">NASA APOD · Updated daily</p>
+                <a href="https://apod.nasa.gov" target="_blank" rel="noopener noreferrer" className="btn-secondary text-xs">
+                  <ExternalLink size={11} /> View on NASA
+                </a>
+              </div>
+            </div>
+          )}
+          {apod && (
             <div className="p-5">
               <h3 className="font-bold text-base mb-2">{apod.title}</h3>
               <p className="text-xs text-white/50 leading-relaxed line-clamp-3">{apod.explanation}</p>
             </div>
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
-      {/* Weather */}
-      {weather && (
-        <div className="mb-10">
-          <div className="flex items-center gap-2 mb-4">
-            <Cloud size={14} className="text-blue-400" />
-            <h2 className="text-lg font-bold font-space">Local Observing Conditions</h2>
-          </div>
-          <div className="glass-card p-5 rounded-2xl">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[
-                { label: 'Cloud Cover', value: `${weather.cloudCover}%`, good: weather.cloudCover < 30, icon: Cloud },
-                { label: 'Humidity', value: `${weather.humidity}%`, good: weather.humidity < 70, icon: Wind },
-                { label: 'Sky Quality', value: weather.cloudCover < 20 ? 'Excellent' : weather.cloudCover < 50 ? 'Fair' : 'Poor', good: weather.cloudCover < 50, icon: Eye },
-                { label: 'Moon Impact', value: moon.illumination < 30 ? 'Low' : moon.illumination < 70 ? 'Medium' : 'High', good: moon.illumination < 50, icon: Moon },
-              ].map(({ label, value, good, icon: Icon }) => (
-                <div key={label} className="text-center">
-                  <Icon size={18} className={`mx-auto mb-1 ${good ? 'text-green-400' : 'text-orange-400'}`} />
-                  <p className="text-sm font-bold">{value}</p>
-                  <p className="text-[10px] text-white/35 uppercase tracking-wider font-mono">{label}</p>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 pt-4 border-t border-white/5">
-              <p className="text-xs text-white/40">
-                {weather.cloudCover < 20 ? '✓ Excellent conditions tonight — clear skies expected.' :
-                 weather.cloudCover < 50 ? '◎ Partly cloudy — viewing may be intermittent.' :
-                 '✗ Heavy cloud cover — consider rescheduling.'}
-              </p>
-            </div>
-          </div>
+      {/* Observing Conditions — always render */}
+      <div className="mb-10">
+        <div className="flex items-center gap-2 mb-4">
+          <Cloud size={14} className="text-blue-400" />
+          <h2 className="text-lg font-bold font-space">Observing Conditions</h2>
         </div>
-      )}
+        <div className="glass-card p-5 rounded-2xl">
+          {weatherDenied || (!weather && !weatherLoading) ? (
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-white/70 mb-1">Enable location for live conditions</p>
+                <p className="text-xs text-white/40 leading-relaxed">
+                  Allow location access in your browser to see real-time cloud cover, humidity, and sky quality for your area.
+                </p>
+              </div>
+              <div className="text-3xl opacity-40">📍</div>
+            </div>
+          ) : weatherLoading ? (
+            <div className="flex items-center gap-3 animate-pulse">
+              <Cloud size={18} className="text-blue-400/40" />
+              <p className="text-xs text-white/30 font-mono">Fetching local weather…</p>
+            </div>
+          ) : weather ? (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                {[
+                  { label: 'Cloud Cover', value: `${weather.cloudCover}%`, good: weather.cloudCover < 30, icon: Cloud },
+                  { label: 'Humidity', value: `${weather.humidity}%`, good: weather.humidity < 70, icon: Wind },
+                  { label: 'Sky Quality', value: weather.cloudCover < 20 ? 'Excellent' : weather.cloudCover < 50 ? 'Fair' : 'Poor', good: weather.cloudCover < 50, icon: Eye },
+                  { label: 'Moon Impact', value: moon.illumination < 30 ? 'Low' : moon.illumination < 70 ? 'Medium' : 'High', good: moon.illumination < 50, icon: Moon },
+                ].map(({ label, value, good, icon: Icon }) => (
+                  <div key={label} className="text-center p-3 rounded-xl bg-white/3">
+                    <Icon size={18} className={`mx-auto mb-1.5 ${good ? 'text-green-400' : 'text-orange-400'}`} />
+                    <p className="text-sm font-bold">{value}</p>
+                    <p className="text-[10px] text-white/35 uppercase tracking-wider font-mono mt-0.5">{label}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="pt-4 border-t border-white/5">
+                <p className="text-xs text-white/40">
+                  {weather.cloudCover < 20 ? '✓ Excellent conditions tonight — crystal clear skies expected.' :
+                   weather.cloudCover < 50 ? '◎ Partly cloudy — viewing may be intermittent. Find a break in the clouds.' :
+                   '✗ Heavy cloud cover — consider rescheduling to a clearer night.'}
+                </p>
+              </div>
+            </>
+          ) : null}
+        </div>
+      </div>
 
       {/* FAQ */}
       <div className="mb-10">
