@@ -8,7 +8,7 @@ import {
   Eye, Zap, Activity, Bell, BellOff, Send, Shield, FileText,
   RefreshCw, AlertTriangle, CheckCircle, ExternalLink, Rocket, Moon,
   Cloud, Wind, BarChart2, Users, MessageSquare, Plus, Search,
-  Filter, TrendingUp, Navigation, Compass
+  Filter, TrendingUp, Navigation, Compass, Gauge
 } from 'lucide-react';
 import meteorShowers from './data/meteorShowers.json';
 import CesiumGlobe from './components/CesiumGlobe';
@@ -77,14 +77,14 @@ function getMoonPhase(): { phase: string; illumination: number; emoji: string } 
   const pos = ((diff % cycle) + cycle) % cycle;
   const illum = Math.round((1 - Math.abs(pos - cycle / 2) / (cycle / 2)) * 100);
   let phase = 'New Moon', emoji = '🌑';
-  if (pos < 1.85) { phase = 'New Moon'; emoji = '🌑'; }
-  else if (pos < 7.38) { phase = 'Waxing Crescent'; emoji = '🌒'; }
-  else if (pos < 9.22) { phase = 'First Quarter'; emoji = '🌓'; }
-  else if (pos < 14.77) { phase = 'Waxing Gibbous'; emoji = '🌔'; }
-  else if (pos < 16.61) { phase = 'Full Moon'; emoji = '🌕'; }
-  else if (pos < 22.15) { phase = 'Waning Gibbous'; emoji = '🌖'; }
-  else if (pos < 23.99) { phase = 'Last Quarter'; emoji = '🌗'; }
-  else { phase = 'Waning Crescent'; emoji = '🌘'; }
+  if (pos < 1.85)       { phase = 'New Moon';        emoji = '🌑'; }
+  else if (pos < 7.38)  { phase = 'Waxing Crescent'; emoji = '🌒'; }
+  else if (pos < 9.22)  { phase = 'First Quarter';   emoji = '🌓'; }
+  else if (pos < 14.77) { phase = 'Waxing Gibbous';  emoji = '🌔'; }
+  else if (pos < 16.61) { phase = 'Full Moon';        emoji = '🌕'; }
+  else if (pos < 22.15) { phase = 'Waning Gibbous';  emoji = '🌖'; }
+  else if (pos < 23.99) { phase = 'Last Quarter';    emoji = '🌗'; }
+  else                  { phase = 'Waning Crescent';  emoji = '🌘'; }
   return { phase, illumination: illum, emoji };
 }
 
@@ -96,10 +96,10 @@ function formatCountdown(ms: number): { days: string; hours: string; mins: strin
   if (ms <= 0) return { days: '00', hours: '00', mins: '00', secs: '00' };
   const s = Math.floor(ms / 1000);
   return {
-    days: String(Math.floor(s / 86400)).padStart(2, '0'),
+    days:  String(Math.floor(s / 86400)).padStart(2, '0'),
     hours: String(Math.floor((s % 86400) / 3600)).padStart(2, '0'),
-    mins: String(Math.floor((s % 3600) / 60)).padStart(2, '0'),
-    secs: String(s % 60).padStart(2, '0'),
+    mins:  String(Math.floor((s % 3600) / 60)).padStart(2, '0'),
+    secs:  String(s % 60).padStart(2, '0'),
   };
 }
 
@@ -124,13 +124,13 @@ function StarField() {
     resize();
     window.addEventListener('resize', resize);
 
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 280; i++) {
       stars.push({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
-        r: Math.random() * 1.5 + 0.3,
+        r: Math.random() * 1.6 + 0.25,
         a: Math.random(),
-        da: (Math.random() - 0.5) * 0.008,
+        da: (Math.random() - 0.5) * 0.007,
         color: colors[Math.floor(Math.random() * colors.length)],
       });
     }
@@ -161,7 +161,7 @@ function StarField() {
     <canvas
       ref={canvasRef}
       className="fixed inset-0 pointer-events-none z-0"
-      style={{ opacity: 0.7 }}
+      style={{ opacity: 0.75 }}
     />
   );
 }
@@ -181,7 +181,7 @@ function NotificationToasts({ notifications, dismiss }: { notifications: Notific
           >
             {n.type === 'success' && <CheckCircle size={16} className="text-green-400 flex-shrink-0 mt-0.5" />}
             {n.type === 'warning' && <AlertTriangle size={16} className="text-yellow-400 flex-shrink-0 mt-0.5" />}
-            {n.type === 'info' && <Sparkles size={16} className="text-blue-400 flex-shrink-0 mt-0.5" />}
+            {n.type === 'info'    && <Sparkles size={16} className="text-blue-400 flex-shrink-0 mt-0.5" />}
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-white/90">{n.title}</p>
               <p className="text-xs text-white/55 mt-0.5">{n.message}</p>
@@ -211,23 +211,27 @@ function Navbar({ watched, notifications }: { watched: WatchedShower[]; notifica
   useEffect(() => { setOpen(false); }, [pathname]);
 
   const links = [
-    { to: '/', label: 'Home', icon: Sparkles },
+    { to: '/',         label: 'Home',     icon: Sparkles },
     { to: '/calendar', label: 'Calendar', icon: Calendar },
-    { to: '/live', label: 'Live', icon: Radio },
-    { to: '/globe', label: '3D Globe', icon: Globe },
-    { to: '/about', label: 'About', icon: Info },
+    { to: '/live',     label: 'Live',     icon: Radio },
+    { to: '/globe',    label: '3D Globe', icon: Globe },
+    { to: '/about',    label: 'About',    icon: Info },
   ];
 
   return (
     <nav className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${scrolled ? 'glass-nav py-2' : 'py-4'}`}>
       <div className="max-w-7xl mx-auto px-4 flex items-center justify-between">
+        {/* Logo */}
         <Link to="/" className="flex items-center gap-2 group">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
             <Sparkles size={14} className="text-white" />
           </div>
-          <span className="font-space font-bold text-white text-sm tracking-wide">Stargaze<span className="text-blue-400">.io</span></span>
+          <span className="font-space font-bold text-white text-sm tracking-wide">
+            Stargaze<span className="text-blue-400">.io</span>
+          </span>
         </Link>
 
+        {/* Desktop nav */}
         <div className="hidden md:flex items-center gap-1">
           {links.map(({ to, label, icon: Icon }) => (
             <Link
@@ -244,27 +248,30 @@ function Navbar({ watched, notifications }: { watched: WatchedShower[]; notifica
           ))}
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Right side icons */}
+        <div className="flex items-center gap-3">
           {watched.length > 0 && (
-            <div className="relative">
-              <Bell size={16} className="text-white/50" />
-              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-blue-500 rounded-full text-[8px] flex items-center justify-center font-bold">
+            <div className="relative hidden sm:block">
+              <Bell size={16} className="text-white/45" />
+              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-blue-500 rounded-full text-[8px] flex items-center justify-center font-bold shadow shadow-blue-500/50">
                 {watched.length}
               </span>
             </div>
           )}
           {notifications.length > 0 && (
-            <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse shadow shadow-green-400/50" />
           )}
           <button
-            className="md:hidden text-white/60 hover:text-white p-1"
+            className="md:hidden text-white/60 hover:text-white p-1.5 rounded-lg hover:bg-white/5 transition-all"
             onClick={() => setOpen(o => !o)}
+            aria-label="Toggle menu"
           >
             {open ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
       </div>
 
+      {/* Mobile menu */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -278,8 +285,10 @@ function Navbar({ watched, notifications }: { watched: WatchedShower[]; notifica
                 <Link
                   key={to}
                   to={to}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium font-space transition-all
-                    ${pathname === to ? 'text-blue-300 bg-blue-500/10' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
+                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium font-space transition-all
+                    ${pathname === to
+                      ? 'text-blue-300 bg-blue-500/12 border border-blue-500/20'
+                      : 'text-white/60 hover:text-white hover:bg-white/5'}`}
                 >
                   <Icon size={15} />
                   {label}
@@ -311,27 +320,27 @@ function Footer() {
             </p>
           </div>
           <div>
-            <p className="text-xs font-semibold text-white/60 uppercase tracking-widest mb-3 font-space">Explore</p>
+            <p className="text-xs font-semibold text-white/55 uppercase tracking-widest mb-3 font-space">Explore</p>
             {[['/', 'Home'], ['/calendar', 'Calendar'], ['/live', 'Live Feed'], ['/globe', '3D Globe']].map(([to, label]) => (
-              <Link key={to} to={to} className="block text-xs text-white/35 hover:text-white/70 mb-1.5 transition-colors">{label}</Link>
+              <Link key={to} to={to} className="block text-xs text-white/35 hover:text-white/70 mb-2 transition-colors">{label}</Link>
             ))}
           </div>
           <div>
-            <p className="text-xs font-semibold text-white/60 uppercase tracking-widest mb-3 font-space">Resources</p>
+            <p className="text-xs font-semibold text-white/55 uppercase tracking-widest mb-3 font-space">Resources</p>
             {[['https://www.imo.net', 'IMO Data'], ['https://api.nasa.gov', 'NASA API'], ['https://celestrak.org', 'CelesTrak']].map(([href, label]) => (
-              <a key={href} href={href} target="_blank" rel="noopener noreferrer" className="block text-xs text-white/35 hover:text-white/70 mb-1.5 transition-colors">{label}</a>
+              <a key={href} href={href} target="_blank" rel="noopener noreferrer" className="block text-xs text-white/35 hover:text-white/70 mb-2 transition-colors">{label}</a>
             ))}
           </div>
           <div>
-            <p className="text-xs font-semibold text-white/60 uppercase tracking-widest mb-3 font-space">Legal</p>
+            <p className="text-xs font-semibold text-white/55 uppercase tracking-widest mb-3 font-space">Legal</p>
             {[['/privacy', 'Privacy Policy'], ['/terms', 'Terms of Service'], ['/about', 'About']].map(([to, label]) => (
-              <Link key={to} to={to} className="block text-xs text-white/35 hover:text-white/70 mb-1.5 transition-colors">{label}</Link>
+              <Link key={to} to={to} className="block text-xs text-white/35 hover:text-white/70 mb-2 transition-colors">{label}</Link>
             ))}
           </div>
         </div>
-        <div className="border-t border-white/5 pt-6 flex flex-col md:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-white/25">© {new Date().getFullYear()} Stargaze.io — All rights reserved</p>
-          <p className="text-xs text-white/25">Data: IMO · NASA · Open-Meteo · CelesTrak · WhereTheISS</p>
+        <div className="border-t border-white/5 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p className="text-xs text-white/22">© {new Date().getFullYear()} Stargaze.io — All rights reserved</p>
+          <p className="text-xs text-white/22">Data: IMO · NASA · Open-Meteo · CelesTrak · WhereTheISS</p>
         </div>
       </div>
     </footer>
@@ -350,22 +359,25 @@ function CountdownTimer({ targetDate, label }: { targetDate: string; label: stri
   }, [targetDate]);
 
   const units = [
-    { val: cd.days, label: 'Days' },
-    { val: cd.hours, label: 'Hrs' },
-    { val: cd.mins, label: 'Min' },
-    { val: cd.secs, label: 'Sec' },
+    { val: cd.days,  label: 'Days' },
+    { val: cd.hours, label: 'Hrs'  },
+    { val: cd.mins,  label: 'Min'  },
+    { val: cd.secs,  label: 'Sec'  },
   ];
 
   return (
     <div>
-      <p className="text-xs text-white/40 uppercase tracking-widest font-mono mb-2">{label}</p>
-      <div className="flex gap-2">
+      <p className="text-xs text-white/40 uppercase tracking-widest font-mono mb-3">{label}</p>
+      <div className="flex gap-2 sm:gap-3">
         {units.map(u => (
           <div key={u.label} className="flex flex-col items-center">
-            <div className="glass rounded-lg px-3 py-2 min-w-[44px] text-center">
+            <div
+              className="rounded-xl px-2.5 py-2 sm:px-3 sm:py-2.5 min-w-[44px] text-center"
+              style={{ background: 'rgba(79,142,247,0.10)', border: '1px solid rgba(79,142,247,0.20)' }}
+            >
               <span className="countdown-digit">{u.val}</span>
             </div>
-            <span className="countdown-label mt-1">{u.label}</span>
+            <span className="countdown-label mt-1.5">{u.label}</span>
           </div>
         ))}
       </div>
@@ -435,7 +447,7 @@ function MeteorVisualizer({ zhr, active }: { zhr: number; active: boolean }) {
     return () => cancelAnimationFrame(animId);
   }, [zhr, active]);
 
-  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none opacity-60" />;
+  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none opacity-50" />;
 }
 
 // ─── ISS Widget ───────────────────────────────────────────────────────────────
@@ -447,7 +459,12 @@ function ISSWidget() {
     try {
       const r = await fetch('https://api.wheretheiss.at/v1/satellites/25544');
       const d = await r.json();
-      setIss({ latitude: +d.latitude.toFixed(3), longitude: +d.longitude.toFixed(3), altitude: Math.round(d.altitude), velocity: Math.round(d.velocity) });
+      setIss({
+        latitude:  +d.latitude.toFixed(3),
+        longitude: +d.longitude.toFixed(3),
+        altitude:  Math.round(d.altitude),
+        velocity:  Math.round(d.velocity),
+      });
       setError(false);
     } catch {
       setError(true);
@@ -464,36 +481,42 @@ function ISSWidget() {
     <div className="glass-card p-4 rounded-2xl">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Rocket size={14} className="text-orange-400" />
-          <span className="text-xs font-semibold font-space text-white/70">ISS Live Tracker</span>
+          <div className="w-6 h-6 rounded-lg bg-orange-500/15 border border-orange-500/25 flex items-center justify-center">
+            <Rocket size={12} className="text-orange-400" />
+          </div>
+          <span className="text-xs font-semibold font-space text-white/75">ISS Live Tracker</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="live-dot" />
-          <span className="text-[10px] text-green-400 font-mono">LIVE</span>
+          <span className="text-[10px] text-green-400 font-mono font-semibold tracking-wider">LIVE</span>
         </div>
       </div>
       {error ? (
-        <p className="text-xs text-white/30 text-center py-2">Connection error</p>
+        <div className="flex items-center justify-center gap-2 py-3 text-white/30">
+          <AlertTriangle size={13} />
+          <span className="text-xs">Connection error</span>
+        </div>
       ) : iss ? (
         <div className="grid grid-cols-2 gap-2">
           {[
-            { label: 'Latitude', value: `${iss.latitude}°`, icon: MapPin },
-            { label: 'Longitude', value: `${iss.longitude}°`, icon: MapPin },
-            { label: 'Altitude', value: `${iss.altitude} km`, icon: TrendingUp },
-            { label: 'Speed', value: `${iss.velocity.toLocaleString()} km/h`, icon: Zap },
+            { label: 'Latitude',  value: `${iss.latitude}°`,                   icon: MapPin },
+            { label: 'Longitude', value: `${iss.longitude}°`,                  icon: MapPin },
+            { label: 'Altitude',  value: `${iss.altitude} km`,                 icon: TrendingUp },
+            { label: 'Speed',     value: `${iss.velocity.toLocaleString()} km/h`, icon: Zap },
           ].map(({ label, value, icon: Icon }) => (
-            <div key={label} className="bg-white/3 rounded-lg p-2">
-              <div className="flex items-center gap-1 mb-0.5">
+            <div key={label} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.04)' }} className="rounded-xl p-2.5">
+              <div className="flex items-center gap-1 mb-1">
                 <Icon size={9} className="text-white/30" />
                 <span className="text-[9px] text-white/30 uppercase tracking-wider font-mono">{label}</span>
               </div>
-              <p className="text-xs font-semibold font-mono text-white/80">{value}</p>
+              <p className="text-xs font-semibold font-mono text-white/85">{value}</p>
             </div>
           ))}
         </div>
       ) : (
-        <div className="flex justify-center py-3">
+        <div className="flex items-center justify-center gap-2 py-3">
           <RefreshCw size={14} className="text-white/30 animate-spin" />
+          <span className="text-xs text-white/30 font-mono">Connecting…</span>
         </div>
       )}
     </div>
@@ -506,7 +529,7 @@ function FaqSection() {
   const faqs = [
     { q: 'When is the best time to watch meteor showers?', a: 'The best viewing time is generally after midnight and before dawn, when Earth\'s rotation carries us into the meteor stream head-on, dramatically increasing the rate of visible meteors.' },
     { q: 'Do I need special equipment?', a: 'No! Meteor showers are one of the few astronomical events best enjoyed with the naked eye. Dark skies, a reclining chair, and patience are all you need.' },
-    { q: 'How does ZHR work?', a: 'Zenithal Hourly Rate (ZHR) is the theoretical maximum meteors per hour under perfect conditions: a limiting magnitude of 6.5 and the radiant at the zenith. Real rates are typically 50-75% of ZHR.' },
+    { q: 'How does ZHR work?', a: 'Zenithal Hourly Rate (ZHR) is the theoretical maximum meteors per hour under perfect conditions: a limiting magnitude of 6.5 and the radiant at the zenith. Real rates are typically 50–75% of ZHR.' },
     { q: 'Why do meteor showers have specific dates?', a: 'Earth follows a predictable orbit, so it intersects the same debris trails of comets and asteroids at the same points each year — like clockwork, creating annual showers.' },
     { q: 'How accurate are the forecasts?', a: 'Dates and peak times are very accurate based on orbital mechanics. Actual ZHR can vary due to uneven debris distribution, atmospheric conditions, and light pollution.' },
   ];
@@ -516,21 +539,22 @@ function FaqSection() {
       {faqs.map((f, i) => (
         <div key={i} className="glass-card rounded-xl overflow-hidden">
           <button
-            className="w-full flex items-center justify-between p-4 text-left"
+            className="w-full flex items-center justify-between p-4 text-left group"
             onClick={() => setOpen(open === i ? null : i)}
           >
-            <span className="text-sm font-medium text-white/80">{f.q}</span>
-            <ChevronDown size={14} className={`text-white/40 flex-shrink-0 transition-transform ${open === i ? 'rotate-180' : ''}`} />
+            <span className="text-sm font-medium text-white/80 group-hover:text-white/95 transition-colors">{f.q}</span>
+            <ChevronDown size={14} className={`text-white/35 flex-shrink-0 ml-3 transition-transform duration-200 ${open === i ? 'rotate-180 text-blue-400' : ''}`} />
           </button>
           <AnimatePresence>
             {open === i && (
               <motion.div
-                initial={{ height: 0 }}
-                animate={{ height: 'auto' }}
-                exit={{ height: 0 }}
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
                 className="overflow-hidden"
               >
-                <p className="px-4 pb-4 text-sm text-white/50 leading-relaxed">{f.a}</p>
+                <p className="px-4 pb-4 text-sm text-white/52 leading-relaxed">{f.a}</p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -557,7 +581,7 @@ function Home({ watched, addNotification, toggleWatch }: {
 
   useEffect(() => {
     setApodLoading(true);
-    fetch(`https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY`)
+    fetch('https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY')
       .then(r => r.json())
       .then(d => { if (d.url || d.hdurl) setApod(d); })
       .catch(() => {})
@@ -567,39 +591,53 @@ function Home({ watched, addNotification, toggleWatch }: {
   useEffect(() => {
     if (!navigator.geolocation) { setWeatherDenied(true); return; }
     setWeatherLoading(true);
-    navigator.geolocation.getCurrentPosition(async pos => {
-      try {
-        const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&current=cloud_cover,relative_humidity_2m&timezone=auto`);
-        const d = await r.json();
-        setWeather({ cloudCover: d.current.cloud_cover, humidity: d.current.relative_humidity_2m });
-      } catch {}
-      setWeatherLoading(false);
-    }, () => { setWeatherLoading(false); setWeatherDenied(true); });
+    navigator.geolocation.getCurrentPosition(
+      async pos => {
+        try {
+          const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&current=cloud_cover,relative_humidity_2m&timezone=auto`);
+          const d = await r.json();
+          setWeather({ cloudCover: d.current.cloud_cover, humidity: d.current.relative_humidity_2m });
+        } catch {}
+        setWeatherLoading(false);
+      },
+      () => { setWeatherLoading(false); setWeatherDenied(true); }
+    );
   }, []);
 
-  const activeShowers = showers.filter(s => getShowerStatus(s) === 'active');
+  const activeShowers  = showers.filter(s => getShowerStatus(s) === 'active');
   const upcomingShowers = showers.filter(s => getShowerStatus(s) === 'upcoming').slice(0, 3);
 
   return (
     <div className="relative z-10 max-w-7xl mx-auto px-4 pt-28 pb-16">
-      {/* Hero */}
+
+      {/* ── Hero ── */}
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7 }}
         className="text-center mb-16"
       >
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 glass rounded-full mb-6">
+        {/* Live badge */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.1 }}
+          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-6"
+          style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.20)' }}
+        >
           <span className="live-dot" />
-          <span className="text-xs font-mono text-white/60 tracking-wider">LIVE CELESTIAL TRACKING</span>
-        </div>
-        <h1 className="hero-title hero-gradient-text mb-4">
+          <span className="text-xs font-mono text-green-400/85 tracking-wider">LIVE CELESTIAL TRACKING</span>
+        </motion.div>
+
+        <h1 className="hero-title hero-gradient-text mb-5">
           Watch the Skies
         </h1>
-        <p className="text-lg text-white/50 max-w-xl mx-auto leading-relaxed font-light">
+        <p className="text-lg text-white/48 max-w-xl mx-auto leading-relaxed font-light">
           Real-time meteor shower tracking, celestial event calendars, and live ISS positioning — all free, all open.
         </p>
-        <div className="flex items-center justify-center gap-3 mt-8">
+
+        {/* CTA buttons */}
+        <div className="flex items-center justify-center flex-wrap gap-3 mt-8">
           <Link to="/calendar" className="btn-primary">
             <Calendar size={14} />
             View Calendar
@@ -609,9 +647,29 @@ function Home({ watched, addNotification, toggleWatch }: {
             Open 3D Globe
           </Link>
         </div>
+
+        {/* Stats strip */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="flex items-center justify-center flex-wrap gap-4 mt-10"
+        >
+          {[
+            { label: '9 Showers Tracked', icon: Sparkles },
+            { label: 'Live ISS Position', icon: Rocket },
+            { label: 'Real-Time Weather', icon: Cloud },
+            { label: 'Always Free', icon: Star },
+          ].map(({ label, icon: Icon }) => (
+            <div key={label} className="flex items-center gap-1.5 text-xs text-white/30">
+              <Icon size={11} className="text-blue-400/50" />
+              <span className="font-mono">{label}</span>
+            </div>
+          ))}
+        </motion.div>
       </motion.div>
 
-      {/* Status Cards */}
+      {/* ── Status Cards ── */}
       <motion.div
         ref={ref}
         initial={{ opacity: 0, y: 20 }}
@@ -623,23 +681,52 @@ function Home({ watched, addNotification, toggleWatch }: {
           {
             label: activeShowers.length > 0 ? 'Active Showers' : 'Next Shower',
             value: activeShowers.length > 0 ? activeShowers.length.toString() : (nextShower ? `${getDaysUntilPeak(nextShower)}d` : '—'),
-            sub: activeShowers.length > 0 ? 'happening now' : (nextShower ? nextShower.name : undefined),
+            sub:   activeShowers.length > 0 ? 'happening now' : (nextShower ? nextShower.name : undefined),
             icon: Activity,
-            color: activeShowers.length > 0 ? 'text-green-400' : 'text-blue-400'
+            color: activeShowers.length > 0 ? 'text-green-400' : 'text-blue-400',
+            accent: activeShowers.length > 0 ? 'rgba(34,197,94,0.15)' : 'rgba(79,142,247,0.12)',
           },
-          { label: 'Moon Phase', value: moon.emoji, sub: moon.phase, icon: Moon, color: 'text-yellow-300' },
-          { label: 'Illumination', value: `${moon.illumination}%`, sub: moon.illumination > 60 ? 'affects viewing' : 'good for viewing', icon: Eye, color: 'text-blue-400' },
-          { label: 'Cloud Cover', value: weather ? `${weather.cloudCover}%` : weatherDenied ? 'Allow location' : '…', sub: weather ? (weather.cloudCover < 30 ? 'clear skies' : weather.cloudCover < 60 ? 'partly cloudy' : 'overcast') : undefined, icon: Cloud, color: 'text-purple-400' },
-        ].map(({ label, value, sub, icon: Icon, color }) => (
-          <div key={label} className="glass-card p-4 rounded-2xl">
-            <Icon size={16} className={`${color} mb-2`} />
-            <p className="text-xl font-bold font-space">{value}</p>
-            {sub && <p className="text-[10px] text-white/40 mt-0.5">{sub}</p>}
-            <p className="text-[10px] text-white/35 uppercase tracking-wider mt-1 font-mono">{label}</p>
+          {
+            label: 'Moon Phase',
+            value: moon.emoji,
+            sub: moon.phase,
+            icon: Moon,
+            color: 'text-yellow-300',
+            accent: 'rgba(251,191,36,0.10)',
+          },
+          {
+            label: 'Illumination',
+            value: `${moon.illumination}%`,
+            sub: moon.illumination > 60 ? 'affects viewing' : 'good for viewing',
+            icon: Eye,
+            color: 'text-blue-400',
+            accent: 'rgba(79,142,247,0.10)',
+          },
+          {
+            label: 'Cloud Cover',
+            value: weather ? `${weather.cloudCover}%` : weatherDenied ? 'Unlock' : '…',
+            sub: weather
+              ? (weather.cloudCover < 30 ? 'clear skies' : weather.cloudCover < 60 ? 'partly cloudy' : 'overcast')
+              : (weatherDenied ? 'Allow location' : undefined),
+            icon: Cloud,
+            color: 'text-purple-400',
+            accent: 'rgba(139,92,246,0.10)',
+          },
+        ].map(({ label, value, sub, icon: Icon, color, accent }) => (
+          <div
+            key={label}
+            className="glass-card p-4 rounded-2xl"
+            style={{ borderTop: `2px solid ${accent}` }}
+          >
+            <Icon size={16} className={`${color} mb-2.5`} />
+            <p className="text-xl font-bold font-space leading-none mb-1">{value}</p>
+            {sub && <p className="text-[10px] text-white/42 mt-0.5">{sub}</p>}
+            <p className="text-[10px] text-white/30 uppercase tracking-wider mt-1.5 font-mono">{label}</p>
           </div>
         ))}
       </motion.div>
 
+      {/* ── Main Grid: Countdown + ISS/Moon ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
         {/* Next Shower Countdown */}
         <div className="lg:col-span-2">
@@ -650,17 +737,23 @@ function Home({ watched, addNotification, toggleWatch }: {
               transition={{ delay: 0.2 }}
               className="glass-card p-6 rounded-2xl h-full relative overflow-hidden"
             >
-              <MeteorVisualizer zhr={nextShower.zhr} active={true} />
+              <MeteorVisualizer zhr={nextShower.zhr} active />
               <div className="relative z-10">
                 <div className="flex items-center gap-2 mb-4">
                   <span className="section-label text-orange-400">Next Peak Event</span>
+                  {nextShower.speed && (
+                    <span className="text-[10px] font-mono text-white/30 flex items-center gap-1 ml-auto">
+                      <Gauge size={9} />
+                      {nextShower.speed} km/s
+                    </span>
+                  )}
                 </div>
                 <h2 className="text-3xl font-bold font-space mb-1">{nextShower.name}</h2>
                 <p className="text-sm text-white/50 mb-6">
                   {nextShower.constellation} constellation · Up to {nextShower.zhr} meteors/hour
                 </p>
                 <CountdownTimer targetDate={nextShower.peak} label="Until Peak" />
-                <div className="mt-6 flex items-center gap-3">
+                <div className="mt-6 flex flex-wrap items-center gap-3">
                   <Link to={`/shower/${nextShower.id}`} className="btn-primary text-xs">
                     <ArrowRight size={12} />
                     Full Details
@@ -683,7 +776,7 @@ function Home({ watched, addNotification, toggleWatch }: {
               </div>
             </motion.div>
           ) : (
-            <div className="glass-card p-6 rounded-2xl flex items-center justify-center h-full">
+            <div className="glass-card p-6 rounded-2xl flex items-center justify-center h-full min-h-48">
               <p className="text-white/30 text-sm">No upcoming showers found</p>
             </div>
           )}
@@ -694,23 +787,28 @@ function Home({ watched, addNotification, toggleWatch }: {
           <ISSWidget />
           <div className="glass-card p-4 rounded-2xl flex-1">
             <div className="flex items-center gap-2 mb-3">
-              <Moon size={14} className="text-yellow-300" />
-              <span className="text-xs font-semibold font-space text-white/70">Moon Status</span>
+              <div className="w-6 h-6 rounded-lg bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center">
+                <Moon size={12} className="text-yellow-300" />
+              </div>
+              <span className="text-xs font-semibold font-space text-white/75">Moon Status</span>
             </div>
             <p className="text-3xl mb-1">{moon.emoji}</p>
-            <p className="text-sm font-semibold text-white/80">{moon.phase}</p>
+            <p className="text-sm font-semibold text-white/85">{moon.phase}</p>
             <p className="text-xs text-white/40 mt-1">{moon.illumination}% illuminated</p>
-            <div className="mt-3 h-1.5 bg-white/8 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-yellow-400 to-yellow-200 rounded-full transition-all" style={{ width: `${moon.illumination}%` }} />
+            <div className="mt-3 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+              <div
+                className="h-full bg-gradient-to-r from-yellow-500 to-yellow-200 rounded-full transition-all duration-700"
+                style={{ width: `${moon.illumination}%` }}
+              />
             </div>
-            <p className="text-[10px] text-white/30 mt-2">
-              {moon.illumination > 50 ? 'Bright moon — expect reduced visibility' : 'Good conditions for viewing'}
+            <p className="text-[10px] text-white/30 mt-2.5 leading-relaxed">
+              {moon.illumination > 50 ? 'Bright moon — expect reduced meteor visibility' : 'Good dark-sky conditions for viewing'}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Active Showers */}
+      {/* ── Active Showers ── */}
       {activeShowers.length > 0 && (
         <div className="mb-10">
           <div className="flex items-center gap-2 mb-4">
@@ -722,17 +820,21 @@ function Home({ watched, addNotification, toggleWatch }: {
               <motion.div
                 key={s.id}
                 whileHover={{ y: -2 }}
-                className="glass-card p-4 rounded-2xl border border-green-500/15"
+                className="glass-card p-4 rounded-2xl"
+                style={{ borderLeft: '2px solid rgba(34,197,94,0.35)' }}
               >
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <span className="badge-active text-[10px] px-2 py-0.5 rounded-full font-mono">ACTIVE</span>
-                    <h3 className="text-base font-bold mt-1">{s.name}</h3>
+                    <h3 className="text-base font-bold mt-1.5">{s.name}</h3>
                   </div>
-                  <span className="text-xs font-mono text-white/40">{s.zhr} ZHR</span>
+                  <div className="text-right">
+                    <span className="text-xs font-mono text-orange-400 font-semibold">{s.zhr} ZHR</span>
+                    {s.speed && <p className="text-[10px] text-white/30 font-mono mt-0.5">{s.speed} km/s</p>}
+                  </div>
                 </div>
-                <p className="text-xs text-white/50 mb-3 line-clamp-2">{s.description}</p>
-                <Link to={`/shower/${s.id}`} className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
+                <p className="text-xs text-white/50 mb-3 line-clamp-2 leading-relaxed">{s.description}</p>
+                <Link to={`/shower/${s.id}`} className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors">
                   Details <ArrowRight size={11} />
                 </Link>
               </motion.div>
@@ -741,11 +843,11 @@ function Home({ watched, addNotification, toggleWatch }: {
         </div>
       )}
 
-      {/* Upcoming Showers */}
+      {/* ── Upcoming Showers ── */}
       <div className="mb-10">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold font-space">Coming Up</h2>
-          <Link to="/calendar" className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
+          <Link to="/calendar" className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors">
             Full Calendar <ArrowRight size={11} />
           </Link>
         </div>
@@ -764,13 +866,13 @@ function Home({ watched, addNotification, toggleWatch }: {
                   <span className="badge-upcoming text-[10px] px-2 py-0.5 rounded-full font-mono">
                     {daysUntil > 0 ? `IN ${daysUntil}d` : 'SOON'}
                   </span>
-                  <Sparkles size={12} className="text-blue-400/50" />
+                  <Sparkles size={12} className="text-blue-400/45" />
                 </div>
                 <h3 className="text-sm font-bold mb-1 group-hover:text-blue-300 transition-colors">{s.name}</h3>
                 <p className="text-[10px] text-white/35 font-mono mb-2">Peak: {formatDate(s.peak)}</p>
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] text-white/40">{s.constellation}</span>
-                  <span className="text-[10px] font-mono text-orange-400">{s.zhr} ZHR</span>
+                  <span className="text-[10px] font-mono text-orange-400 font-semibold">{s.zhr} ZHR</span>
                 </div>
               </motion.div>
             );
@@ -778,34 +880,39 @@ function Home({ watched, addNotification, toggleWatch }: {
         </div>
       </div>
 
-      {/* NASA APOD — always render */}
+      {/* ── NASA APOD — always render ── */}
       <div className="mb-10">
         <div className="flex items-center gap-2 mb-4">
-          <Rocket size={14} className="text-orange-400" />
+          <div className="w-6 h-6 rounded-lg bg-orange-500/12 border border-orange-500/22 flex items-center justify-center">
+            <Rocket size={12} className="text-orange-400" />
+          </div>
           <h2 className="text-lg font-bold font-space">NASA Astronomy Picture of the Day</h2>
         </div>
         <div className="glass-card rounded-2xl overflow-hidden">
           {apodLoading ? (
-            <div className="h-56 flex items-center justify-center bg-gradient-to-br from-blue-950/40 to-purple-950/40 animate-pulse">
+            <div className="h-60 flex items-center justify-center shimmer">
               <div className="text-center">
-                <Rocket size={28} className="text-orange-400/40 mx-auto mb-2" />
-                <p className="text-xs text-white/25 font-mono">Fetching from NASA…</p>
+                <Rocket size={28} className="text-orange-400/35 mx-auto mb-2 animate-float" />
+                <p className="text-xs text-white/22 font-mono">Fetching from NASA…</p>
               </div>
             </div>
           ) : apod ? (
             apod.media_type === 'image' ? (
-              <img src={apod.url} alt={apod.title} className="w-full h-56 object-cover" loading="lazy" />
+              <img src={apod.url} alt={apod.title} className="w-full h-60 object-cover" loading="lazy" />
             ) : (
-              <div className="h-56 bg-gradient-to-br from-blue-900/20 to-purple-900/20 flex items-center justify-center">
+              <div className="h-60 flex items-center justify-center" style={{ background: 'rgba(79,142,247,0.06)' }}>
                 <a href={apod.url} target="_blank" rel="noopener noreferrer" className="btn-primary">
                   <ExternalLink size={12} /> Watch on NASA
                 </a>
               </div>
             )
           ) : (
-            /* Fallback: beautiful static space gradient with link to APOD */
-            <div className="h-56 relative overflow-hidden bg-gradient-to-br from-[#050520] via-[#0a0540] to-[#0d0228] flex items-center justify-center">
-              <div className="absolute inset-0 opacity-30" style={{ background: 'radial-gradient(circle at 30% 50%, rgba(79,142,247,0.4) 0%, transparent 60%), radial-gradient(circle at 70% 30%, rgba(139,92,246,0.3) 0%, transparent 50%)' }} />
+            <div className="h-60 relative overflow-hidden flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, #050520, #0a0540, #0d0228)' }}
+            >
+              <div className="absolute inset-0 opacity-25"
+                style={{ background: 'radial-gradient(circle at 30% 50%, rgba(79,142,247,0.5) 0%, transparent 55%), radial-gradient(circle at 70% 30%, rgba(139,92,246,0.4) 0%, transparent 50%)' }}
+              />
               <div className="relative text-center">
                 <p className="text-4xl mb-2">🔭</p>
                 <p className="text-sm font-semibold text-white/70 mb-1">Astronomy Picture of the Day</p>
@@ -817,53 +924,55 @@ function Home({ watched, addNotification, toggleWatch }: {
             </div>
           )}
           {apod && (
-            <div className="p-5">
+            <div className="p-5 border-t border-white/5">
               <h3 className="font-bold text-base mb-2">{apod.title}</h3>
-              <p className="text-xs text-white/50 leading-relaxed line-clamp-3">{apod.explanation}</p>
+              <p className="text-xs text-white/48 leading-relaxed line-clamp-3">{apod.explanation}</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Observing Conditions — always render */}
+      {/* ── Observing Conditions — always render ── */}
       <div className="mb-10">
         <div className="flex items-center gap-2 mb-4">
-          <Cloud size={14} className="text-blue-400" />
+          <div className="w-6 h-6 rounded-lg bg-blue-500/12 border border-blue-500/22 flex items-center justify-center">
+            <Cloud size={12} className="text-blue-400" />
+          </div>
           <h2 className="text-lg font-bold font-space">Observing Conditions</h2>
         </div>
         <div className="glass-card p-5 rounded-2xl">
           {weatherDenied || (!weather && !weatherLoading) ? (
             <div className="flex items-center gap-4">
               <div className="flex-1">
-                <p className="text-sm font-semibold text-white/70 mb-1">Enable location for live conditions</p>
+                <p className="text-sm font-semibold text-white/72 mb-1">Enable location for live conditions</p>
                 <p className="text-xs text-white/40 leading-relaxed">
                   Allow location access in your browser to see real-time cloud cover, humidity, and sky quality for your area.
                 </p>
               </div>
-              <div className="text-3xl opacity-40">📍</div>
+              <div className="text-3xl opacity-35 flex-shrink-0">📍</div>
             </div>
           ) : weatherLoading ? (
-            <div className="flex items-center gap-3 animate-pulse">
-              <Cloud size={18} className="text-blue-400/40" />
+            <div className="flex items-center gap-3">
+              <RefreshCw size={14} className="text-blue-400/50 animate-spin flex-shrink-0" />
               <p className="text-xs text-white/30 font-mono">Fetching local weather…</p>
             </div>
           ) : weather ? (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                 {[
-                  { label: 'Cloud Cover', value: `${weather.cloudCover}%`, good: weather.cloudCover < 30, icon: Cloud },
-                  { label: 'Humidity', value: `${weather.humidity}%`, good: weather.humidity < 70, icon: Wind },
+                  { label: 'Cloud Cover', value: `${weather.cloudCover}%`,    good: weather.cloudCover < 30, icon: Cloud },
+                  { label: 'Humidity',    value: `${weather.humidity}%`,       good: weather.humidity < 70,   icon: Wind },
                   { label: 'Sky Quality', value: weather.cloudCover < 20 ? 'Excellent' : weather.cloudCover < 50 ? 'Fair' : 'Poor', good: weather.cloudCover < 50, icon: Eye },
                   { label: 'Moon Impact', value: moon.illumination < 30 ? 'Low' : moon.illumination < 70 ? 'Medium' : 'High', good: moon.illumination < 50, icon: Moon },
                 ].map(({ label, value, good, icon: Icon }) => (
-                  <div key={label} className="text-center p-3 rounded-xl bg-white/3">
+                  <div key={label} className="text-center p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)' }}>
                     <Icon size={18} className={`mx-auto mb-1.5 ${good ? 'text-green-400' : 'text-orange-400'}`} />
                     <p className="text-sm font-bold">{value}</p>
-                    <p className="text-[10px] text-white/35 uppercase tracking-wider font-mono mt-0.5">{label}</p>
+                    <p className="text-[10px] text-white/32 uppercase tracking-wider font-mono mt-0.5">{label}</p>
                   </div>
                 ))}
               </div>
-              <div className="pt-4 border-t border-white/5">
+              <div className="pt-3 border-t border-white/5">
                 <p className="text-xs text-white/40">
                   {weather.cloudCover < 20 ? '✓ Excellent conditions tonight — crystal clear skies expected.' :
                    weather.cloudCover < 50 ? '◎ Partly cloudy — viewing may be intermittent. Find a break in the clouds.' :
@@ -875,10 +984,12 @@ function Home({ watched, addNotification, toggleWatch }: {
         </div>
       </div>
 
-      {/* FAQ */}
+      {/* ── FAQ ── */}
       <div className="mb-10">
         <div className="flex items-center gap-2 mb-4">
-          <MessageSquare size={14} className="text-purple-400" />
+          <div className="w-6 h-6 rounded-lg bg-purple-500/12 border border-purple-500/22 flex items-center justify-center">
+            <MessageSquare size={12} className="text-purple-400" />
+          </div>
           <h2 className="text-lg font-bold font-space">Frequently Asked Questions</h2>
         </div>
         <FaqSection />
@@ -930,13 +1041,15 @@ function MeteorCalendar({ watched, toggleWatch, addNotification }: {
               className="input-field pl-9"
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {(['all', 'active', 'upcoming', 'past'] as const).map(f => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
                 className={`px-3 py-2 rounded-lg text-xs font-medium font-space capitalize transition-all ${
-                  filter === f ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' : 'glass text-white/50 hover:text-white/80'
+                  filter === f
+                    ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                    : 'text-white/50 hover:text-white/80 hover:bg-white/5 border border-transparent'
                 }`}
               >
                 {f}
@@ -944,7 +1057,7 @@ function MeteorCalendar({ watched, toggleWatch, addNotification }: {
             ))}
             <button
               onClick={() => setSortBy(s => s === 'date' ? 'zhr' : 'date')}
-              className="px-3 py-2 rounded-lg text-xs font-medium font-space glass text-white/50 hover:text-white/80 flex items-center gap-1"
+              className="px-3 py-2 rounded-lg text-xs font-medium font-space text-white/50 hover:text-white/80 hover:bg-white/5 border border-transparent flex items-center gap-1 transition-all"
             >
               <Filter size={11} />
               {sortBy === 'date' ? 'By ZHR' : 'By Date'}
@@ -958,7 +1071,7 @@ function MeteorCalendar({ watched, toggleWatch, addNotification }: {
             {filtered.map((s, i) => {
               const status = getShowerStatus(s);
               const isWatched = watched.some(w => w.id === s.id);
-              const intensityPct = Math.min((s.zhr / 120) * 100, 100);
+              const intensityPct = Math.min((s.zhr / 150) * 100, 100);
 
               return (
                 <motion.div
@@ -974,7 +1087,7 @@ function MeteorCalendar({ watched, toggleWatch, addNotification }: {
                   <div className="relative z-10">
                     <div className="flex items-start justify-between mb-3">
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono border ${
-                        status === 'active' ? 'badge-active' :
+                        status === 'active'   ? 'badge-active' :
                         status === 'upcoming' ? 'badge-upcoming' : 'badge-past'
                       }`}>
                         {status.toUpperCase()}
@@ -985,21 +1098,23 @@ function MeteorCalendar({ watched, toggleWatch, addNotification }: {
                           addNotification({ title: isWatched ? 'Removed from watchlist' : `Watching ${s.name}`, message: `Peak: ${formatDate(s.peak)}`, type: 'success' });
                         }}
                         className={`p-1.5 rounded-lg transition-all ${isWatched ? 'text-blue-400 bg-blue-500/15' : 'text-white/30 hover:text-white/70 hover:bg-white/5'}`}
+                        title={isWatched ? 'Remove from watchlist' : 'Add to watchlist'}
                       >
                         {isWatched ? <Bell size={13} className="animate-pulse" /> : <Bell size={13} />}
                       </button>
                     </div>
 
-                    <h3 className="text-lg font-bold font-space mb-1 group-hover:text-blue-300 transition-colors">{s.name}</h3>
+                    <h3 className="text-lg font-bold font-space mb-0.5 group-hover:text-blue-300 transition-colors">{s.name}</h3>
                     <p className="text-[10px] font-mono text-white/35 mb-3">
-                      {new Date(s.peak).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                      Peak: {new Date(s.peak).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                     </p>
                     <p className="text-xs text-white/50 mb-4 line-clamp-2 leading-relaxed">{s.description}</p>
 
+                    {/* Intensity bar */}
                     <div className="mb-4">
-                      <div className="flex justify-between text-[10px] text-white/35 mb-1.5 font-mono">
+                      <div className="flex justify-between text-[10px] text-white/32 mb-1.5 font-mono">
                         <span>Intensity</span>
-                        <span>{s.zhr} ZHR</span>
+                        <span className="text-orange-400 font-semibold">{s.zhr} ZHR</span>
                       </div>
                       <div className="intensity-bar">
                         <motion.div
@@ -1012,12 +1127,19 @@ function MeteorCalendar({ watched, toggleWatch, addNotification }: {
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-white/30 flex items-center gap-1">
-                        <Compass size={10} /> {s.constellation}
-                      </span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] text-white/30 flex items-center gap-1">
+                          <Compass size={10} /> {s.constellation}
+                        </span>
+                        {s.speed && (
+                          <span className="text-[10px] text-white/30 flex items-center gap-1">
+                            <Gauge size={10} /> {s.speed} km/s
+                          </span>
+                        )}
+                      </div>
                       <Link
                         to={`/shower/${s.id}`}
-                        className="text-[10px] text-blue-400 hover:text-blue-300 flex items-center gap-1 font-space font-semibold"
+                        className="text-[10px] text-blue-400 hover:text-blue-300 flex items-center gap-1 font-space font-semibold transition-colors"
                       >
                         Details <ChevronRight size={10} />
                       </Link>
@@ -1031,7 +1153,7 @@ function MeteorCalendar({ watched, toggleWatch, addNotification }: {
 
         {filtered.length === 0 && (
           <div className="text-center py-16">
-            <Sparkles size={32} className="text-white/15 mx-auto mb-3" />
+            <Sparkles size={32} className="text-white/12 mx-auto mb-3" />
             <p className="text-white/30 text-sm">No showers match your search</p>
           </div>
         )}
@@ -1058,7 +1180,7 @@ function ShowerDetail({ watched, toggleWatch }: { watched: WatchedShower[]; togg
     );
   }
 
-  const status = getShowerStatus(shower);
+  const status    = getShowerStatus(shower);
   const isWatched = watched.some(w => w.id === shower.id);
   const daysUntil = getDaysUntilPeak(shower);
 
@@ -1066,16 +1188,19 @@ function ShowerDetail({ watched, toggleWatch }: { watched: WatchedShower[]; togg
     <div className="relative z-10 max-w-5xl mx-auto px-4 pt-28 pb-16">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         {/* Back */}
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 mb-6 transition-colors">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 mb-6 transition-colors"
+        >
           <ChevronRight size={12} className="rotate-180" />
           Back
         </button>
 
-        {/* Header */}
-        <div className="glass-card p-8 rounded-2xl relative overflow-hidden mb-6">
+        {/* Header card */}
+        <div className="glass-card p-6 sm:p-8 rounded-2xl relative overflow-hidden mb-6">
           <MeteorVisualizer zhr={shower.zhr} active={status === 'active'} />
           <div className="relative z-10">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex flex-wrap items-center gap-2 mb-4">
               <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono border ${
                 status === 'active' ? 'badge-active' : status === 'upcoming' ? 'badge-upcoming' : 'badge-past'
               }`}>{status.toUpperCase()}</span>
@@ -1087,12 +1212,8 @@ function ShowerDetail({ watched, toggleWatch }: { watched: WatchedShower[]; togg
             </div>
             <h1 className="text-4xl md:text-5xl font-bold font-space mb-3 text-gradient">{shower.name}</h1>
             <p className="text-white/50 text-base leading-relaxed max-w-2xl mb-6">{shower.description}</p>
-
             <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => toggleWatch(shower)}
-                className={isWatched ? 'btn-secondary' : 'btn-primary'}
-              >
+              <button onClick={() => toggleWatch(shower)} className={isWatched ? 'btn-secondary' : 'btn-primary'}>
                 {isWatched ? <><BellOff size={13} /> Unwatch</> : <><Bell size={13} /> Watch Peak</>}
               </button>
               <Link to="/live" className="btn-secondary">
@@ -1102,37 +1223,38 @@ function ShowerDetail({ watched, toggleWatch }: { watched: WatchedShower[]; togg
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        {/* Quick stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           {[
-            { label: 'Peak Date', value: formatDate(shower.peak), icon: Calendar },
-            { label: 'ZHR', value: `${shower.zhr}/hr`, icon: Activity },
-            { label: 'Constellation', value: shower.constellation, icon: Star },
-            { label: 'Days Until', value: daysUntil > 0 ? `${daysUntil} days` : 'Past', icon: Clock },
-          ].map(({ label, value, icon: Icon }) => (
-            <div key={label} className="glass-card p-4 rounded-xl">
-              <Icon size={14} className="text-blue-400 mb-2" />
+            { label: 'Peak Date',    value: formatDate(shower.peak),                             icon: Calendar, color: 'text-blue-400' },
+            { label: 'ZHR',          value: `${shower.zhr}/hr`,                                 icon: Activity, color: 'text-orange-400' },
+            { label: 'Speed',        value: shower.speed ? `${shower.speed} km/s` : '—',        icon: Gauge,    color: 'text-purple-400' },
+            { label: 'Days Until',   value: daysUntil > 0 ? `${daysUntil}d` : status === 'active' ? 'Now!' : 'Past', icon: Clock, color: 'text-green-400' },
+          ].map(({ label, value, icon: Icon, color }) => (
+            <div key={label} className="glass-card p-4 rounded-xl text-center">
+              <Icon size={16} className={`${color} mx-auto mb-2`} />
               <p className="text-sm font-bold font-space">{value}</p>
-              <p className="text-[10px] text-white/35 uppercase tracking-wider font-mono mt-0.5">{label}</p>
+              <p className="text-[10px] text-white/32 uppercase tracking-wider font-mono mt-0.5">{label}</p>
             </div>
           ))}
         </div>
 
-        {/* Details */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        {/* Detail grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          {/* Activity Window */}
           <div className="glass-card p-5 rounded-2xl">
             <h3 className="text-sm font-semibold font-space text-white/70 mb-4 flex items-center gap-2">
               <Calendar size={13} className="text-blue-400" /> Activity Window
             </h3>
-            <div className="space-y-3">
+            <div className="space-y-1">
               {[
                 { label: 'Start', val: formatDate(shower.start) },
-                { label: 'Peak', val: formatDate(shower.peak) },
-                { label: 'End', val: formatDate(shower.end) },
+                { label: 'Peak',  val: formatDate(shower.peak)  },
+                { label: 'End',   val: formatDate(shower.end)   },
               ].map(({ label, val }) => (
-                <div key={label} className="flex justify-between items-center text-sm">
+                <div key={label} className="stat-row">
                   <span className="text-white/40 text-xs font-mono">{label}</span>
-                  <span className="text-white/80 font-semibold">{val}</span>
+                  <span className="text-white/82 text-xs font-semibold">{val}</span>
                 </div>
               ))}
             </div>
@@ -1143,20 +1265,22 @@ function ShowerDetail({ watched, toggleWatch }: { watched: WatchedShower[]; togg
             )}
           </div>
 
+          {/* Technical Data */}
           <div className="glass-card p-5 rounded-2xl">
             <h3 className="text-sm font-semibold font-space text-white/70 mb-4 flex items-center gap-2">
               <Star size={13} className="text-purple-400" /> Technical Data
             </h3>
-            <div className="space-y-3">
+            <div className="space-y-1">
               {[
-                { label: 'Parent Body', val: shower.parent || '—' },
-                { label: 'Constellation', val: shower.constellation },
-                { label: 'Orbital Period', val: shower.orbitalPeriod || '—' },
-                { label: 'Composition', val: shower.composition || '—' },
+                { label: 'Parent Body',     val: shower.parent || '—' },
+                { label: 'Constellation',   val: shower.constellation },
+                { label: 'Orbital Period',  val: shower.orbitalPeriod || '—' },
+                { label: 'Composition',     val: shower.composition || '—' },
+                { label: 'Entry Speed',     val: shower.speed ? `${shower.speed} km/s` : '—' },
               ].map(({ label, val }) => (
-                <div key={label} className="flex justify-between items-center">
+                <div key={label} className="stat-row">
                   <span className="text-white/40 text-xs font-mono">{label}</span>
-                  <span className="text-white/80 text-xs font-semibold">{val}</span>
+                  <span className="text-white/82 text-xs font-semibold text-right max-w-[55%]">{val}</span>
                 </div>
               ))}
             </div>
@@ -1173,7 +1297,7 @@ function ShowerDetail({ watched, toggleWatch }: { watched: WatchedShower[]; togg
           </div>
         )}
 
-        {/* Historical */}
+        {/* Historical Notes */}
         {(shower.historicalStorms || shower.historicalVisibility) && (
           <div className="glass-card p-5 rounded-2xl mb-4">
             <h3 className="text-sm font-semibold font-space text-white/70 mb-3 flex items-center gap-2">
@@ -1201,11 +1325,11 @@ function ShowerDetail({ watched, toggleWatch }: { watched: WatchedShower[]; togg
 // ─── LIVE FEED PAGE ───────────────────────────────────────────────────────────
 function LiveFeed({ addNotification }: { addNotification: (n: Omit<Notification, 'id' | 'timestamp'>) => void }) {
   const [reports, setReports] = useState<SightingReport[]>([
-    { id: '1', time: '2 min ago', location: 'Colorado, USA', magnitude: '-2', duration: '3s', type: 'fireball', verified: true, timestamp: Date.now() - 120000 },
-    { id: '2', time: '8 min ago', location: 'Ontario, Canada', magnitude: '1', duration: '1s', type: 'meteor', verified: true, timestamp: Date.now() - 480000 },
-    { id: '3', time: '15 min ago', location: 'Bavaria, Germany', magnitude: '-4', duration: '5s', type: 'bolide', verified: false, timestamp: Date.now() - 900000 },
-    { id: '4', time: '23 min ago', location: 'New South Wales, AU', magnitude: '0', duration: '2s', type: 'meteor', verified: true, timestamp: Date.now() - 1380000 },
-    { id: '5', time: '41 min ago', location: 'Hokkaido, Japan', magnitude: '-1', duration: '2s', type: 'fireball', verified: true, timestamp: Date.now() - 2460000 },
+    { id: '1', time: '2 min ago',  location: 'Colorado, USA',         magnitude: '-2', duration: '3s', type: 'fireball', verified: true,  timestamp: Date.now() - 120000  },
+    { id: '2', time: '8 min ago',  location: 'Ontario, Canada',        magnitude: '1',  duration: '1s', type: 'meteor',   verified: true,  timestamp: Date.now() - 480000  },
+    { id: '3', time: '15 min ago', location: 'Bavaria, Germany',       magnitude: '-4', duration: '5s', type: 'bolide',   verified: false, timestamp: Date.now() - 900000  },
+    { id: '4', time: '23 min ago', location: 'New South Wales, AU',    magnitude: '0',  duration: '2s', type: 'meteor',   verified: true,  timestamp: Date.now() - 1380000 },
+    { id: '5', time: '41 min ago', location: 'Hokkaido, Japan',        magnitude: '-1', duration: '2s', type: 'fireball', verified: true,  timestamp: Date.now() - 2460000 },
   ]);
 
   const [form, setForm] = useState({ location: '', magnitude: '', duration: '', type: 'meteor' as const, notes: '' });
@@ -1232,10 +1356,10 @@ function LiveFeed({ addNotification }: { addNotification: (n: Omit<Notification,
     addNotification({ title: 'Sighting Submitted!', message: 'Your report is being reviewed.', type: 'success' });
   };
 
-  const typeColors: Record<string, string> = {
-    meteor: 'text-blue-400',
-    fireball: 'text-orange-400',
-    bolide: 'text-red-400',
+  const typeConfig: Record<string, { color: string; bg: string; border: string }> = {
+    meteor:   { color: 'text-blue-400',   bg: 'rgba(79,142,247,0.08)',  border: 'rgba(79,142,247,0.15)'  },
+    fireball: { color: 'text-orange-400', bg: 'rgba(249,115,22,0.08)', border: 'rgba(249,115,22,0.15)' },
+    bolide:   { color: 'text-red-400',    bg: 'rgba(239,68,68,0.08)',  border: 'rgba(239,68,68,0.15)'  },
   };
 
   return (
@@ -1256,34 +1380,44 @@ function LiveFeed({ addNotification }: { addNotification: (n: Omit<Notification,
             </div>
             <div className="space-y-3">
               <AnimatePresence>
-                {reports.map((r, i) => (
-                  <motion.div
-                    key={r.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.05 }}
-                    className="glass-card p-4 rounded-xl"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`text-xs font-semibold capitalize ${typeColors[r.type]}`}>{r.type}</span>
-                          <span className="text-[10px] text-white/30 font-mono">Mag {r.magnitude}</span>
-                          {r.verified && <CheckCircle size={11} className="text-green-400" />}
-                        </div>
-                        <div className="flex items-center gap-1.5 text-[11px] text-white/40">
-                          <MapPin size={9} />
-                          <span>{r.location}</span>
-                          <span className="text-white/20">·</span>
-                          <Clock size={9} />
-                          <span>{r.time}</span>
-                          <span className="text-white/20">·</span>
-                          <span>{r.duration}</span>
+                {reports.map((r, i) => {
+                  const cfg = typeConfig[r.type] || typeConfig.meteor;
+                  return (
+                    <motion.div
+                      key={r.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                      className="glass-card p-4 rounded-xl"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <span
+                              className={`text-[10px] font-semibold capitalize px-2 py-0.5 rounded-full border font-mono ${cfg.color}`}
+                              style={{ background: cfg.bg, borderColor: cfg.border }}
+                            >
+                              {r.type}
+                            </span>
+                            <span className="text-[10px] text-white/35 font-mono">Mag {r.magnitude}</span>
+                            {r.verified && (
+                              <span className="flex items-center gap-0.5 text-[10px] text-green-400 font-mono">
+                                <CheckCircle size={10} /> verified
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 text-[11px] text-white/40">
+                            <span className="flex items-center gap-1"><MapPin size={9} />{r.location}</span>
+                            <span className="text-white/18">·</span>
+                            <span className="flex items-center gap-1"><Clock size={9} />{r.time}</span>
+                            <span className="text-white/18">·</span>
+                            <span>{r.duration}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </motion.div>
-                ))}
+                    </motion.div>
+                  );
+                })}
               </AnimatePresence>
             </div>
           </div>
@@ -1292,12 +1426,14 @@ function LiveFeed({ addNotification }: { addNotification: (n: Omit<Notification,
           <div className="lg:col-span-2">
             <div className="glass-card p-5 rounded-2xl sticky top-24">
               <h3 className="text-sm font-bold font-space mb-4 flex items-center gap-2">
-                <Plus size={14} className="text-blue-400" />
+                <div className="w-6 h-6 rounded-lg bg-blue-500/12 border border-blue-500/22 flex items-center justify-center">
+                  <Plus size={12} className="text-blue-400" />
+                </div>
                 Submit a Sighting
               </h3>
               <form onSubmit={handleSubmit} className="space-y-3">
                 <div>
-                  <label className="block text-[10px] text-white/40 uppercase tracking-wider font-mono mb-1">Location *</label>
+                  <label className="block text-[10px] text-white/40 uppercase tracking-wider font-mono mb-1.5">Location *</label>
                   <input
                     type="text"
                     placeholder="City, Country"
@@ -1309,7 +1445,7 @@ function LiveFeed({ addNotification }: { addNotification: (n: Omit<Notification,
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] text-white/40 uppercase tracking-wider font-mono mb-1">Magnitude *</label>
+                    <label className="block text-[10px] text-white/40 uppercase tracking-wider font-mono mb-1.5">Magnitude *</label>
                     <input
                       type="number"
                       placeholder="-3"
@@ -1320,7 +1456,7 @@ function LiveFeed({ addNotification }: { addNotification: (n: Omit<Notification,
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-white/40 uppercase tracking-wider font-mono mb-1">Duration</label>
+                    <label className="block text-[10px] text-white/40 uppercase tracking-wider font-mono mb-1.5">Duration</label>
                     <input
                       type="text"
                       placeholder="3s"
@@ -1331,7 +1467,7 @@ function LiveFeed({ addNotification }: { addNotification: (n: Omit<Notification,
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[10px] text-white/40 uppercase tracking-wider font-mono mb-1">Type</label>
+                  <label className="block text-[10px] text-white/40 uppercase tracking-wider font-mono mb-1.5">Type</label>
                   <select
                     value={form.type}
                     onChange={e => setForm(f => ({ ...f, type: e.target.value as any }))}
@@ -1343,7 +1479,7 @@ function LiveFeed({ addNotification }: { addNotification: (n: Omit<Notification,
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] text-white/40 uppercase tracking-wider font-mono mb-1">Notes</label>
+                  <label className="block text-[10px] text-white/40 uppercase tracking-wider font-mono mb-1.5">Notes</label>
                   <textarea
                     placeholder="Color, train, sounds..."
                     value={form.notes}
@@ -1353,7 +1489,7 @@ function LiveFeed({ addNotification }: { addNotification: (n: Omit<Notification,
                 </div>
                 <button type="submit" disabled={submitting} className="btn-primary w-full justify-center">
                   {submitting ? <RefreshCw size={13} className="animate-spin" /> : <Send size={13} />}
-                  {submitting ? 'Submitting...' : 'Submit Report'}
+                  {submitting ? 'Submitting…' : 'Submit Report'}
                 </button>
               </form>
               <div className="mt-4 pt-4 border-t border-white/5">
@@ -1391,12 +1527,12 @@ function About() {
   };
 
   const features = [
-    { icon: Activity, title: 'Real-Time Data', desc: 'Live meteor shower activity tracking using IMO and NASA data sources' },
-    { icon: Globe, title: '3D Globe', desc: 'Interactive CesiumJS globe with satellites, debris, and meteor radiant points' },
-    { icon: Navigation, title: 'ISS Tracking', desc: 'Live International Space Station position updated every 5 seconds' },
-    { icon: Cloud, title: 'Weather Integration', desc: 'Local cloud cover and observing conditions via Open-Meteo API' },
-    { icon: Users, title: 'Community Feed', desc: 'Submit and browse real-time meteor sighting reports from around the world' },
-    { icon: Bell, title: 'Peak Alerts', desc: 'Watch showers and get notified when they approach peak activity' },
+    { icon: Activity,   title: 'Real-Time Data',       desc: 'Live meteor shower activity tracking using IMO and NASA data sources' },
+    { icon: Globe,      title: '3D Globe',              desc: 'Interactive CesiumJS globe with satellites, debris, and meteor radiant points' },
+    { icon: Navigation, title: 'ISS Tracking',          desc: 'Live International Space Station position updated every 5 seconds' },
+    { icon: Cloud,      title: 'Weather Integration',   desc: 'Local cloud cover and observing conditions via Open-Meteo API' },
+    { icon: Users,      title: 'Community Feed',        desc: 'Submit and browse real-time meteor sighting reports from around the world' },
+    { icon: Bell,       title: 'Peak Alerts',           desc: 'Watch showers and get notified when they approach peak activity' },
   ];
 
   return (
@@ -1413,25 +1549,31 @@ function About() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-10">
           {features.map(({ icon: Icon, title, desc }) => (
-            <div key={title} className="glass-card p-5 rounded-2xl">
-              <Icon size={20} className="text-blue-400 mb-3" />
+            <div key={title} className="glass-card p-5 rounded-2xl group hover:border-blue-500/20 transition-colors">
+              <div className="w-8 h-8 rounded-xl bg-blue-500/12 border border-blue-500/20 flex items-center justify-center mb-3 group-hover:bg-blue-500/18 transition-colors">
+                <Icon size={16} className="text-blue-400" />
+              </div>
               <h3 className="text-sm font-bold font-space mb-1">{title}</h3>
               <p className="text-xs text-white/45 leading-relaxed">{desc}</p>
             </div>
           ))}
         </div>
 
+        {/* Data Sources */}
         <div className="glass-card p-5 rounded-2xl mb-6">
           <h2 className="text-base font-bold font-space mb-4">Data Sources</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {[
-              { name: 'NASA APOD', url: 'https://apod.nasa.gov', desc: 'Astronomy Picture of the Day' },
-              { name: 'IMO', url: 'https://www.imo.net', desc: 'Meteor shower calendar data' },
-              { name: 'CelesTrak', url: 'https://celestrak.org', desc: 'Satellite & debris TLE data' },
-              { name: 'Open-Meteo', url: 'https://open-meteo.com', desc: 'Weather forecasts' },
-              { name: 'WhereTheISS', url: 'https://wheretheiss.at', desc: 'ISS live position' },
+              { name: 'NASA APOD',    url: 'https://apod.nasa.gov',    desc: 'Astronomy Picture of the Day' },
+              { name: 'IMO',          url: 'https://www.imo.net',       desc: 'Meteor shower calendar data' },
+              { name: 'CelesTrak',    url: 'https://celestrak.org',     desc: 'Satellite & debris TLE data' },
+              { name: 'Open-Meteo',   url: 'https://open-meteo.com',    desc: 'Weather forecasts' },
+              { name: 'WhereTheISS',  url: 'https://wheretheiss.at',    desc: 'ISS live position' },
             ].map(({ name, url, desc }) => (
-              <a key={name} href={url} target="_blank" rel="noopener noreferrer" className="glass p-3 rounded-xl hover:bg-white/5 transition-colors group">
+              <a key={name} href={url} target="_blank" rel="noopener noreferrer"
+                className="p-3 rounded-xl hover:bg-white/5 transition-colors group border border-white/5 hover:border-white/10"
+                style={{ background: 'rgba(255,255,255,0.02)' }}
+              >
                 <p className="text-xs font-semibold text-blue-400 group-hover:text-blue-300 flex items-center gap-1">
                   {name} <ExternalLink size={9} />
                 </p>
@@ -1445,25 +1587,27 @@ function About() {
         <div className="glass-card p-6 rounded-2xl">
           <h2 className="text-base font-bold font-space mb-4">Get in Touch</h2>
           {sent ? (
-            <div className="text-center py-6">
-              <CheckCircle size={32} className="text-green-400 mx-auto mb-3" />
+            <div className="text-center py-8">
+              <div className="w-12 h-12 rounded-full bg-green-500/15 border border-green-500/25 flex items-center justify-center mx-auto mb-3">
+                <CheckCircle size={24} className="text-green-400" />
+              </div>
               <p className="text-sm font-semibold">Message sent!</p>
               <p className="text-xs text-white/40 mt-1">We'll get back to you soon.</p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] text-white/40 uppercase tracking-wider font-mono mb-1">Name</label>
+                  <label className="block text-[10px] text-white/40 uppercase tracking-wider font-mono mb-1.5">Name</label>
                   <input type="text" value={formState.name} onChange={e => setFormState(f => ({ ...f, name: e.target.value }))} className="input-field" placeholder="Your name" required />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-white/40 uppercase tracking-wider font-mono mb-1">Email</label>
+                  <label className="block text-[10px] text-white/40 uppercase tracking-wider font-mono mb-1.5">Email</label>
                   <input type="email" value={formState.email} onChange={e => setFormState(f => ({ ...f, email: e.target.value }))} className="input-field" placeholder="you@email.com" required />
                 </div>
               </div>
               <div>
-                <label className="block text-[10px] text-white/40 uppercase tracking-wider font-mono mb-1">Message</label>
+                <label className="block text-[10px] text-white/40 uppercase tracking-wider font-mono mb-1.5">Message</label>
                 <textarea value={formState.message} onChange={e => setFormState(f => ({ ...f, message: e.target.value }))} className="input-field h-24 resize-none" placeholder="Bug reports, feature requests, general feedback..." required />
               </div>
               <button type="submit" className="btn-primary">
@@ -1482,21 +1626,23 @@ function PrivacyPolicy() {
   return (
     <div className="relative z-10 max-w-3xl mx-auto px-4 pt-28 pb-16">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="flex items-center gap-2 mb-6">
-          <Shield size={16} className="text-blue-400" />
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-8 h-8 rounded-xl bg-blue-500/12 border border-blue-500/22 flex items-center justify-center">
+            <Shield size={16} className="text-blue-400" />
+          </div>
           <h1 className="text-3xl font-bold font-space">Privacy Policy</h1>
         </div>
         <p className="text-xs text-white/30 font-mono mb-8">Last updated: January 2026</p>
-        <div className="glass-card p-6 rounded-2xl prose prose-invert prose-sm max-w-none">
+        <div className="glass-card p-6 rounded-2xl space-y-6">
           {[
-            { h: 'Information We Collect', p: 'We collect minimal information necessary to provide our services. This may include location data (if you grant permission) to show local meteor visibility and weather conditions. We do not collect personal information without consent.' },
+            { h: 'Information We Collect',     p: 'We collect minimal information necessary to provide our services. This may include location data (if you grant permission) to show local meteor visibility and weather conditions. We do not collect personal information without consent.' },
             { h: 'How We Use Your Information', p: 'Location data is used solely to fetch local weather and observing conditions from Open-Meteo. This data is sent directly from your browser to the weather API and is not stored on our servers.' },
-            { h: 'Third-Party Services', p: 'Stargaze.io uses NASA\'s APOD API, Open-Meteo, CelesTrak, and WhereTheISS. These are external services with their own privacy policies. No personal data is shared with these services beyond what is required for their API calls.' },
-            { h: 'Cookies', p: 'We use localStorage to save your watchlist preferences. No tracking cookies or advertising cookies are used.' },
-            { h: 'Contact', p: 'Questions about this policy? Use the contact form on the About page.' },
+            { h: 'Third-Party Services',        p: 'Stargaze.io uses NASA\'s APOD API, Open-Meteo, CelesTrak, and WhereTheISS. These are external services with their own privacy policies. No personal data is shared with these services beyond what is required for their API calls.' },
+            { h: 'Cookies',                     p: 'We use localStorage to save your watchlist preferences. No tracking cookies or advertising cookies are used.' },
+            { h: 'Contact',                     p: 'Questions about this policy? Use the contact form on the About page.' },
           ].map(({ h, p }) => (
-            <div key={h} className="mb-6">
-              <h2 className="text-sm font-bold text-white/80 mb-2">{h}</h2>
+            <div key={h}>
+              <h2 className="text-sm font-bold text-white/82 mb-2">{h}</h2>
               <p className="text-sm text-white/50 leading-relaxed">{p}</p>
             </div>
           ))}
@@ -1511,22 +1657,24 @@ function TermsOfService() {
   return (
     <div className="relative z-10 max-w-3xl mx-auto px-4 pt-28 pb-16">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="flex items-center gap-2 mb-6">
-          <FileText size={16} className="text-purple-400" />
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-8 h-8 rounded-xl bg-purple-500/12 border border-purple-500/22 flex items-center justify-center">
+            <FileText size={16} className="text-purple-400" />
+          </div>
           <h1 className="text-3xl font-bold font-space">Terms of Service</h1>
         </div>
         <p className="text-xs text-white/30 font-mono mb-8">Last updated: January 2026</p>
-        <div className="glass-card p-6 rounded-2xl">
+        <div className="glass-card p-6 rounded-2xl space-y-6">
           {[
-            { h: 'Acceptance of Terms', p: 'By using Stargaze.io, you agree to these terms. This is a free educational tool — please use it responsibly.' },
-            { h: 'Use of Service', p: 'Stargaze.io is provided free of charge for personal, non-commercial use. You may not attempt to disrupt, reverse-engineer, or misuse the service.' },
-            { h: 'User-Submitted Content', p: 'Sighting reports you submit may be displayed publicly. Submit only genuine observations. False reports may be removed.' },
-            { h: 'Accuracy Disclaimer', p: 'Celestial data (ZHR, peak dates, conditions) is provided for educational purposes. Real viewing conditions may vary. We make no guarantee of accuracy for time-sensitive decisions.' },
-            { h: 'Third-Party Data', p: 'We aggregate data from NASA, IMO, CelesTrak, and Open-Meteo. These sources may have their own terms regarding data reuse.' },
-            { h: 'Changes', p: 'These terms may be updated periodically. Continued use constitutes acceptance of any changes.' },
+            { h: 'Acceptance of Terms',     p: 'By using Stargaze.io, you agree to these terms. This is a free educational tool — please use it responsibly.' },
+            { h: 'Use of Service',          p: 'Stargaze.io is provided free of charge for personal, non-commercial use. You may not attempt to disrupt, reverse-engineer, or misuse the service.' },
+            { h: 'User-Submitted Content',  p: 'Sighting reports you submit may be displayed publicly. Submit only genuine observations. False reports may be removed.' },
+            { h: 'Accuracy Disclaimer',     p: 'Celestial data (ZHR, peak dates, conditions) is provided for educational purposes. Real viewing conditions may vary. We make no guarantee of accuracy for time-sensitive decisions.' },
+            { h: 'Third-Party Data',        p: 'We aggregate data from NASA, IMO, CelesTrak, and Open-Meteo. These sources may have their own terms regarding data reuse.' },
+            { h: 'Changes',                 p: 'These terms may be updated periodically. Continued use constitutes acceptance of any changes.' },
           ].map(({ h, p }) => (
-            <div key={h} className="mb-6">
-              <h2 className="text-sm font-bold text-white/80 mb-2">{h}</h2>
+            <div key={h}>
+              <h2 className="text-sm font-bold text-white/82 mb-2">{h}</h2>
               <p className="text-sm text-white/50 leading-relaxed">{p}</p>
             </div>
           ))}
@@ -1554,7 +1702,7 @@ export default function App() {
     localStorage.setItem('stargaze_watched', JSON.stringify(watched));
   }, [watched]);
 
-  // Check for upcoming peaks
+  // Check for upcoming peaks on mount
   useEffect(() => {
     const checkPeaks = () => {
       showers.forEach(s => {
@@ -1608,14 +1756,14 @@ export default function App() {
 
         <AnimatePresence mode="wait">
           <Routes>
-            <Route path="/" element={<Home watched={watched} addNotification={addNotification} toggleWatch={toggleWatch} />} />
-            <Route path="/calendar" element={<MeteorCalendar watched={watched} toggleWatch={toggleWatch} addNotification={addNotification} />} />
+            <Route path="/"          element={<Home watched={watched} addNotification={addNotification} toggleWatch={toggleWatch} />} />
+            <Route path="/calendar"  element={<MeteorCalendar watched={watched} toggleWatch={toggleWatch} addNotification={addNotification} />} />
             <Route path="/shower/:id" element={<ShowerDetail watched={watched} toggleWatch={toggleWatch} />} />
-            <Route path="/live" element={<LiveFeed addNotification={addNotification} />} />
-            <Route path="/globe" element={<GlobePage />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/privacy" element={<PrivacyPolicy />} />
-            <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/live"      element={<LiveFeed addNotification={addNotification} />} />
+            <Route path="/globe"     element={<GlobePage />} />
+            <Route path="/about"     element={<About />} />
+            <Route path="/privacy"   element={<PrivacyPolicy />} />
+            <Route path="/terms"     element={<TermsOfService />} />
           </Routes>
         </AnimatePresence>
 
