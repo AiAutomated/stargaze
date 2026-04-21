@@ -58,6 +58,10 @@ const CesiumGlobe: React.FC = () => {
     grid: false
   });
   const [showSettings, setShowSettings] = useState(false);
+  const [showRightSidebar, setShowRightSidebar] = useState(true);
+  const [showIssTrail, setShowIssTrail] = useState(true);
+  const [isTrackingIss, setIsTrackingIss] = useState(false);
+  const [isLockedOnSelected, setIsLockedOnSelected] = useState(false);
 
   const flyToLocation = (lat: number, lon: number, height = 2000000) => {
     if (!viewerRef.current) return;
@@ -67,6 +71,35 @@ const CesiumGlobe: React.FC = () => {
       easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT
     });
   };
+
+  // Double-click to fly handler
+  useEffect(() => {
+    if (!viewerRef.current || !containerRef.current) return;
+    const viewer = viewerRef.current;
+    
+    const doubleClickHandler = (movement: any) => {
+      const pickedObject = viewer.scene.pick(movement.position);
+      if (!Cesium.defined(pickedObject)) {
+        const ray = viewer.camera.getPickRay(movement.position);
+        if (ray) {
+          const position = viewer.scene.globe.pick(ray, viewer.scene);
+          if (position) {
+            const cartographic = Cesium.Cartographic.fromCartesian(position);
+            flyToLocation(
+              Cesium.Math.toDegrees(cartographic.latitude), 
+              Cesium.Math.toDegrees(cartographic.longitude),
+              viewer.camera.positionCartographic.height * 0.5
+            );
+          }
+        }
+      }
+    };
+
+    const handler = handlerRef.current;
+    if (handler) {
+      handler.setInputAction(doubleClickHandler, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+    }
+  }, []);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -514,6 +547,11 @@ const CesiumGlobe: React.FC = () => {
           });
 
           issEntity.position = Cesium.Cartesian3.fromDegrees(currentLng, currentLat, height * 1000) as any;
+
+          // Sync Tracking
+          if (isTrackingIss && viewerRef.current) {
+            viewerRef.current.trackedEntity = issEntity;
+          }
         }
       } catch (e) {
         console.error('Telemetry update failed', e);
@@ -522,7 +560,9 @@ const CesiumGlobe: React.FC = () => {
 
     // Initial Zoom to ISS
     setTimeout(() => {
-      viewer.zoomTo(issEntity, new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-45), 2000000));
+      if (!isTrackingIss) {
+        viewer.zoomTo(issEntity, new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-45), 2000000));
+      }
     }, 2000);
 
     return () => {
@@ -604,14 +644,17 @@ const CesiumGlobe: React.FC = () => {
     }
   }, [activeTab, satellites, debris, issData]);
 
-  const calculateOrbitPath = (sat: SatelliteData, durationHours: number) => {
+  const calculateOrbitPath = (sat: SatelliteData, durationHours: number, pastHours: number = 0) => {
     const points: Cesium.Cartesian3[] = [];
     try {
       const satrec = satellite.twoline2satrec(sat.line1, sat.line2);
       const now = new Date();
       
-      // Calculate points every 2 minutes for better resolution
-      for (let i = 0; i <= durationHours * 60; i += 2) {
+      const startMin = -Math.abs(pastHours) * 60;
+      const endMin = durationHours * 60;
+      
+      // Calculate points every 1 minute for maximum precision and smooth visualization
+      for (let i = startMin; i <= endMin; i += 1) {
         const time = new Date(now.getTime() + i * 60000);
         const positionAndVelocity = satellite.propagate(satrec, time);
         
@@ -634,51 +677,91 @@ const CesiumGlobe: React.FC = () => {
   };
 
   // Dedicated ISS Trail Effect
+  const issGroundTrailRef = useRef<Cesium.Entity | null>(null);
+
   useEffect(() => {
-    if (!viewerRef.current || !issData) return;
+    if (!viewerRef.current || !issData || !showIssTrail) {
+      if (viewerRef.current) {
+        if (issTrailEntityRef.current) {
+          viewerRef.current.entities.remove(issTrailEntityRef.current);
+          issTrailEntityRef.current = null;
+        }
+        if (issGroundTrailRef.current) {
+          viewerRef.current.entities.remove(issGroundTrailRef.current);
+          issGroundTrailRef.current = null;
+        }
+      }
+      return;
+    }
     const viewer = viewerRef.current;
 
     const updateIssPath = () => {
       if (!viewer || viewer.isDestroyed()) return;
       
-      // Remove existing trail
+      // Remove existing trails
       if (issTrailEntityRef.current) {
-        try {
-          viewer.entities.remove(issTrailEntityRef.current);
-        } catch (e) {}
+        try { viewer.entities.remove(issTrailEntityRef.current); } catch (e) {}
         issTrailEntityRef.current = null;
       }
+      if (issGroundTrailRef.current) {
+        try { viewer.entities.remove(issGroundTrailRef.current); } catch (e) {}
+        issGroundTrailRef.current = null;
+      }
 
-      const path = calculateOrbitPath(issData, 24);
+      // Calculate path: 1.5 hours past (trail) + 22.5 hours future (prediction) = 24.0 hours total
+      const path = calculateOrbitPath(issData, 22.5, 1.5);
+      
       if (path.length > 1) {
+        // High-altitude orbital trail (Glow)
         issTrailEntityRef.current = viewer.entities.add({
           name: 'ISS 24h Prediction Path',
           polyline: {
             positions: path,
-            width: 3,
+            width: 5,
             material: new Cesium.PolylineGlowMaterialProperty({
-              glowPower: 0.3,
-              color: Cesium.Color.fromCssColorString('#22C55E').withAlpha(0.4),
+              glowPower: 0.5,
+              color: Cesium.Color.fromCssColorString('#4ade80'),
             }),
             distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 100000000),
+            zIndex: 10
           },
+        });
+
+        // Ground Trace (Shadow)
+        const groundPositions = path.map(p => {
+          const carto = Cesium.Cartographic.fromCartesian(p);
+          return Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, 0);
+        });
+
+        issGroundTrailRef.current = viewer.entities.add({
+          name: 'ISS Ground Trace',
+          polyline: {
+             positions: groundPositions,
+             width: 2,
+             material: new Cesium.PolylineDashMaterialProperty({
+                color: Cesium.Color.fromCssColorString('#22C55E').withAlpha(0.3),
+                dashLength: 16
+             }),
+             clampToGround: true,
+             zIndex: 5
+          }
         });
       }
     };
 
     updateIssPath();
-    const interval = setInterval(updateIssPath, 300000); // Update every 5 mins
+    const interval = setInterval(updateIssPath, 60000); // Dynamic update
 
     return () => {
       clearInterval(interval);
-      if (issTrailEntityRef.current && viewer && !viewer.isDestroyed()) {
-        try {
-          viewer.entities.remove(issTrailEntityRef.current);
-        } catch (e) {}
+      if (viewer && !viewer.isDestroyed()) {
+        if (issTrailEntityRef.current) viewer.entities.remove(issTrailEntityRef.current);
+        if (issGroundTrailRef.current) viewer.entities.remove(issGroundTrailRef.current);
         issTrailEntityRef.current = null;
+        issGroundTrailRef.current = null;
       }
     };
-  }, [issData]);
+  }, [issData, showIssTrail]);
 
   useEffect(() => {
     if (!viewerRef.current) return;
@@ -701,10 +784,10 @@ const CesiumGlobe: React.FC = () => {
           name: `${selectedSatellite.name} 24h Orbit Path`,
           polyline: {
             positions: path,
-            width: 2,
+            width: 3,
             material: new Cesium.PolylineGlowMaterialProperty({
-              glowPower: 0.2,
-              color: trailColor.withAlpha(0.6),
+              glowPower: 0.25,
+              color: trailColor,
             }),
           },
         });
@@ -717,11 +800,15 @@ const CesiumGlobe: React.FC = () => {
     if (selectedSatellite) {
       const entity = entitiesRef.current.find(e => e.name === selectedSatellite.name);
       if (entity && viewer && !viewer.isDestroyed()) {
-        viewer.trackedEntity = entity;
+        if (isLockedOnSelected) {
+          viewer.trackedEntity = entity;
+        }
         viewer.zoomTo(entity, new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-45), 1000000));
       }
     } else if (viewer && !viewer.isDestroyed()) {
-      viewer.trackedEntity = undefined;
+      if (!isTrackingIss) {
+        viewer.trackedEntity = undefined;
+      }
     }
 
     // Refresh path every 60 seconds to keep it "dynamic" as time progresses
@@ -1065,147 +1152,14 @@ const CesiumGlobe: React.FC = () => {
     <div className="fixed inset-0 z-0 bg-[#050505] overflow-hidden select-none font-sans text-white">
       <div ref={containerRef} className="w-full h-full cursor-crosshair" />
 
-      {/* Modern Top Search & Command Bar */}
-      <div className="absolute top-6 left-6 right-6 z-50 flex flex-col md:flex-row items-center gap-4 pointer-events-none">
-        {/* Logo / Title */}
-        <div className="flex items-center gap-3 bg-black/60 backdrop-blur-xl border border-white/10 px-6 py-3 rounded-2xl pointer-events-auto h-14">
-          <div className="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
-            <Globe size={18} className="animate-pulse" />
-          </div>
-          <div className="flex flex-col">
-            <h1 className="text-sm font-black uppercase tracking-[0.2em] leading-none">STARGAZE<span className="text-cyan-400">.OPS</span></h1>
-            <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest mt-1">Orbital Command & Control</span>
-          </div>
-        </div>
-
-        {/* Global Search */}
-        <div className="relative w-full md:w-96 pointer-events-auto group">
-          <form onSubmit={handleSearch} className="relative">
-            <input 
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search location, satellite, or coordinates..."
-              className="w-full h-14 bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl px-12 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all placeholder:text-white/20"
-            />
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={18} />
-            {isSearching && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 text-cyan-400 animate-spin" size={18} />}
-          </form>
-
-          {/* Search Results Dropdown */}
-          <AnimatePresence>
-            {searchResults.length > 0 && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className="absolute top-full left-0 right-0 mt-2 bg-black/80 backdrop-blur-2xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl"
-              >
-                {searchResults.map((res: any, idx: number) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      if (res.type === 'location') {
-                        flyToLocation(parseFloat(res.lat), parseFloat(res.lon), 50000);
-                        setSearchQuery(res.display_name);
-                      } else {
-                        // Find entity of satellite
-                        const entity = entitiesRef.current.find(e => e.name === res.name);
-                        if (entity && viewerRef.current) {
-                          viewerRef.current.trackedEntity = entity;
-                          viewerRef.current.zoomTo(entity, new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-45), 1000000));
-                          setSelectedSatellite(res);
-                        }
-                        setSearchQuery(res.name);
-                      }
-                      setSearchResults([]);
-                    }}
-                    className="w-full text-left px-5 py-4 hover:bg-white/5 border-b border-white/5 last:border-0 transition-colors flex items-start gap-3"
-                  >
-                    {res.type === 'location' ? (
-                      <MapIcon size={14} className="text-cyan-400 mt-1 flex-shrink-0" />
-                    ) : (
-                      <Satellite size={14} className={res.type === 'debris' ? "text-red-400 mt-1 flex-shrink-0" : "text-cyan-400 mt-1 flex-shrink-0"} />
-                    )}
-                    <div className="flex flex-col">
-                      <span className="text-xs font-bold text-white/90">{res.type === 'location' ? res.display_name : res.name}</span>
-                      <span className="text-[10px] text-white/30 uppercase tracking-widest">{res.type}</span>
-                    </div>
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Action Controls */}
-        <div className="flex items-center gap-2 bg-black/60 backdrop-blur-xl border border-white/10 p-2 rounded-2xl pointer-events-auto h-14">
-          <button 
-            onClick={() => setShowLayerPicker(!showLayerPicker)}
-            className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${showLayerPicker ? 'bg-cyan-500/20 text-cyan-400' : 'text-white/40 hover:text-white/80'}`}
-          >
-            <Layers size={18} />
-          </button>
-          <button 
-            onClick={() => setShowSettings(!showSettings)}
-            className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${showSettings ? 'bg-cyan-500/20 text-cyan-400' : 'text-white/40 hover:text-white/80'}`}
-          >
-            <Settings size={18} />
-          </button>
-          <div className="w-px h-6 bg-white/10 mx-1" />
-          <button 
-            onClick={() => {
-              if (viewerRef.current) {
-                viewerRef.current.camera.flyTo({
-                  destination: viewerRef.current.camera.position,
-                  orientation: {
-                    heading: 0,
-                    pitch: Cesium.Math.toRadians(-90),
-                    roll: 0
-                  },
-                  duration: 1.5
-                });
-              }
-            }}
-            className="w-10 h-10 flex items-center justify-center rounded-xl text-white/40 hover:text-white/80 transition-all"
-            title="Reset to North"
-          >
-            <Navigation size={18} />
-          </button>
-          <div className="w-px h-6 bg-white/10 mx-1" />
-          <button 
-            onClick={() => {
-              if (viewerRef.current) {
-                viewerRef.current.camera.zoomIn(viewerRef.current.camera.positionCartographic.height * 0.3);
-              }
-            }}
-            className="w-10 h-10 flex items-center justify-center rounded-xl text-white/40 hover:text-white/80 transition-all font-black text-lg"
-            title="Zoom In"
-          >
-            +
-          </button>
-          <button 
-            onClick={() => {
-              if (viewerRef.current) {
-                viewerRef.current.camera.zoomOut(viewerRef.current.camera.positionCartographic.height * 0.4);
-              }
-            }}
-            className="w-10 h-10 flex items-center justify-center rounded-xl text-white/40 hover:text-white/80 transition-all font-black text-lg"
-            title="Zoom Out"
-          >
-            -
-          </button>
-        </div>
-      </div>
-
       {/* Layer Picker Overlay */}
       <AnimatePresence>
         {showLayerPicker && (
           <motion.div 
-            initial={{ opacity: 0, scale: 0.95, y: -10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -10 }}
-            className="absolute top-24 right-44 z-50 w-64 bg-black/80 backdrop-blur-3xl border border-white/10 rounded-3xl p-6 shadow-2xl"
+            initial={{ opacity: 0, scale: 0.95, x: 10 }}
+            animate={{ opacity: 1, scale: 1, x: 0 }}
+            exit={{ opacity: 0, scale: 0.95, x: 10 }}
+            className="absolute top-24 right-[22rem] z-50 w-64 bg-black/80 backdrop-blur-3xl border border-white/10 rounded-3xl p-6 shadow-2xl"
           >
             <h3 className="text-xs font-black uppercase tracking-widest text-white/40 mb-6 flex items-center gap-2">
               <Layers size={12} /> Map Layers
@@ -1242,10 +1196,10 @@ const CesiumGlobe: React.FC = () => {
       <AnimatePresence>
         {showSettings && (
           <motion.div 
-            initial={{ opacity: 0, scale: 0.95, x: 20 }}
+            initial={{ opacity: 0, scale: 0.95, x: 10 }}
             animate={{ opacity: 1, scale: 1, x: 0 }}
-            exit={{ opacity: 0, scale: 0.95, x: 20 }}
-            className="absolute top-24 right-6 z-50 w-64 bg-black/80 backdrop-blur-3xl border border-white/10 rounded-3xl p-6 shadow-2xl"
+            exit={{ opacity: 0, scale: 0.95, x: 10 }}
+            className="absolute top-24 right-[22rem] z-50 w-64 bg-black/80 backdrop-blur-3xl border border-white/10 rounded-3xl p-6 shadow-2xl"
           >
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xs font-black uppercase tracking-widest text-white/40">Visual Settings</h3>
@@ -1276,7 +1230,7 @@ const CesiumGlobe: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Technical Sidebar */}
+      {/* Technical Sidebar (Left) */}
       <div className={`absolute left-6 top-24 bottom-6 z-40 w-80 pointer-events-none transition-all duration-500 ease-in-out ${
         showSidebar ? 'translate-x-0' : '-translate-x-[calc(100%+40px)]'
       }`}>
@@ -1365,7 +1319,278 @@ const CesiumGlobe: React.FC = () => {
         </button>
       </div>
 
-      {/* Bottom HUD HUD Telemetry */}
+      {/* Command Sidebar (Right) */}
+      <div className={`absolute right-6 top-24 bottom-6 z-40 w-80 pointer-events-none transition-all duration-500 ease-in-out ${
+        showRightSidebar ? 'translate-x-0' : 'translate-x-[calc(100%+40px)]'
+      }`}>
+        <motion.div className="h-full bg-black/60 shadow-2xl backdrop-blur-2xl rounded-[2.5rem] border border-white/10 p-8 flex flex-col pointer-events-auto relative">
+          {/* Logo / Title Section */}
+          <div className="flex items-center gap-4 mb-8">
+            <div className="w-12 h-12 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
+              <Globe size={24} className="animate-pulse" />
+            </div>
+            <div className="flex flex-col">
+              <h1 className="text-lg font-black uppercase tracking-[0.2em] leading-none">STARGAZE<span className="text-cyan-400">.OPS</span></h1>
+              <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest mt-1">Orbital Command & Control</span>
+            </div>
+          </div>
+
+          {/* Search Section */}
+          <div className="space-y-4 mb-8">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20 px-2">Global Search</h3>
+            <div className="relative group">
+              <form onSubmit={handleSearch} className="relative">
+                <input 
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="ID, Name, Coord..."
+                  className="w-full h-14 bg-white/5 border border-white/10 rounded-2xl px-12 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all placeholder:text-white/20"
+                />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={18} />
+                {isSearching && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 text-cyan-400 animate-spin" size={18} />}
+              </form>
+
+              <AnimatePresence>
+                {searchResults.length > 0 && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute top-full left-0 right-0 mt-2 bg-black/90 backdrop-blur-3xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl z-[60]"
+                  >
+                    {searchResults.map((res: any, idx: number) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          if (res.type === 'location') {
+                            flyToLocation(parseFloat(res.lat), parseFloat(res.lon), 50000);
+                            setSearchQuery(res.display_name);
+                          } else {
+                            const entity = entitiesRef.current.find(e => e.name === res.name);
+                            if (entity && viewerRef.current) {
+                              viewerRef.current.trackedEntity = entity;
+                              viewerRef.current.zoomTo(entity, new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-45), 1000000));
+                              setSelectedSatellite(res);
+                            }
+                            setSearchQuery(res.name);
+                          }
+                          setSearchResults([]);
+                        }}
+                        className="w-full text-left px-5 py-4 hover:bg-white/5 border-b border-white/5 last:border-0 transition-colors flex items-start gap-3"
+                      >
+                        {res.type === 'location' ? (
+                          <MapIcon size={14} className="text-cyan-400 mt-1 flex-shrink-0" />
+                        ) : (
+                          <Satellite size={14} className={res.type === 'debris' ? "text-red-400 mt-1 flex-shrink-0" : "text-cyan-400 mt-1 flex-shrink-0"} />
+                        )}
+                        <div className="flex flex-col overflow-hidden">
+                          <span className="text-xs font-bold text-white/90 truncate">{res.type === 'location' ? res.display_name : res.name}</span>
+                          <span className="text-[10px] text-white/30 uppercase tracking-widest">{res.type}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          {/* Action Controls Section */}
+          <div className="space-y-4 mb-8">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20 px-2">Navigation Controls</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <button 
+                onClick={() => setShowLayerPicker(!showLayerPicker)}
+                className={`h-16 flex flex-col items-center justify-center gap-1 rounded-2xl border transition-all ${showLayerPicker ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400' : 'bg-white/5 border-white/10 text-white/40 hover:text-white/80'}`}
+              >
+                <Layers size={18} />
+                <span className="text-[8px] font-black uppercase tracking-widest">Layers</span>
+              </button>
+              <button 
+                onClick={() => setShowSettings(!showSettings)}
+                className={`h-16 flex flex-col items-center justify-center gap-1 rounded-2xl border transition-all ${showSettings ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400' : 'bg-white/5 border-white/10 text-white/40 hover:text-white/80'}`}
+              >
+                <Settings size={18} />
+                <span className="text-[8px] font-black uppercase tracking-widest">Settings</span>
+              </button>
+              <button 
+                onClick={() => {
+                  if (viewerRef.current) {
+                    viewerRef.current.camera.flyTo({
+                      destination: viewerRef.current.camera.position,
+                      orientation: { heading: 0, pitch: Cesium.Math.toRadians(-90), roll: 0 },
+                      duration: 1.5
+                    });
+                  }
+                }}
+                className="h-16 flex flex-col items-center justify-center gap-1 rounded-2xl bg-white/5 border border-white/10 text-white/40 hover:text-white/80 transition-all"
+                title="Reset to North"
+              >
+                <Navigation size={18} />
+                <span className="text-[8px] font-black uppercase tracking-widest">Compass</span>
+              </button>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => { if (viewerRef.current) viewerRef.current.camera.zoomIn(viewerRef.current.camera.positionCartographic.height * 0.3); }}
+                  className="flex-1 h-16 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-xl font-black text-white/40 hover:text-white transition-all"
+                >
+                  +
+                </button>
+                <button 
+                  onClick={() => { if (viewerRef.current) viewerRef.current.camera.zoomOut(viewerRef.current.camera.positionCartographic.height * 0.4); }}
+                  className="flex-1 h-16 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-xl font-black text-white/40 hover:text-white transition-all"
+                >
+                  -
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Observation Details Area */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar -mx-4 px-4 space-y-4">
+            <AnimatePresence mode="wait">
+              {selectedSatellite && (
+                <motion.div
+                  key="satellite-info"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="bg-white/5 backdrop-blur-xl p-6 rounded-3xl border border-white/10 text-white relative"
+                >
+                  <button 
+                    onClick={() => setSelectedSatellite(null)}
+                    className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-white/20 hover:text-white"
+                  >
+                    <CloseIcon size={14} />
+                  </button>
+
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                      debris.some(d => d.name === selectedSatellite.name) ? 'bg-red-500/20 text-red-400' : 'bg-cyan-500/20 text-cyan-400'
+                    }`}>
+                      <Satellite size={20} />
+                    </div>
+                    <div className="overflow-hidden">
+                      <h3 className="font-black text-sm uppercase tracking-tight truncate">{selectedSatellite.name}</h3>
+                      <p className={`text-[8px] uppercase tracking-widest font-black mt-1 ${
+                        debris.some(d => d.name === selectedSatellite.name) ? 'text-red-400' : 'text-cyan-400'
+                      }`}>
+                        {debris.some(d => d.name === selectedSatellite.name) ? 'ORBITAL HAZARD' : 'VERIFIED SIGNAL'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="p-4 bg-black/40 rounded-2xl border border-white/5">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-[7px] text-white/30 font-bold uppercase mb-1">Inclination</p>
+                          <p className="text-xs font-black font-mono text-cyan-400">{selectedSatellite.inclination?.toFixed(3)}°</p>
+                        </div>
+                        <div>
+                          <p className="text-[7px] text-white/30 font-bold uppercase mb-1">Eccentricity</p>
+                          <p className="text-xs font-black font-mono text-white">{selectedSatellite.eccentricity?.toFixed(4)}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        const newState = !isLockedOnSelected;
+                        setIsLockedOnSelected(newState);
+                        if (viewerRef.current) {
+                          if (newState) {
+                            const entity = entitiesRef.current.find(e => e.name === selectedSatellite.name);
+                            if (entity) viewerRef.current.trackedEntity = entity;
+                          } else {
+                            viewerRef.current.trackedEntity = undefined;
+                          }
+                        }
+                      }}
+                      className={`w-full py-4 rounded-xl flex items-center justify-center gap-3 transition-all active:scale-95 border ${
+                        isLockedOnSelected ? 'bg-cyan-500 text-black border-cyan-500' : 'bg-white/5 text-white/60 hover:bg-white/10 border-white/10'
+                      }`}
+                    >
+                      <Navigation size={12} className={isLockedOnSelected ? 'animate-pulse' : ''} />
+                      <span className="text-[9px] font-black uppercase tracking-widest">
+                        {isLockedOnSelected ? 'Target Locked' : 'Engage Tracking'}
+                      </span>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+
+              {selectedMeteorShower && (
+                <motion.div
+                  key="meteor-info"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="bg-orange-500/10 backdrop-blur-xl p-6 rounded-3xl border border-orange-500/20 text-white relative"
+                >
+                  <button onClick={() => setSelectedMeteorShower(null)} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-white/20 hover:text-white">
+                    <CloseIcon size={14} />
+                  </button>
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center">
+                      <Sparkles size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-sm uppercase tracking-tight">{selectedMeteorShower.name}</h3>
+                      <p className="text-[8px] text-orange-400 uppercase tracking-widest font-black">Celestial Event</p>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-black/40 rounded-2xl border border-white/5">
+                    <div className="flex justify-between items-center mb-2">
+                       <span className="text-[9px] text-white/40 font-bold uppercase">Rate</span>
+                       <span className="text-lg font-black text-orange-400 font-mono">{selectedMeteorShower.zhr} <span className="text-[8px] opacity-40">ZHR</span></span>
+                    </div>
+                    <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                      <div style={{ width: `${Math.min(selectedMeteorShower.zhr, 100)}%` }} className="h-full bg-orange-500 rounded-full" />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {selectedUFO && (
+                <motion.div
+                  key="ufo-info"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="bg-green-500/10 backdrop-blur-xl p-6 rounded-3xl border border-green-500/20 text-white relative"
+                >
+                  <button onClick={() => setSelectedUFO(null)} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-white/20 hover:text-white">
+                    <CloseIcon size={14} />
+                  </button>
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-green-500/20 text-green-400 flex items-center justify-center">
+                      <Eye size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-xs uppercase tracking-tight">Signal Analysis</h3>
+                      <p className="text-[8px] text-green-400 uppercase tracking-widest font-black">Anomalous</p>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
+                    <p className="text-[9px] font-black text-white mb-2 italic leading-tight">"{selectedUFO.description}"</p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </motion.div>
+
+        {/* Toggle Hook */}
+        <button 
+          onClick={() => setShowRightSidebar(!showRightSidebar)}
+          className="absolute top-1/2 -left-12 -translate-y-1/2 w-8 h-20 bg-black/60 shadow-xl backdrop-blur-xl border border-white/10 border-r-0 rounded-l-2xl pointer-events-auto flex items-center justify-center text-white/30 hover:text-cyan-400 transition-colors"
+        >
+          <ChevronRight size={18} className={`transition-transform duration-500 ${showRightSidebar ? '' : 'rotate-180'}`} />
+        </button>
+      </div>
+
+      {/* Bottom HUD Telemetry */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none w-full max-w-4xl px-6">
         <AnimatePresence>
           {telemetry && (
@@ -1386,204 +1611,57 @@ const CesiumGlobe: React.FC = () => {
                 </h2>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-8 flex-1 w-full">
-                {[
-                  { label: 'Altitude', value: Math.round(telemetry.alt), unit: 'KM', color: 'cyan' },
-                  { label: 'Velocity', value: Math.round(telemetry.vel).toLocaleString(), unit: 'M/S', color: 'cyan' },
-                  { label: 'Latitude', value: telemetry.lat.toFixed(3), unit: 'DEG', color: 'white' },
-                  { label: 'Longitude', value: telemetry.lng.toFixed(3), unit: 'DEG', color: 'white' },
-                ].map((item) => (
-                  <div key={item.label} className="relative">
-                    <p className="text-[7px] text-white/30 uppercase tracking-[0.2em] font-black mb-1">{item.label}</p>
-                    <div className="flex items-baseline gap-1">
-                      <p className={`text-lg md:text-xl font-black font-mono leading-none ${item.color === 'cyan' ? 'text-cyan-400' : 'text-white'}`}>
-                        {item.value}
-                      </p>
-                      <span className="text-[8px] font-bold text-white/20">{item.unit}</span>
+              <div className="flex flex-col md:flex-row items-center gap-6 flex-1">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-8 flex-1 w-full md:border-l md:border-white/10 md:pl-8">
+                  {[
+                    { label: 'Altitude', value: Math.round(telemetry.alt), unit: 'KM', color: 'cyan' },
+                    { label: 'Velocity', value: Math.round(telemetry.vel).toLocaleString(), unit: 'M/S', color: 'cyan' },
+                    { label: 'Latitude', value: telemetry.lat.toFixed(3), unit: 'DEG', color: 'white' },
+                    { label: 'Longitude', value: telemetry.lng.toFixed(3), unit: 'DEG', color: 'white' },
+                  ].map((item) => (
+                    <div key={item.label} className="relative">
+                      <p className="text-[7px] text-white/30 uppercase tracking-[0.2em] font-black mb-1">{item.label}</p>
+                      <div className="flex items-baseline gap-1">
+                        <p className={`text-lg md:text-xl font-black font-mono leading-none ${item.color === 'cyan' ? 'text-cyan-400' : 'text-white'}`}>
+                          {item.value}
+                        </p>
+                        <span className="text-[8px] font-bold text-white/20">{item.unit}</span>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Observation Cards */}
-      <div className={`absolute top-24 right-6 bottom-24 z-50 w-80 pointer-events-none flex flex-col gap-4 transition-transform duration-500 ${
-        selectedSatellite || selectedMeteorShower || setSelectedUFO ? 'translate-x-0' : 'translate-x-[calc(100%+40px)]'
-      }`}>
-        <AnimatePresence mode="wait">
-          {selectedSatellite && (
-            <motion.div
-              key="satellite-info"
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 50 }}
-              className="bg-black/80 backdrop-blur-3xl p-8 rounded-[2.5rem] border border-white/10 text-white relative flex flex-col pointer-events-auto shadow-2xl h-fit max-h-full overflow-y-auto custom-scrollbar"
-            >
-              <div className="absolute top-6 right-6">
-                <button 
-                  onClick={() => setSelectedSatellite(null)}
-                  className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 text-white/20 hover:text-white"
-                >
-                  <CloseIcon size={18} />
-                </button>
-              </div>
-
-              <div className="flex items-center gap-5 mb-8">
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
-                  debris.some(d => d.name === selectedSatellite.name) ? 'bg-red-500/20 text-red-400' : 'bg-cyan-500/20 text-cyan-400'
-                }`}>
-                  <Satellite size={24} />
-                </div>
-                <div>
-                  <h3 className="font-black text-lg leading-tight uppercase tracking-tight truncate max-w-[160px]">{selectedSatellite.name}</h3>
-                  <p className={`text-[9px] uppercase tracking-[0.2em] font-black mt-1 ${
-                    debris.some(d => d.name === selectedSatellite.name) ? 'text-red-400' : 'text-cyan-400 font-bold'
-                  }`}>
-                    {debris.some(d => d.name === selectedSatellite.name) ? 'ORBITAL HAZARD' : 'VERIFIED SIGNAL'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="p-6 bg-white/[0.03] rounded-3xl border border-white/5">
-                  <p className="text-[8px] text-white/20 uppercase tracking-widest font-black mb-4 text-center">Telemetry Profile</p>
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="text-center border-r border-white/5 px-2">
-                      <p className="text-[8px] text-white/40 font-bold uppercase mb-1">Inclination</p>
-                      <p className="text-sm font-black font-mono text-cyan-400">{selectedSatellite.inclination?.toFixed(3)}°</p>
-                    </div>
-                    <div className="text-center px-2">
-                      <p className="text-[8px] text-white/40 font-bold uppercase mb-1">Eccentricity</p>
-                      <p className="text-sm font-black font-mono text-white">{selectedSatellite.eccentricity?.toFixed(4)}</p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
 
-                <div className="p-6 bg-white/[0.03] rounded-3xl border border-white/5">
-                  <p className="text-[9px] text-white/20 uppercase tracking-widest font-black mb-3">Orbital Elements</p>
-                  <div className="space-y-3">
-                    <div className="p-4 bg-black/40 rounded-2xl border border-white/5">
-                      <p className="text-[7px] text-white/30 font-bold uppercase mb-1 tracking-widest">NORAD TLE 1</p>
-                      <p className="text-[10px] font-mono text-white/60 break-all leading-relaxed">{selectedSatellite.line1}</p>
-                    </div>
-                    <div className="p-4 bg-black/40 rounded-2xl border border-white/5">
-                      <p className="text-[7px] text-white/30 font-bold uppercase mb-1 tracking-widest">NORAD TLE 2</p>
-                      <p className="text-[10px] font-mono text-white/60 break-all leading-relaxed">{selectedSatellite.line2}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-3 pt-2">
-                  <button className="flex-1 py-5 bg-cyan-500 text-black rounded-2xl flex items-center justify-center gap-3 transition-all hover:bg-cyan-400 active:scale-95">
-                    <Navigation size={14} />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Engage Vector</span>
+                <div className="flex items-center gap-3 w-full md:w-auto">
+                  <button 
+                    onClick={() => {
+                      const newState = !isTrackingIss;
+                      setIsTrackingIss(newState);
+                      if (viewerRef.current) {
+                        if (newState) {
+                          const iss = viewerRef.current.entities.getById('ISS_TRACKER');
+                          if (iss) viewerRef.current.trackedEntity = iss;
+                        } else {
+                          viewerRef.current.trackedEntity = undefined;
+                        }
+                      }
+                    }}
+                    className={`flex-1 md:w-40 h-14 rounded-2xl flex items-center justify-center gap-3 transition-all font-black text-[10px] uppercase tracking-widest border border-white/10 ${
+                      isTrackingIss ? 'bg-cyan-500 text-black border-cyan-500' : 'bg-white/5 text-white/40 hover:bg-white/10'
+                    }`}
+                  >
+                    <Activity size={14} className={isTrackingIss ? 'animate-pulse' : ''} />
+                    {isTrackingIss ? 'Locked on ISS' : 'Follow ISS'}
                   </button>
-                  <button className="w-16 py-5 bg-white/5 rounded-2xl flex items-center justify-center text-white/30 hover:text-white transition-all shadow-xl">
-                    <ExternalLink size={18} />
+
+                  <button 
+                    onClick={() => setShowIssTrail(!showIssTrail)}
+                    className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all border border-white/10 ${
+                      showIssTrail ? 'bg-green-500/20 text-green-400 border-green-500/50' : 'bg-white/5 text-white/20'
+                    }`}
+                    title="Toggle ISS Trail"
+                  >
+                    <Navigation size={18} className={showIssTrail ? 'rotate-45' : ''} />
                   </button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {selectedMeteorShower && (
-            <motion.div
-              key="meteor-info"
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="bg-black/80 backdrop-blur-3xl p-8 rounded-[2.5rem] border border-orange-500/20 text-white relative flex flex-col pointer-events-auto h-fit shadow-2xl"
-            >
-              <div className="absolute top-6 right-6">
-                <button onClick={() => setSelectedMeteorShower(null)} className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 text-white/20 hover:text-white">
-                  <CloseIcon size={18} />
-                </button>
-              </div>
-
-              <div className="flex items-center gap-5 mb-8">
-                <div className="w-14 h-14 rounded-2xl bg-orange-500/20 text-orange-400 flex items-center justify-center">
-                  <Sparkles size={24} />
-                </div>
-                <div>
-                  <h3 className="font-black text-lg leading-tight uppercase tracking-tight">{selectedMeteorShower.name}</h3>
-                  <p className="text-[9px] text-orange-400 uppercase tracking-[0.2em] font-black">Major Celestial Event</p>
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                <div className="p-6 bg-orange-500/5 rounded-3xl border border-orange-500/10">
-                  <div className="flex justify-between items-center mb-3">
-                     <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Zenith Rate</span>
-                     <span className="text-xl font-black text-orange-400 font-mono">{selectedMeteorShower.zhr} <span className="text-[9px] opacity-40">ZHR</span></span>
-                  </div>
-                  <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.min(selectedMeteorShower.zhr, 100)}%` }}
-                      className="h-full bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 bg-white/[0.03] rounded-2xl border border-white/5">
-                    <p className="text-[8px] text-white/20 uppercase font-black mb-1">Parent Body</p>
-                    <p className="text-xs font-black text-white truncate">{selectedMeteorShower.parent}</p>
-                  </div>
-                  <div className="p-4 bg-white/[0.03] rounded-2xl border border-white/5">
-                    <p className="text-[8px] text-white/20 uppercase font-black mb-1">Constellation</p>
-                    <p className="text-xs font-black text-white">{selectedMeteorShower.constellation}</p>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {selectedUFO && (
-            <motion.div
-              key="ufo-info"
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="bg-black/80 backdrop-blur-3xl p-8 rounded-[2.5rem] border border-green-500/20 text-white relative flex flex-col pointer-events-auto h-fit shadow-2xl"
-            >
-              <div className="absolute top-6 right-6">
-                <button onClick={() => setSelectedUFO(null)} className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 text-white/20 hover:text-white">
-                  <CloseIcon size={18} />
-                </button>
-              </div>
-
-              <div className="flex items-center gap-5 mb-8">
-                <div className="w-14 h-14 rounded-2xl bg-green-500/20 text-green-400 flex items-center justify-center">
-                  <Eye size={24} />
-                </div>
-                <div>
-                  <h3 className="font-black text-lg leading-tight uppercase tracking-tight">Signal Analysis</h3>
-                  <p className="text-[9px] text-green-400 uppercase tracking-[0.2em] font-black">Anomalous Detection</p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="p-6 bg-white/[0.03] rounded-3xl border border-white/5">
-                  <p className="text-[10px] font-black text-white mb-2 uppercase italic tracking-tight">"{selectedUFO.description}"</p>
-                  <p className="text-[8px] text-white/40 font-bold uppercase tracking-widest">- ARCHIVE REPORT</p>
-                </div>
-                <div className="p-6 bg-green-500/5 rounded-3xl border border-green-500/10 relative overflow-hidden">
-                   <div className="absolute top-0 right-0 w-20 h-20 bg-green-500/5 blur-3xl pointer-events-none" />
-                  <p className="text-[9px] font-bold text-green-400 uppercase mb-4 tracking-widest flex items-center gap-2">
-                    <Activity size={10} /> Active Monitoring
-                  </p>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-3 bg-black/40 rounded-xl">
-                      <p className="text-[7px] text-white/40 uppercase font-black mb-1">LAT Signature</p>
-                      <p className="text-xs font-black font-mono text-white">{selectedUFO.lat.toFixed(4)}</p>
-                    </div>
-                    <div className="p-3 bg-black/40 rounded-xl">
-                      <p className="text-[7px] text-white/40 uppercase font-black mb-1">LON Signature</p>
-                      <p className="text-xs font-black font-mono text-white">{selectedUFO.lon.toFixed(4)}</p>
-                    </div>
-                  </div>
                 </div>
               </div>
             </motion.div>
