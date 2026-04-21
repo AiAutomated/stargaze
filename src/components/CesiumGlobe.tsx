@@ -33,7 +33,7 @@ const CesiumGlobe: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Cesium.Viewer | null>(null);
   const handlerRef = useRef<Cesium.ScreenSpaceEventHandler | null>(null);
-  const [activeTab, setActiveTab] = useState<'satellites' | 'debris' | 'meteors' | 'ufo'>('satellites');
+  const [activeTab, setActiveTab] = useState<'satellites' | 'debris' | 'meteors' | 'ufo'>('meteors');
   const [loading, setLoading] = useState(true);
   const [satellites, setSatellites] = useState<SatelliteData[]>([]);
   const [debris, setDebris] = useState<SatelliteData[]>([]);
@@ -1279,13 +1279,19 @@ const CesiumGlobe: React.FC = () => {
           <div className="absolute -top-20 -left-20 w-40 h-40 border border-cyan-500/10 rounded-full animate-spin-slow pointer-events-none" />
           <div className="absolute -top-10 -left-10 w-20 h-20 border border-cyan-500/5 rounded-full animate-reverse-spin pointer-events-none" />
 
+          {/* Sidebar Header */}
+          <div className="mb-8 pl-1">
+            <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400/60 mb-1">Stargaze Intelligence</h2>
+            <p className="text-[18px] font-black uppercase tracking-tight text-white leading-none">Event Tracker</p>
+          </div>
+
           {/* Tabs */}
           <div className="space-y-3 mb-10 overflow-y-auto custom-scrollbar pr-2">
             {[
-              { id: 'satellites', icon: Satellite, label: 'Tracking', desc: 'Active Satellite Constellations', color: 'cyan' },
-              { id: 'debris', icon: Trash2, label: 'Hazardous', desc: 'Space Debris & Fragments', color: 'red' },
-              { id: 'meteors', icon: Sparkles, label: 'Celestial', desc: 'Active Meteor Showers', color: 'orange' },
-              { id: 'ufo', icon: Eye, label: 'Anomalies', desc: 'Unverified Signals', color: 'green' },
+              { id: 'meteors', icon: Sparkles, label: 'Celestial', desc: 'Active & Upcoming Meteor Showers', color: 'orange' },
+              { id: 'satellites', icon: Satellite, label: 'Orbital', desc: 'Active Satellite Passages', color: 'cyan' },
+              { id: 'debris', icon: Trash2, label: 'Hazardous', desc: 'Re-entry & Debris Risks', color: 'red' },
+              { id: 'ufo', icon: Eye, label: 'Anomalies', desc: 'Unknown & Transient Events', color: 'green' },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -1323,19 +1329,22 @@ const CesiumGlobe: React.FC = () => {
             ))}
           </div>
 
-          {/* System Info HUD */}
+          {/* Event Status HUD */}
           <div className="mt-auto space-y-6 pt-6 border-t border-white/10">
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-white/[0.03] p-4 rounded-2xl border border-white/5">
-                <p className="text-[7px] font-black text-white/20 uppercase tracking-widest mb-1">Signal Status</p>
+                <p className="text-[7px] font-black text-white/20 uppercase tracking-widest mb-1">Active Showers</p>
                 <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
-                  <span className="text-[10px] font-black uppercase text-cyan-400">Stable</span>
+                  <div className="w-1.5 h-1.5 bg-orange-400 rounded-full shadow-[0_0_8px_rgba(251,146,60,0.5)]" />
+                  <span className="text-[10px] font-black uppercase text-orange-400">{meteorShowersData.filter(s => {
+                    const now = new Date();
+                    return now >= new Date(s.start) && now <= new Date(s.end);
+                  }).length} Live</span>
                 </div>
               </div>
               <div className="bg-white/[0.03] p-4 rounded-2xl border border-white/5 text-right">
-                <p className="text-[7px] font-black text-white/20 uppercase tracking-widest mb-1">Network</p>
-                <span className="text-[10px] font-black uppercase text-white/60">CELESTRAK-V4</span>
+                <p className="text-[7px] font-black text-white/20 uppercase tracking-widest mb-1">Observation</p>
+                <span className="text-[10px] font-black uppercase text-white/60">Optimal</span>
               </div>
             </div>
             
@@ -1370,8 +1379,8 @@ const CesiumGlobe: React.FC = () => {
               <Globe size={24} className="animate-pulse" />
             </div>
             <div className="flex flex-col">
-              <h1 className="text-lg font-black uppercase tracking-[0.2em] leading-none">STARGAZE<span className="text-cyan-400">.OPS</span></h1>
-              <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest mt-1">Orbital Command & Control</span>
+              <h1 className="text-lg font-black uppercase tracking-[0.2em] leading-none">STARGAZE<span className="text-orange-400">.EVENTS</span></h1>
+              <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest mt-1">Celestial Observation Hub</span>
             </div>
           </div>
 
@@ -1384,7 +1393,7 @@ const CesiumGlobe: React.FC = () => {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="ID, Name, Coord..."
+                  placeholder="Meteor, Satellite, Event..."
                   className="w-full h-14 bg-white/5 border border-white/10 rounded-2xl px-12 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all placeholder:text-white/20"
                 />
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={18} />
