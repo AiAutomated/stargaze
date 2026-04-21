@@ -85,6 +85,13 @@ body {
 }
 
 /* ─── Glassmorphism ─────────────────────────────────────────────── */
+/*
+ * IMPORTANT: backdrop-filter has been intentionally removed from .glass and
+ * .glass-card. When backdrop-filter blurs a near-transparent fixed canvas
+ * over a very dark background, the output appears solid black — especially
+ * below the fold where there is no hero content behind the cards.
+ * Fix: use solid opaque backgrounds instead of blur.
+ */
 .glass {
   background: rgba(14, 8, 36, 0.72);
   border: 1px solid rgba(255,255,255,0.09);

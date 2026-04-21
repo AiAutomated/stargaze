@@ -169,7 +169,7 @@ function StarField() {
 // ─── Notification System ──────────────────────────────────────────────────────
 function NotificationToasts({ notifications, dismiss }: { notifications: Notification[]; dismiss: (id: string) => void }) {
   return (
-    <div className="fixed top-20 right-4 z-[160] flex flex-col gap-2 max-w-xs w-full">
+    <div className="fixed top-20 right-4 z-50 flex flex-col gap-2 max-w-xs w-full">
       <AnimatePresence>
         {notifications.map(n => (
           <motion.div
@@ -219,8 +219,8 @@ function Navbar({ watched, notifications }: { watched: WatchedShower[]; notifica
   ];
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-[150] transition-all duration-300 ${scrolled ? 'glass-nav py-2 shadow-lg shadow-black/20' : 'py-4'}`}>
-      <div id="navbar-container" className="max-w-7xl mx-auto px-4 flex items-center justify-between">
+    <nav className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${scrolled ? 'glass-nav py-2' : 'py-4'}`}>
+      <div className="max-w-7xl mx-auto px-4 flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2 group">
           <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
@@ -726,7 +726,7 @@ function Home({ watched, addNotification, toggleWatch }: {
         ))}
       </motion.div>
 
-    {/* ─── Main Grid: Countdown + ISS/Moon ── */}
+      {/* ── Main Grid: Countdown + ISS/Moon ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
         {/* Next Shower Countdown */}
         <div className="lg:col-span-2">
@@ -898,7 +898,7 @@ function Home({ watched, addNotification, toggleWatch }: {
             </div>
           ) : apod ? (
             apod.media_type === 'image' ? (
-              <img src={apod.url} alt={apod.title} className="w-full h-60 object-cover" loading="lazy" referrerPolicy="no-referrer" />
+              <img src={apod.url} alt={apod.title} className="w-full h-60 object-cover" loading="lazy" />
             ) : (
               <div className="h-60 flex items-center justify-center" style={{ background: 'rgba(79,142,247,0.06)' }}>
                 <a href={apod.url} target="_blank" rel="noopener noreferrer" className="btn-primary">
@@ -1508,7 +1508,7 @@ function LiveFeed({ addNotification }: { addNotification: (n: Omit<Notification,
 // ─── GLOBE PAGE ───────────────────────────────────────────────────────────────
 function GlobePage() {
   return (
-    <div className="relative z-10 pt-16 h-screen flex flex-col overflow-hidden">
+    <div className="relative z-10 pt-16 h-screen flex flex-col">
       <div className="flex-1 relative">
         <CesiumGlobe />
       </div>
@@ -1717,6 +1717,8 @@ function ScrollToTop() {
 }
 
 // ─── ANIMATED ROUTES ─────────────────────────────────────────────────────────
+// Routes must be inside a component that can call useLocation() so AnimatePresence
+// receives a changing key on navigation — without this, enter/exit animations never fire.
 function AnimatedRoutes({ watched, addNotification, toggleWatch }: {
   watched: WatchedShower[];
   addNotification: (n: Omit<Notification, 'id' | 'timestamp'>) => void;
@@ -1751,8 +1753,10 @@ export default function App() {
     localStorage.setItem('stargaze_watched', JSON.stringify(watched));
   }, [watched]);
 
+  // Check for upcoming peaks on mount — max 1 notification to avoid spamming
   useEffect(() => {
     const checkPeaks = () => {
+      // Prioritise the soonest shower with a peak within 48h
       const soonest = showers
         .filter(s => { const h = (new Date(s.peak).getTime() - Date.now()) / 3600000; return h > 0 && h < 48; })
         .sort((a, b) => new Date(a.peak).getTime() - new Date(b.peak).getTime())[0];
@@ -1765,6 +1769,7 @@ export default function App() {
         });
         return;
       }
+      // Otherwise surface the highest-ZHR currently active shower
       const active = showers
         .filter(s => getShowerStatus(s) === 'active')
         .sort((a, b) => b.zhr - a.zhr)[0];
@@ -1814,5 +1819,3 @@ export default function App() {
     </BrowserRouter>
   );
 }
-
-
