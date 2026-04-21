@@ -935,12 +935,12 @@ const CesiumGlobe: React.FC = () => {
       const constellationCoords: Record<string, { ra: number, dec: number }> = {
         'Bootes': { ra: 230, dec: 49 },
         'Lyra': { ra: 271, dec: 34 },
-        'Aquarius': { ra: 330, dec: -10 },
+        'Aquarius': { ra: 338, dec: -1 },
         'Perseus': { ra: 48, dec: 58 },
-        'Orion': { ra: 88, dec: 15 },
+        'Orion': { ra: 95, dec: 16 },
         'Leo': { ra: 153, dec: 22 },
         'Gemini': { ra: 112, dec: 33 },
-        'Ursa Minor': { ra: 230, dec: 75 }
+        'Ursa Minor': { ra: 217, dec: 76 }
       };
 
       meteorShowersData.forEach(shower => {
@@ -954,19 +954,22 @@ const CesiumGlobe: React.FC = () => {
         if (isPast) return; // Don't render past showers
 
         const getIntensityColor = (zhr: number, active: boolean, upcoming: boolean) => {
-          if (!active && upcoming) return Cesium.Color.fromCssColorString('#3B82F6').withAlpha(0.6); // Blue for upcoming
-          if (zhr > 100) return Cesium.Color.fromCssColorString('#22C55E'); // Bright Green for peak
-          if (zhr > 70) return Cesium.Color.fromCssColorString('#4ADE80');
-          if (zhr > 40) return Cesium.Color.fromCssColorString('#86EFAC');
-          if (zhr > 20) return Cesium.Color.fromCssColorString('#BBF7D0');
-          return Cesium.Color.fromCssColorString('#DCFCE7');
+          if (active) {
+            if (zhr > 80) return Cesium.Color.fromCssColorString('#22C55E'); // Vibrant Green
+            if (zhr > 30) return Cesium.Color.fromCssColorString('#4ADE80'); // Medium Green
+            return Cesium.Color.fromCssColorString('#86EFAC'); // Light Green
+          }
+          if (upcoming) {
+            return Cesium.Color.fromCssColorString('#3B82F6').withAlpha(0.7); // Bright Blue for anticipation
+          }
+          return Cesium.Color.fromCssColorString('#94A3B8').withAlpha(0.4); // Muted Gray for past/inactive
         };
 
         const color = getIntensityColor(shower.zhr, isActive, isUpcoming);
         
         // Size based on intensity and status
-        const baseSize = isActive ? 10 : 6;
-        const intensitySize = Math.min(shower.zhr / 10, 10);
+        const baseSize = isActive ? 12 : 8;
+        const intensitySize = (shower.zhr / 120) * 14; // Scaled to max ZHR
         const pixelSize = baseSize + intensitySize;
 
         let lon = coords.ra - gmstDeg;
@@ -1004,22 +1007,31 @@ const CesiumGlobe: React.FC = () => {
         });
         entitiesRef.current.push(radiant);
 
-        // Add secondary glow for active radiants
-        if (isActive) {
+        // Add status-based glow
+        if (isActive || isUpcoming) {
+          const glowColor = isActive 
+            ? Cesium.Color.fromCssColorString('#22C55E').withAlpha(0.2) 
+            : Cesium.Color.fromCssColorString('#3B82F6').withAlpha(0.1);
+          
+          const glowSize = (shower.zhr / 120) * 800000 + 400000;
+
           const radiantGlow = viewer.entities.add({
             position: radiantPos,
             ellipse: {
               semiMinorAxis: new Cesium.CallbackProperty((time) => {
-                if (!Cesium.defined(time)) return 100000;
-                return 400000 + Math.sin(time.secondsOfDay * 2) * 200000;
+                if (!Cesium.defined(time)) return glowSize;
+                const pulse = isActive ? Math.sin(time.secondsOfDay * 2) * 200000 : 0;
+                return glowSize + pulse;
               }, false),
               semiMajorAxis: new Cesium.CallbackProperty((time) => {
-                if (!Cesium.defined(time)) return 100000;
-                return 400000 + Math.sin(time.secondsOfDay * 2) * 200000;
+                if (!Cesium.defined(time)) return glowSize;
+                const pulse = isActive ? Math.sin(time.secondsOfDay * 2) * 200000 : 0;
+                return glowSize + pulse;
               }, false),
-              material: Cesium.Color.fromCssColorString('#22C55E').withAlpha(0.15),
-              outline: true,
-              outlineColor: Cesium.Color.fromCssColorString('#22C55E').withAlpha(0.3),
+              material: glowColor,
+              outline: isActive,
+              outlineColor: glowColor.withAlpha(0.4),
+              zIndex: 1
             }
           });
           entitiesRef.current.push(radiantGlow);
@@ -1568,15 +1580,14 @@ const CesiumGlobe: React.FC = () => {
                       <p className="text-[8px] text-orange-400 uppercase tracking-widest font-black">{selectedMeteorShower.status} EVENT</p>
                     </div>
                   </div>
-                  
-                  <div className="space-y-3">
+                                   <div className="space-y-3">
                     <div className="p-4 bg-black/40 rounded-2xl border border-white/5">
                       <div className="flex justify-between items-center mb-2">
                          <span className="text-[9px] text-white/40 font-bold uppercase">Zenith Hourly Rate</span>
                          <span className="text-lg font-black text-orange-400 font-mono">{selectedMeteorShower.zhr} <span className="text-[8px] opacity-40">ZHR</span></span>
                       </div>
                       <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                        <div style={{ width: `${Math.min(selectedMeteorShower.zhr, 100)}%` }} className="h-full bg-orange-500 rounded-full shadow-[0_0_8px_rgba(249,115,22,0.5)]" />
+                        <div style={{ width: `${Math.min(selectedMeteorShower.zhr, 120) / 1.2}%` }} className="h-full bg-orange-500 rounded-full shadow-[0_0_8px_rgba(249,115,22,0.5)]" />
                       </div>
                     </div>
 
@@ -1586,10 +1597,25 @@ const CesiumGlobe: React.FC = () => {
                         <p className="text-[10px] font-bold text-white/80">{new Date(selectedMeteorShower.peak).toLocaleDateString()}</p>
                       </div>
                       <div className="bg-white/5 p-3 rounded-xl border border-white/5">
-                        <p className="text-[7px] text-white/40 uppercase font-black mb-1">Constellation</p>
-                        <p className="text-[10px] font-bold text-white/80">{selectedMeteorShower.constellation}</p>
+                        <p className="text-[7px] text-white/40 uppercase font-black mb-1">Parent Body</p>
+                        <p className="text-[10px] font-bold text-white/80">{selectedMeteorShower.parent}</p>
                       </div>
                     </div>
+
+                    <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
+                      <p className="text-[7px] text-white/40 font-black uppercase mb-2">Spectral Composition</p>
+                      <div className="flex items-center gap-2">
+                         <div className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
+                         <span className="text-[10px] font-bold text-white/90">{selectedMeteorShower.composition}</span>
+                      </div>
+                    </div>
+
+                    {selectedMeteorShower.historicalStorms && (
+                      <div className="p-4 bg-orange-500/5 rounded-2xl border border-orange-500/10">
+                        <p className="text-[7px] text-orange-400 font-black uppercase mb-1">Historical Context</p>
+                        <p className="text-[9px] text-white/60 leading-tight italic">"{selectedMeteorShower.historicalStorms}"</p>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               )}
