@@ -380,9 +380,27 @@ const CesiumGlobe: React.FC = () => {
         }
         viewerRef.current = viewer;
 
-        // Setup click handler for selection
+        // Smoother camera experience
+        viewer.scene.screenSpaceCameraController.enableCollisionDetection = true;
+        viewer.scene.screenSpaceCameraController.inertiaSpin = 0.9;
+        viewer.scene.screenSpaceCameraController.inertiaTranslate = 0.9;
+        viewer.scene.screenSpaceCameraController.inertiaZoom = 0.8;
+
+        // Double-click to fly to location
         const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
         handlerRef.current = handler;
+
+        handler.setInputAction((movement: any) => {
+          const cartesian = viewer.camera.pickEllipsoid(movement.position, viewer.scene.globe.ellipsoid);
+          if (cartesian) {
+            viewer.camera.flyTo({
+              destination: cartesian,
+              duration: 2.0,
+              easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT
+            });
+          }
+        }, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+
         handler.setInputAction((movement: any) => {
         const pickedObject = viewer.scene.pick(movement.position);
         if (Cesium.defined(pickedObject) && pickedObject.id instanceof Cesium.Entity) {
@@ -394,13 +412,28 @@ const CesiumGlobe: React.FC = () => {
             setSelectedSatellite(null);
             setSelectedUFO(null);
             viewer.trackedEntity = undefined;
-            viewer.zoomTo(entity);
+            
+            // Smooth fly to radiant
+            viewer.camera.flyTo({
+              destination: entity.position.getValue(Cesium.JulianDate.now()),
+              orientation: {
+                heading: viewer.camera.heading,
+                pitch: Cesium.Math.toRadians(-45),
+                roll: 0.0
+              },
+              duration: 2.0,
+              easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT
+            });
           } else if (props && props.type === 'ufo') {
             setSelectedUFO(props.data);
             setSelectedSatellite(null);
             setSelectedMeteorShower(null);
             viewer.trackedEntity = undefined;
-            viewer.zoomTo(entity);
+            viewer.camera.flyTo({
+              destination: entity.position.getValue(Cesium.JulianDate.now()),
+              duration: 1.5,
+              easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT
+            });
           } else if (props && props.line1 && props.line2) {
             setSelectedSatellite({
               name: props.name,
@@ -412,11 +445,6 @@ const CesiumGlobe: React.FC = () => {
             setSelectedMeteorShower(null);
             setSelectedUFO(null);
             viewer.trackedEntity = entity;
-            
-            // Zoom behavior refinement
-            if (activeTab === 'debris') {
-               viewer.zoomTo(entity, new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-45), 500000));
-            }
           }
         } else {
           setSelectedSatellite(null);
@@ -926,8 +954,8 @@ const CesiumGlobe: React.FC = () => {
         if (isPast) return; // Don't render past showers
 
         const getIntensityColor = (zhr: number, active: boolean, upcoming: boolean) => {
-          if (!active && upcoming) return Cesium.Color.fromCssColorString('#94A3B8').withAlpha(0.6);
-          if (zhr > 100) return Cesium.Color.fromCssColorString('#22C55E');
+          if (!active && upcoming) return Cesium.Color.fromCssColorString('#3B82F6').withAlpha(0.6); // Blue for upcoming
+          if (zhr > 100) return Cesium.Color.fromCssColorString('#22C55E'); // Bright Green for peak
           if (zhr > 70) return Cesium.Color.fromCssColorString('#4ADE80');
           if (zhr > 40) return Cesium.Color.fromCssColorString('#86EFAC');
           if (zhr > 20) return Cesium.Color.fromCssColorString('#BBF7D0');
@@ -1537,16 +1565,30 @@ const CesiumGlobe: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="font-black text-sm uppercase tracking-tight">{selectedMeteorShower.name}</h3>
-                      <p className="text-[8px] text-orange-400 uppercase tracking-widest font-black">Celestial Event</p>
+                      <p className="text-[8px] text-orange-400 uppercase tracking-widest font-black">{selectedMeteorShower.status} EVENT</p>
                     </div>
                   </div>
-                  <div className="p-4 bg-black/40 rounded-2xl border border-white/5">
-                    <div className="flex justify-between items-center mb-2">
-                       <span className="text-[9px] text-white/40 font-bold uppercase">Rate</span>
-                       <span className="text-lg font-black text-orange-400 font-mono">{selectedMeteorShower.zhr} <span className="text-[8px] opacity-40">ZHR</span></span>
+                  
+                  <div className="space-y-3">
+                    <div className="p-4 bg-black/40 rounded-2xl border border-white/5">
+                      <div className="flex justify-between items-center mb-2">
+                         <span className="text-[9px] text-white/40 font-bold uppercase">Zenith Hourly Rate</span>
+                         <span className="text-lg font-black text-orange-400 font-mono">{selectedMeteorShower.zhr} <span className="text-[8px] opacity-40">ZHR</span></span>
+                      </div>
+                      <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                        <div style={{ width: `${Math.min(selectedMeteorShower.zhr, 100)}%` }} className="h-full bg-orange-500 rounded-full shadow-[0_0_8px_rgba(249,115,22,0.5)]" />
+                      </div>
                     </div>
-                    <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                      <div style={{ width: `${Math.min(selectedMeteorShower.zhr, 100)}%` }} className="h-full bg-orange-500 rounded-full" />
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-white/5 p-3 rounded-xl border border-white/5">
+                        <p className="text-[7px] text-white/40 uppercase font-black mb-1">Peak</p>
+                        <p className="text-[10px] font-bold text-white/80">{new Date(selectedMeteorShower.peak).toLocaleDateString()}</p>
+                      </div>
+                      <div className="bg-white/5 p-3 rounded-xl border border-white/5">
+                        <p className="text-[7px] text-white/40 uppercase font-black mb-1">Constellation</p>
+                        <p className="text-[10px] font-bold text-white/80">{selectedMeteorShower.constellation}</p>
+                      </div>
                     </div>
                   </div>
                 </motion.div>
@@ -1615,7 +1657,7 @@ const CesiumGlobe: React.FC = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-8 flex-1 w-full md:border-l md:border-white/10 md:pl-8">
                   {[
                     { label: 'Altitude', value: Math.round(telemetry.alt), unit: 'KM', color: 'cyan' },
-                    { label: 'Velocity', value: Math.round(telemetry.vel).toLocaleString(), unit: 'M/S', color: 'cyan' },
+                    { label: 'Velocity', value: Math.round(telemetry.vel / 3.6).toLocaleString(), unit: 'M/S', color: 'cyan' },
                     { label: 'Latitude', value: telemetry.lat.toFixed(3), unit: 'DEG', color: 'white' },
                     { label: 'Longitude', value: telemetry.lng.toFixed(3), unit: 'DEG', color: 'white' },
                   ].map((item) => (
