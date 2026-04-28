@@ -27,7 +27,10 @@ async function startServer() {
     const baseUrls = [
       "https://celestrak.org/NORAD/elements/gp.php",
       "https://celestrak.com/NORAD/elements/gp.php",
-      "https://tle.mountainway.space/gp.php"
+      "https://www.celestrak.com/NORAD/elements/gp.php",
+      "https://tle.mountainway.space/gp.php",
+      "https://amsat.org.ar/keps.txt",
+      "https://db.satnogs.org/api/tles/" // Primary mirror
     ];
 
     // Map common groups to fallback static text files
@@ -36,7 +39,10 @@ async function startServer() {
       'debris': 'debris.txt',
       'visual': 'visual.txt',
       'stations': 'stations.txt',
-      'starlink': 'starlink.txt'
+      'starlink': 'starlink.txt',
+      'amateur': 'amateur.txt',
+      'weather': 'weather.txt',
+      'noaa': 'noaa.txt'
     };
 
     let lastError = null;
@@ -57,9 +63,12 @@ async function startServer() {
 
     // Try primary GP API sources
     for (const baseUrl of baseUrls) {
-      const url = catnr 
-        ? `${baseUrl}?CATNR=${catnr}&FORMAT=${format}`
-        : `${baseUrl}?GROUP=${group}&FORMAT=${format}`;
+      const isSatNogs = baseUrl.includes('satnogs');
+      const url = isSatNogs 
+        ? baseUrl 
+        : (catnr 
+            ? `${baseUrl}?CATNR=${catnr}&FORMAT=${format}`
+            : `${baseUrl}?GROUP=${group}&FORMAT=${format}`);
 
       // Check Cache
       if (cache[url] && (Date.now() - cache[url].timestamp < CACHE_TTL)) {
@@ -69,24 +78,36 @@ async function startServer() {
       const randomUA = userAgents[Math.floor(Math.random() * userAgents.length)];
 
       try {
+        console.log(`[Proxy] Attempting TLE fetch: ${url}`);
         const response = await fetchWithTimeout(url, {
           headers: {
             'User-Agent': randomUA,
-            'Accept': '*/*',
+            'Accept': isSatNogs ? 'application/json' : '*/*',
             'Connection': 'keep-alive'
           }
         });
 
         if (!response.ok) {
-          throw new Error(`Proxy status: ${response.status}`);
+          console.warn(`[Proxy Warning] ${url} failed with status: ${response.status}`);
+          continue;
         }
 
-        const data = await response.text();
+        let data = '';
+        if (isSatNogs) {
+          const json = await response.json() as any[];
+          if (Array.isArray(json)) {
+            data = json.map(s => `${s.tle0}\n${s.tle1}\n${s.tle2}`).join('\n');
+          }
+        } else {
+          data = await response.text();
+        }
+
         if (data && data.length > 50) {
           cache[url] = { data, timestamp: Date.now() };
           return res.send(data);
         }
       } catch (error: any) {
+        console.warn(`[Proxy Warning] ${url} failed: ${error.message}`);
         lastError = error;
       }
     }
@@ -115,7 +136,10 @@ async function startServer() {
     // Try multiple fallback domains for static files
     const fallbackDomains = [
       "https://celestrak.org/NORAD/elements",
-      "https://celestrak.com/NORAD/elements"
+      "https://celestrak.com/NORAD/elements",
+      "https://www.celestrak.com/NORAD/elements",
+      "http://celestrak.org/NORAD/elements",
+      "http://celestrak.com/NORAD/elements"
     ];
 
     if (!catnr && groupMap[group as string]) {
@@ -124,7 +148,7 @@ async function startServer() {
         try {
           console.log(`[Proxy] Fetching Fallback TLE from: ${fallbackUrl}`);
           const randomUA = userAgents[Math.floor(Math.random() * userAgents.length)];
-          const response = await fetch(fallbackUrl, {
+          const response = await fetchWithTimeout(fallbackUrl, {
             headers: { 'User-Agent': randomUA }
           });
           if (response.ok) {
@@ -139,18 +163,26 @@ async function startServer() {
         }
       }
 
-      // Final fallback to AMSAT for active satellites
-      if (group === 'active') {
-        const amsatUrl = 'https://www.amsat.org/amsat/ftp/keps/nodisplay/nasabare.txt';
-        try {
-           console.log(`[Proxy] Fetching Emergency Fallback TLE from: ${amsatUrl}`);
-           const response = await fetch(amsatUrl, { headers: { 'User-Agent': 'curl/7.68.0' } });
-           if (response.ok) {
-             const data = await response.text();
-             if (data && data.length > 50) return res.send(data);
-           }
-        } catch (e) {
-           console.warn(`[Proxy Warning] Emergency fallback failed: ${amsatUrl}`);
+      // Final fallback to AMSAT or direct ISS API for active/ISS
+      if (group === 'active' || catnr === '25544') {
+        const emergencyUrls = [
+          'https://www.amsat.org/amsat/ftp/keps/nodisplay/nasabare.txt',
+          'https://live.ariss.org/tle/' // ISS specific 
+        ];
+        
+        for (const emergencyUrl of emergencyUrls) {
+          try {
+             console.log(`[Proxy] Fetching Emergency Fallback TLE from: ${emergencyUrl}`);
+             const response = await fetchWithTimeout(emergencyUrl, { 
+               headers: { 'User-Agent': 'curl/7.81.0' } 
+             });
+             if (response.ok) {
+               const data = await response.text();
+               if (data && data.length > 50) return res.send(data);
+             }
+          } catch (e) {
+             console.warn(`[Proxy Warning] Emergency fallback failed: ${emergencyUrl}`);
+          }
         }
       }
     }

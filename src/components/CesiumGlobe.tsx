@@ -55,13 +55,15 @@ const CesiumGlobe: React.FC = () => {
     nightLights: true,
     stars: true,
     terrain: true,
-    grid: false
+    grid: false,
+    bloom: true
   });
   const [showSettings, setShowSettings] = useState(false);
   const [showRightSidebar, setShowRightSidebar] = useState(true);
   const [showIssTrail, setShowIssTrail] = useState(true);
   const [isTrackingIss, setIsTrackingIss] = useState(false);
   const [isLockedOnSelected, setIsLockedOnSelected] = useState(false);
+  const [ephemeris, setEphemeris] = useState<{ az: number, el: number, dist: number, lat: number, lng: number, alt: number } | null>(null);
 
   const flyToLocation = (lat: number, lon: number, height = 2000000) => {
     if (!viewerRef.current) return;
@@ -489,7 +491,7 @@ const CesiumGlobe: React.FC = () => {
       name: 'ISS (ZARYA)',
       point: {
         pixelSize: 14,
-        color: Cesium.Color.fromCssColorString('#22C55E'),
+        color: Cesium.Color.fromCssColorString('#FACC15'),
         outlineColor: Cesium.Color.WHITE,
         outlineWidth: 3,
       },
@@ -505,7 +507,7 @@ const CesiumGlobe: React.FC = () => {
       }
     });
 
-    // Pulse Effect for ISS (RYY Green Pulse)
+    // Pulse Effect for ISS (Space Yellow Pulse)
     const pulseEntity = viewer.entities.add({
       position: issEntity.position,
       ellipse: {
@@ -519,9 +521,9 @@ const CesiumGlobe: React.FC = () => {
           const val = 120000 + Math.sin(time.secondsOfDay * 3) * 50000;
           return Math.max(1, val);
         }, false),
-        material: Cesium.Color.fromCssColorString('#22C55E').withAlpha(0.05),
+        material: Cesium.Color.fromCssColorString('#FACC15').withAlpha(0.05),
         outline: true,
-        outlineColor: Cesium.Color.fromCssColorString('#22C55E').withAlpha(0.15),
+        outlineColor: Cesium.Color.fromCssColorString('#FACC15').withAlpha(0.15),
       }
     });
 
@@ -573,6 +575,27 @@ const CesiumGlobe: React.FC = () => {
             timestamp: now.toISOString(),
             location: getRoughLocation(currentLat, currentLng)
           });
+
+          // Update selected object ephemeris if it's a satellite
+          if (selectedSatellite) {
+             try {
+                const sRec = satellite.twoline2satrec(selectedSatellite.line1, selectedSatellite.line2);
+                const pAndV = satellite.propagate(sRec, now);
+                if (typeof pAndV.position === 'object') {
+                  const pGd = satellite.eciToGeodetic(pAndV.position as satellite.EciVec3<number>, gmst);
+                  setEphemeris({
+                    lat: satellite.degreesLat(pGd.latitude),
+                    lng: satellite.degreesLong(pGd.longitude),
+                    alt: pGd.height,
+                    az: 0, // Simplified for now
+                    el: 0,
+                    dist: Math.sqrt(pAndV.position.x**2 + pAndV.position.y**2 + pAndV.position.z**2)
+                  });
+                }
+             } catch (e) {}
+          } else {
+            setEphemeris(null);
+          }
 
           issEntity.position = Cesium.Cartesian3.fromDegrees(currentLng, currentLat, height * 1000) as any;
 
@@ -661,8 +684,8 @@ const CesiumGlobe: React.FC = () => {
     }
 
     if (activeTab === 'satellites') {
-      if (issData) renderSatellites([issData], Cesium.Color.fromCssColorString('#22C55E'));
-      renderSatellites(satellites, Cesium.Color.fromCssColorString('#22C55E').withAlpha(0.6));
+      if (issData) renderSatellites([issData], Cesium.Color.fromCssColorString('#FACC15'));
+      renderSatellites(satellites, Cesium.Color.fromCssColorString('#FACC15').withAlpha(0.6));
     } else if (activeTab === 'debris') {
       renderSatellites(debris, Cesium.Color.fromCssColorString('#EF4444').withAlpha(0.8));
     } else if (activeTab === 'meteors') {
@@ -748,7 +771,7 @@ const CesiumGlobe: React.FC = () => {
             width: 5,
             material: new Cesium.PolylineGlowMaterialProperty({
               glowPower: 0.5,
-              color: Cesium.Color.fromCssColorString('#4ade80'),
+              color: Cesium.Color.fromCssColorString('#FACC15'),
             }),
             distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 100000000),
             zIndex: 10
@@ -767,7 +790,7 @@ const CesiumGlobe: React.FC = () => {
              positions: groundPositions,
              width: 2,
              material: new Cesium.PolylineDashMaterialProperty({
-                color: Cesium.Color.fromCssColorString('#22C55E').withAlpha(0.3),
+                color: Cesium.Color.fromCssColorString('#FACC15').withAlpha(0.3),
                 dashLength: 16
              }),
              clampToGround: true,
@@ -805,8 +828,8 @@ const CesiumGlobe: React.FC = () => {
 
       if (selectedSatellite) {
         const path = calculateOrbitPath(selectedSatellite, 24);
-        const isDebris = debris.some(d => d.name === selectedSatellite.name);
-        const trailColor = isDebris ? Cesium.Color.fromCssColorString('#EF4444') : Cesium.Color.fromCssColorString('#22C55E');
+        const isDebris = debris?.some(d => d.name === selectedSatellite.name);
+        const trailColor = isDebris ? Cesium.Color.fromCssColorString('#EF4444') : Cesium.Color.fromCssColorString('#FACC15');
 
         trailEntityRef.current = viewer.entities.add({
           name: `${selectedSatellite.name} 24h Orbit Path`,
@@ -955,9 +978,9 @@ const CesiumGlobe: React.FC = () => {
 
         const getIntensityColor = (zhr: number, active: boolean, upcoming: boolean) => {
           if (active) {
-            if (zhr > 80) return Cesium.Color.fromCssColorString('#22C55E'); // Vibrant Green
-            if (zhr > 30) return Cesium.Color.fromCssColorString('#4ADE80'); // Medium Green
-            return Cesium.Color.fromCssColorString('#86EFAC'); // Light Green
+            if (zhr > 80) return Cesium.Color.fromCssColorString('#FACC15'); // Radiant Yellow
+            if (zhr > 30) return Cesium.Color.fromCssColorString('#FEF08A'); // Light Yellow
+            return Cesium.Color.fromCssColorString('#FEF9C3'); // Extra Light Yellow
           }
           if (upcoming) {
             return Cesium.Color.fromCssColorString('#3B82F6').withAlpha(0.7); // Bright Blue for anticipation
@@ -966,11 +989,6 @@ const CesiumGlobe: React.FC = () => {
         };
 
         const color = getIntensityColor(shower.zhr, isActive, isUpcoming);
-        
-        // Size based on intensity and status
-        const baseSize = isActive ? 12 : 8;
-        const intensitySize = (shower.zhr / 120) * 14; // Scaled to max ZHR
-        const pixelSize = baseSize + intensitySize;
 
         let lon = coords.ra - gmstDeg;
         while (lon < -180) lon += 360;
@@ -979,6 +997,51 @@ const CesiumGlobe: React.FC = () => {
 
         const radiantPos = Cesium.Cartesian3.fromDegrees(lon, lat, 2000000);
         if (!Cesium.defined(radiantPos)) return;
+        
+        // --- AMAZING VISUALIZATION ---
+        if (isActive) {
+           // Radiant Glow Plane
+           viewer.entities.add({
+             position: radiantPos,
+             ellipse: {
+               semiMinorAxis: 150000,
+               semiMajorAxis: 150000,
+               material: color.withAlpha(0.1),
+               outline: true,
+               outlineColor: color.withAlpha(0.3),
+               outlineWidth: 2,
+               height: 2000000
+             }
+           });
+
+           // Volumetric Burst (Fake)
+           for (let j = 0; j < 6; j++) {
+             const angle = (j / 6) * Math.PI * 2;
+             const targetLon = lon + Math.cos(angle) * 8;
+             const targetLat = lat + Math.sin(angle) * 8;
+             
+             viewer.entities.add({
+               polyline: {
+                 positions: [
+                   radiantPos,
+                   Cesium.Cartesian3.fromDegrees(targetLon, targetLat, 0)
+                 ],
+                 width: 2,
+                 material: new Cesium.PolylineDashMaterialProperty({
+                   color: color.withAlpha(0.05),
+                   dashLength: 20,
+                   gapColor: Cesium.Color.TRANSPARENT
+                 }),
+                 distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 5000000)
+               }
+             });
+           }
+        }
+        
+        // Size based on intensity and status
+        const baseSize = isActive ? 12 : 8;
+        const intensitySize = (shower.zhr / 120) * 14; // Scaled to max ZHR
+        const pixelSize = baseSize + intensitySize;
 
         const radiant = viewer.entities.add({
           name: `${shower.name} Radiant`,
@@ -992,7 +1055,7 @@ const CesiumGlobe: React.FC = () => {
           label: {
             text: isActive ? `LIVE: ${shower.name}` : (isUpcoming ? `UPCOMING: ${shower.name}` : shower.name),
             font: isActive ? '900 16px Inter, sans-serif' : '12px Inter, sans-serif',
-            fillColor: isActive ? Cesium.Color.fromCssColorString('#22C55E') : (isUpcoming ? Cesium.Color.LIGHTGRAY : Cesium.Color.BLACK),
+            fillColor: isActive ? Cesium.Color.fromCssColorString('#FACC15') : (isUpcoming ? Cesium.Color.LIGHTGRAY : Cesium.Color.BLACK),
             outlineColor: Cesium.Color.WHITE,
             outlineWidth: 3,
             style: Cesium.LabelStyle.FILL_AND_OUTLINE,
@@ -1010,7 +1073,7 @@ const CesiumGlobe: React.FC = () => {
         // Add status-based glow
         if (isActive || isUpcoming) {
           const glowColor = isActive 
-            ? Cesium.Color.fromCssColorString('#22C55E').withAlpha(0.2) 
+            ? Cesium.Color.fromCssColorString('#FACC15').withAlpha(0.2) 
             : Cesium.Color.fromCssColorString('#3B82F6').withAlpha(0.1);
           
           const glowSize = (shower.zhr / 120) * 800000 + 400000;
@@ -1123,7 +1186,7 @@ const CesiumGlobe: React.FC = () => {
           position: Cesium.Cartesian3.fromDegrees(loc.lon, loc.lat, 50000),
           point: {
             pixelSize: 10,
-            color: Cesium.Color.fromCssColorString('#22C55E'),
+            color: Cesium.Color.fromCssColorString('#FACC15'),
             outlineColor: Cesium.Color.WHITE,
             outlineWidth: 2,
           },
@@ -1143,7 +1206,7 @@ const CesiumGlobe: React.FC = () => {
           }),
           description: `
             <div style="font-family: sans-serif; padding: 10px;">
-              <h3 style="color: #22c55e;">UFO Sighting Report</h3>
+              <h3 style="color: #FACC15;">UFO Sighting Report</h3>
               <p><b>Location:</b> ${loc.name}</p>
               <p><b>Timestamp:</b> ${new Date(Date.now() - i * 3600000).toLocaleString()}</p>
               <p><b>Status:</b> Unverified Signal Detected</p>
@@ -1174,9 +1237,9 @@ const CesiumGlobe: React.FC = () => {
                 return 1;
               }
             }, false),
-            material: Cesium.Color.fromCssColorString('#22C55E').withAlpha(0.1),
+            material: Cesium.Color.fromCssColorString('#FACC15').withAlpha(0.1),
             outline: true,
-            outlineColor: Cesium.Color.fromCssColorString('#22C55E').withAlpha(0.3),
+            outlineColor: Cesium.Color.fromCssColorString('#FACC15').withAlpha(0.3),
           }
         });
         entitiesRef.current.push(pulseEntity);
@@ -1199,9 +1262,9 @@ const CesiumGlobe: React.FC = () => {
             initial={{ opacity: 0, scale: 0.95, x: 10 }}
             animate={{ opacity: 1, scale: 1, x: 0 }}
             exit={{ opacity: 0, scale: 0.95, x: 10 }}
-            className="absolute top-24 right-[22rem] z-50 w-64 bg-black/80 backdrop-blur-3xl border border-white/10 rounded-3xl p-6 shadow-2xl"
+            className="absolute top-24 right-[22rem] z-50 w-64 bg-black/80 backdrop-blur-3xl border border-white/5 rounded-3xl p-6 shadow-2xl"
           >
-            <h3 className="text-xs font-black uppercase tracking-widest text-white/40 mb-6 flex items-center gap-2">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-6 flex items-center gap-2">
               <Layers size={12} /> Map Layers
             </h3>
             <div className="space-y-2">
@@ -1217,14 +1280,14 @@ const CesiumGlobe: React.FC = () => {
                     setShowLayerPicker(false);
                   }}
                   className={`w-full p-4 rounded-2xl flex flex-col items-start gap-1 transition-all ${
-                    currentLayer === layer.id ? 'bg-cyan-500 text-black' : 'bg-white/5 text-white/60 hover:bg-white/10'
+                    currentLayer === layer.id ? 'bg-[#FACC15] text-black shadow-lg shadow-[#FACC15]/20' : 'bg-white/5 text-white/60 hover:bg-white/10'
                   }`}
                 >
                   <div className="flex items-center gap-2">
                     <layer.icon size={14} />
                     <span className="text-[10px] font-black uppercase tracking-tight">{layer.label}</span>
                   </div>
-                  <span className={`text-[8px] font-bold uppercase ${currentLayer === layer.id ? 'text-black/60' : 'text-white/20'}`}>{layer.desc}</span>
+                  <span className={`text-[8px] font-bold uppercase ${currentLayer === layer.id ? 'text-black/80' : 'text-white/20'}`}>{layer.desc}</span>
                 </button>
               ))}
             </div>
@@ -1239,10 +1302,10 @@ const CesiumGlobe: React.FC = () => {
             initial={{ opacity: 0, scale: 0.95, x: 10 }}
             animate={{ opacity: 1, scale: 1, x: 0 }}
             exit={{ opacity: 0, scale: 0.95, x: 10 }}
-            className="absolute top-24 right-[22rem] z-50 w-64 bg-black/80 backdrop-blur-3xl border border-white/10 rounded-3xl p-6 shadow-2xl"
+            className="absolute top-24 right-[22rem] z-50 w-64 bg-black/80 backdrop-blur-3xl border border-white/5 rounded-3xl p-6 shadow-2xl"
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xs font-black uppercase tracking-widest text-white/40">Visual Settings</h3>
+              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Visual Settings</h3>
               <CloseIcon size={14} className="text-white/20 cursor-pointer hover:text-white" onClick={() => setShowSettings(false)} />
             </div>
             <div className="space-y-4">
@@ -1254,14 +1317,14 @@ const CesiumGlobe: React.FC = () => {
               ].map((s) => (
                 <div key={s.key} className="flex items-center justify-between group">
                   <div className="flex items-center gap-3">
-                    <s.icon size={14} className="text-cyan-400 opacity-50 group-hover:opacity-100 transition-opacity" />
-                    <span className="text-xs font-bold text-white/80 uppercase tracking-tight">{s.label}</span>
+                    <s.icon size={14} className="text-[#FACC15] opacity-50 group-hover:opacity-100 transition-opacity" />
+                    <span className="text-[10px] font-black text-white/80 uppercase tracking-tight">{s.label}</span>
                   </div>
                   <button 
                     onClick={() => setVisualSettings(prev => ({ ...prev, [s.key]: !prev[s.key as keyof typeof visualSettings] }))}
-                    className={`w-10 h-5 rounded-full transition-all relative ${visualSettings[s.key as keyof typeof visualSettings] ? 'bg-cyan-500' : 'bg-white/10'}`}
+                    className={`w-10 h-5 rounded-full transition-all relative ${visualSettings[s.key as keyof typeof visualSettings] ? 'bg-[#FACC15]' : 'bg-white/10'}`}
                   >
-                    <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${visualSettings[s.key as keyof typeof visualSettings] ? 'right-1' : 'left-1'}`} />
+                    <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all shadow-sm ${visualSettings[s.key as keyof typeof visualSettings] ? 'right-1' : 'left-1'}`} />
                   </button>
                 </div>
               ))}
@@ -1274,14 +1337,14 @@ const CesiumGlobe: React.FC = () => {
       <div className={`absolute left-6 top-24 bottom-6 z-40 w-80 pointer-events-none transition-all duration-500 ease-in-out ${
         showSidebar ? 'translate-x-0' : '-translate-x-[calc(100%+40px)]'
       }`}>
-        <motion.div className="h-full bg-black/60 shadow-2xl backdrop-blur-2xl rounded-[2.5rem] border border-white/10 p-8 flex flex-col pointer-events-auto overflow-hidden relative">
+        <motion.div className="h-full bg-black/80 shadow-2xl backdrop-blur-3xl rounded-[2.5rem] border border-white/5 p-8 flex flex-col pointer-events-auto overflow-hidden relative">
           {/* Status Rings */}
-          <div className="absolute -top-20 -left-20 w-40 h-40 border border-cyan-500/10 rounded-full animate-spin-slow pointer-events-none" />
-          <div className="absolute -top-10 -left-10 w-20 h-20 border border-cyan-500/5 rounded-full animate-reverse-spin pointer-events-none" />
+          <div className="absolute -top-20 -left-20 w-40 h-40 border border-[#FACC15]/5 rounded-full animate-spin-slow pointer-events-none" />
+          <div className="absolute -top-10 -left-10 w-20 h-20 border border-[#FACC15]/2 rounded-full animate-reverse-spin pointer-events-none" />
 
           {/* Sidebar Header */}
           <div className="mb-8 pl-1">
-            <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400/60 mb-1">Stargaze Intelligence</h2>
+            <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-[#FACC15]/80 mb-1 font-space italic">Stargaze Intelligence</h2>
             <p className="text-[18px] font-black uppercase tracking-tight text-white leading-none">Event Tracker</p>
           </div>
 
@@ -1289,38 +1352,38 @@ const CesiumGlobe: React.FC = () => {
           <div className="space-y-3 mb-10 overflow-y-auto custom-scrollbar pr-2">
             {[
               { id: 'meteors', icon: Sparkles, label: 'Celestial', desc: 'Active & Upcoming Meteor Showers', color: 'orange' },
-              { id: 'satellites', icon: Satellite, label: 'Orbital', desc: 'Active Satellite Passages', color: 'cyan' },
+              { id: 'satellites', icon: Satellite, label: 'Orbital', desc: 'Active Satellite Passages', color: 'green' },
               { id: 'debris', icon: Trash2, label: 'Hazardous', desc: 'Re-entry & Debris Risks', color: 'red' },
-              { id: 'ufo', icon: Eye, label: 'Anomalies', desc: 'Unknown & Transient Events', color: 'green' },
+              { id: 'ufo', icon: Eye, label: 'Anomalies', desc: 'Unknown & Transient Events', color: 'slate' },
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`w-full group relative p-5 rounded-3xl transition-all duration-300 border ${
+                className={`w-full group relative p-5 rounded-3xl transition-all duration-400 border ${
                   activeTab === tab.id 
-                    ? 'bg-cyan-500/10 border-cyan-500/30' 
-                    : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05]'
+                    ? 'bg-white/[0.05] shadow-[0_10px_30px_rgba(250,204,21,0.08)] border-[#FACC15]/20' 
+                    : 'bg-white/[0.02] border-transparent hover:bg-white/[0.04]'
                 }`}
               >
                 <div className="flex items-start gap-4">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
-                    activeTab === tab.id ? 'bg-cyan-500 text-black' : 'bg-white/5 text-white/40 group-hover:text-cyan-400'
+                    activeTab === tab.id ? 'bg-[#FACC15] text-black shadow-lg' : 'bg-white/5 text-white/40 group-hover:text-[#FACC15]'
                   }`}>
                     <tab.icon size={18} />
                   </div>
                   <div className="text-left flex-1">
-                    <p className={`text-xs font-black uppercase tracking-widest ${activeTab === tab.id ? 'text-cyan-400' : 'text-white/80'}`}>
+                    <p className={`text-[11px] font-black uppercase tracking-widest ${activeTab === tab.id ? 'text-white' : 'text-white/80'}`}>
                       {tab.label}
                     </p>
-                    <p className="text-[9px] text-white/30 font-medium uppercase tracking-tight mt-1">{tab.desc}</p>
+                    <p className="text-[9px] text-white/30 font-bold uppercase tracking-tight mt-1">{tab.desc}</p>
                   </div>
                   {tab.id === 'satellites' && (
                     <div className="flex flex-col gap-1 items-end">
-                      <span className="text-[10px] font-mono text-cyan-500/80">{satellites.length}</span>
+                      <span className="text-[10px] font-mono font-bold text-[#FACC15]">{satellites.length}</span>
                       <div className="flex gap-0.5">
-                        <div className="w-1 h-1 bg-cyan-500 rounded-full animate-pulse" />
-                        <div className="w-1 h-1 bg-cyan-500/30 rounded-full" />
-                        <div className="w-1 h-1 bg-cyan-500/30 rounded-full" />
+                        <div className="w-1 h-1 bg-[#FACC15] rounded-full animate-pulse" />
+                        <div className="w-1 h-1 bg-[#FACC15]/30 rounded-full" />
+                        <div className="w-1 h-1 bg-[#FACC15]/30 rounded-full" />
                       </div>
                     </div>
                   )}
@@ -1329,14 +1392,14 @@ const CesiumGlobe: React.FC = () => {
             ))}
           </div>
 
-          {/* Event Status HUD */}
-          <div className="mt-auto space-y-6 pt-6 border-t border-white/10">
+          {/* HUD Section */}
+          <div className="mt-auto space-y-6 pt-6 border-t border-white/5">
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-white/[0.03] p-4 rounded-2xl border border-white/5">
                 <p className="text-[7px] font-black text-white/20 uppercase tracking-widest mb-1">Active Showers</p>
                 <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-orange-400 rounded-full shadow-[0_0_8px_rgba(251,146,60,0.5)]" />
-                  <span className="text-[10px] font-black uppercase text-orange-400">{meteorShowersData.filter(s => {
+                  <div className="w-1.5 h-1.5 bg-[#FACC15] rounded-full shadow-[0_0_8px_rgba(250,204,21,0.5)]" />
+                  <span className="text-[10px] font-black uppercase text-[#FACC15]">{meteorShowersData.filter(s => {
                     const now = new Date();
                     return now >= new Date(s.start) && now <= new Date(s.end);
                   }).length} Live</span>
@@ -1351,10 +1414,10 @@ const CesiumGlobe: React.FC = () => {
             <button 
               onClick={() => fetchData()}
               disabled={loading}
-              className="w-full py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-95 group"
+              className="w-full py-4 bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-95 group"
             >
-              <RefreshCw size={14} className={`text-cyan-400 ${loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50 group-hover:text-white">Refresh Orbital Layer</span>
+              <RefreshCw size={14} className={`text-[#FACC15] ${loading ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 group-hover:text-white">Refresh Orbital Layer</span>
             </button>
           </div>
         </motion.div>
@@ -1362,7 +1425,7 @@ const CesiumGlobe: React.FC = () => {
         {/* Toggle Hook */}
         <button 
           onClick={() => setShowSidebar(!showSidebar)}
-          className="absolute top-1/2 -right-12 -translate-y-1/2 w-8 h-20 bg-black/60 shadow-xl backdrop-blur-xl border border-white/10 border-l-0 rounded-r-2xl pointer-events-auto flex items-center justify-center text-white/30 hover:text-cyan-400 transition-colors"
+          className="absolute top-1/2 -right-12 -translate-y-1/2 w-8 h-20 bg-black/80 shadow-xl backdrop-blur-xl border border-white/5 border-l-0 rounded-r-2xl pointer-events-auto flex items-center justify-center text-white/30 hover:text-[#FACC15] transition-colors"
         >
           <ChevronRight size={18} className={`transition-transform duration-500 ${showSidebar ? 'rotate-180' : ''}`} />
         </button>
@@ -1372,14 +1435,14 @@ const CesiumGlobe: React.FC = () => {
       <div className={`absolute right-6 top-24 bottom-6 z-40 w-80 pointer-events-none transition-all duration-500 ease-in-out ${
         showRightSidebar ? 'translate-x-0' : 'translate-x-[calc(100%+40px)]'
       }`}>
-        <motion.div className="h-full bg-black/60 shadow-2xl backdrop-blur-2xl rounded-[2.5rem] border border-white/10 p-8 flex flex-col pointer-events-auto relative">
+        <motion.div className="h-full bg-black/80 shadow-2xl backdrop-blur-3xl rounded-[2.5rem] border border-white/5 p-8 flex flex-col pointer-events-auto relative">
           {/* Logo / Title Section */}
           <div className="flex items-center gap-4 mb-8">
-            <div className="w-12 h-12 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
+            <div className="w-12 h-12 rounded-xl bg-[#FACC15]/10 border border-[#FACC15]/20 flex items-center justify-center text-[#FACC15]">
               <Globe size={24} className="animate-pulse" />
             </div>
             <div className="flex flex-col">
-              <h1 className="text-lg font-black uppercase tracking-[0.2em] leading-none">STARGAZE<span className="text-orange-400">.EVENTS</span></h1>
+              <h1 className="text-lg font-black uppercase tracking-[0.2em] leading-none text-white whitespace-nowrap">STARGAZE<span className="text-[#FACC15]">.EVENTS</span></h1>
               <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest mt-1">Celestial Observation Hub</span>
             </div>
           </div>
@@ -1394,19 +1457,19 @@ const CesiumGlobe: React.FC = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Meteor, Satellite, Event..."
-                  className="w-full h-14 bg-white/5 border border-white/10 rounded-2xl px-12 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all placeholder:text-white/20"
+                  className="w-full h-14 bg-white/5 border border-white/5 rounded-2xl px-12 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#FACC15]/20 transition-all placeholder:text-white/20 text-white"
                 />
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={18} />
-                {isSearching && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 text-cyan-400 animate-spin" size={18} />}
+                {isSearching && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 text-[#FACC15] animate-spin" size={18} />}
               </form>
-
+              
               <AnimatePresence>
                 {searchResults.length > 0 && (
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
-                    className="absolute top-full left-0 right-0 mt-2 bg-black/90 backdrop-blur-3xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl z-[60]"
+                    className="absolute top-full left-0 right-0 mt-2 bg-black/95 backdrop-blur-3xl border border-white/5 rounded-2xl overflow-hidden shadow-2xl z-[60]"
                   >
                     {searchResults.map((res: any, idx: number) => (
                       <button
@@ -1429,13 +1492,13 @@ const CesiumGlobe: React.FC = () => {
                         className="w-full text-left px-5 py-4 hover:bg-white/5 border-b border-white/5 last:border-0 transition-colors flex items-start gap-3"
                       >
                         {res.type === 'location' ? (
-                          <MapIcon size={14} className="text-cyan-400 mt-1 flex-shrink-0" />
+                          <MapIcon size={14} className="text-[#FACC15] mt-1 flex-shrink-0" />
                         ) : (
-                          <Satellite size={14} className={res.type === 'debris' ? "text-red-400 mt-1 flex-shrink-0" : "text-cyan-400 mt-1 flex-shrink-0"} />
+                          <Satellite size={14} className={res.type === 'debris' ? "text-red-500 mt-1 flex-shrink-0" : "text-[#FACC15] mt-1 flex-shrink-0"} />
                         )}
                         <div className="flex flex-col overflow-hidden">
-                          <span className="text-xs font-bold text-white/90 truncate">{res.type === 'location' ? res.display_name : res.name}</span>
-                          <span className="text-[10px] text-white/30 uppercase tracking-widest">{res.type}</span>
+                          <span className="text-xs font-bold text-white truncate">{res.type === 'location' ? res.display_name : res.name}</span>
+                          <span className="text-[10px] text-white/40 uppercase tracking-widest font-bold">{res.type}</span>
                         </div>
                       </button>
                     ))}
@@ -1451,14 +1514,14 @@ const CesiumGlobe: React.FC = () => {
             <div className="grid grid-cols-2 gap-3">
               <button 
                 onClick={() => setShowLayerPicker(!showLayerPicker)}
-                className={`h-16 flex flex-col items-center justify-center gap-1 rounded-2xl border transition-all ${showLayerPicker ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400' : 'bg-white/5 border-white/10 text-white/40 hover:text-white/80'}`}
+                className={`h-16 flex flex-col items-center justify-center gap-1 rounded-2xl border transition-all ${showLayerPicker ? 'bg-[#FACC15]/10 border-[#FACC15] text-[#FACC15]' : 'bg-white/5 border-transparent text-white/40 hover:text-white'}`}
               >
                 <Layers size={18} />
                 <span className="text-[8px] font-black uppercase tracking-widest">Layers</span>
               </button>
               <button 
                 onClick={() => setShowSettings(!showSettings)}
-                className={`h-16 flex flex-col items-center justify-center gap-1 rounded-2xl border transition-all ${showSettings ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400' : 'bg-white/5 border-white/10 text-white/40 hover:text-white/80'}`}
+                className={`h-16 flex flex-col items-center justify-center gap-1 rounded-2xl border transition-all ${showSettings ? 'bg-[#FACC15]/10 border-[#FACC15] text-[#FACC15]' : 'bg-white/5 border-transparent text-white/40 hover:text-white'}`}
               >
                 <Settings size={18} />
                 <span className="text-[8px] font-black uppercase tracking-widest">Settings</span>
@@ -1473,7 +1536,7 @@ const CesiumGlobe: React.FC = () => {
                     });
                   }
                 }}
-                className="h-16 flex flex-col items-center justify-center gap-1 rounded-2xl bg-white/5 border border-white/10 text-white/40 hover:text-white/80 transition-all"
+                className="h-16 flex flex-col items-center justify-center gap-1 rounded-2xl bg-white/5 border border-transparent text-white/40 hover:text-white transition-all"
                 title="Reset to North"
               >
                 <Navigation size={18} />
@@ -1482,13 +1545,13 @@ const CesiumGlobe: React.FC = () => {
               <div className="flex gap-2">
                 <button 
                   onClick={() => { if (viewerRef.current) viewerRef.current.camera.zoomIn(viewerRef.current.camera.positionCartographic.height * 0.3); }}
-                  className="flex-1 h-16 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-xl font-black text-white/40 hover:text-white transition-all"
+                  className="flex-1 h-16 bg-white/5 border border-transparent rounded-2xl flex items-center justify-center text-xl font-black text-white/40 hover:text-white transition-all"
                 >
                   +
                 </button>
                 <button 
                   onClick={() => { if (viewerRef.current) viewerRef.current.camera.zoomOut(viewerRef.current.camera.positionCartographic.height * 0.4); }}
-                  className="flex-1 h-16 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-xl font-black text-white/40 hover:text-white transition-all"
+                  className="flex-1 h-16 bg-white/5 border border-transparent rounded-2xl flex items-center justify-center text-xl font-black text-white/40 hover:text-white transition-all"
                 >
                   -
                 </button>
@@ -1516,16 +1579,16 @@ const CesiumGlobe: React.FC = () => {
 
                   <div className="flex items-center gap-4 mb-6">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                      debris.some(d => d.name === selectedSatellite.name) ? 'bg-red-500/20 text-red-400' : 'bg-cyan-500/20 text-cyan-400'
+                      debris?.some(d => d.name === selectedSatellite.name) ? 'bg-red-500/20 text-red-400' : 'bg-[#FACC15]/20 text-[#FACC15]'
                     }`}>
                       <Satellite size={20} />
                     </div>
                     <div className="overflow-hidden">
                       <h3 className="font-black text-sm uppercase tracking-tight truncate">{selectedSatellite.name}</h3>
                       <p className={`text-[8px] uppercase tracking-widest font-black mt-1 ${
-                        debris.some(d => d.name === selectedSatellite.name) ? 'text-red-400' : 'text-cyan-400'
+                        debris?.some(d => d.name === selectedSatellite.name) ? 'text-red-400' : 'text-[#FACC15]'
                       }`}>
-                        {debris.some(d => d.name === selectedSatellite.name) ? 'ORBITAL HAZARD' : 'VERIFIED SIGNAL'}
+                        {debris?.some(d => d.name === selectedSatellite.name) ? 'ORBITAL HAZARD' : 'VERIFIED SIGNAL'}
                       </p>
                     </div>
                   </div>
@@ -1535,7 +1598,7 @@ const CesiumGlobe: React.FC = () => {
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <p className="text-[7px] text-white/30 font-bold uppercase mb-1">Inclination</p>
-                          <p className="text-xs font-black font-mono text-cyan-400">{selectedSatellite.inclination?.toFixed(3)}°</p>
+                          <p className="text-xs font-black font-mono text-[#FACC15]">{selectedSatellite.inclination?.toFixed(3)}°</p>
                         </div>
                         <div>
                           <p className="text-[7px] text-white/30 font-bold uppercase mb-1">Eccentricity</p>
@@ -1557,7 +1620,7 @@ const CesiumGlobe: React.FC = () => {
                         }
                       }}
                       className={`w-full py-4 rounded-xl flex items-center justify-center gap-3 transition-all active:scale-95 border ${
-                        isLockedOnSelected ? 'bg-cyan-500 text-black border-cyan-500' : 'bg-white/5 text-white/60 hover:bg-white/10 border-white/10'
+                        isLockedOnSelected ? 'bg-[#FACC15] text-black border-[#FACC15]' : 'bg-white/5 text-white/60 hover:bg-white/10 border-white/10'
                       }`}
                     >
                       <Navigation size={12} className={isLockedOnSelected ? 'animate-pulse' : ''} />
@@ -1575,28 +1638,28 @@ const CesiumGlobe: React.FC = () => {
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="bg-orange-500/10 backdrop-blur-xl p-6 rounded-3xl border border-orange-500/20 text-white relative"
+                  className="bg-black/80 backdrop-blur-xl p-6 rounded-3xl border border-[#FACC15]/20 text-white relative"
                 >
                   <button onClick={() => setSelectedMeteorShower(null)} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-white/20 hover:text-white">
                     <CloseIcon size={14} />
                   </button>
                   <div className="flex items-center gap-4 mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-xl bg-[#FACC15]/20 text-[#FACC15] flex items-center justify-center">
                       <Sparkles size={20} />
                     </div>
                     <div>
                       <h3 className="font-black text-sm uppercase tracking-tight">{selectedMeteorShower.name}</h3>
-                      <p className="text-[8px] text-orange-400 uppercase tracking-widest font-black">{selectedMeteorShower.status} EVENT</p>
+                      <p className="text-[8px] text-[#FACC15] uppercase tracking-widest font-black">{selectedMeteorShower.status} EVENT</p>
                     </div>
                   </div>
                                    <div className="space-y-3">
                     <div className="p-4 bg-black/40 rounded-2xl border border-white/5">
                       <div className="flex justify-between items-center mb-2">
                          <span className="text-[9px] text-white/40 font-bold uppercase">Zenith Hourly Rate</span>
-                         <span className="text-lg font-black text-orange-400 font-mono">{selectedMeteorShower.zhr} <span className="text-[8px] opacity-40">ZHR</span></span>
+                         <span className="text-lg font-black text-[#FACC15] font-mono">{selectedMeteorShower.zhr} <span className="text-[8px] opacity-40">ZHR</span></span>
                       </div>
                       <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                        <div style={{ width: `${Math.min(selectedMeteorShower.zhr, 120) / 1.2}%` }} className="h-full bg-orange-500 rounded-full shadow-[0_0_8px_rgba(249,115,22,0.5)]" />
+                        <div style={{ width: `${Math.min(selectedMeteorShower.zhr, 120) / 1.2}%` }} className="h-full bg-[#FACC15] rounded-full shadow-[0_0_8px_rgba(250,204,21,0.5)]" />
                       </div>
                     </div>
 
@@ -1614,14 +1677,14 @@ const CesiumGlobe: React.FC = () => {
                     <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
                       <p className="text-[7px] text-white/40 font-black uppercase mb-2">Spectral Composition</p>
                       <div className="flex items-center gap-2">
-                         <div className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
+                         <div className="w-2 h-2 rounded-full bg-[#FACC15] animate-pulse" />
                          <span className="text-[10px] font-bold text-white/90">{selectedMeteorShower.composition}</span>
                       </div>
                     </div>
 
                     {selectedMeteorShower.historicalStorms && (
-                      <div className="p-4 bg-orange-500/5 rounded-2xl border border-orange-500/10">
-                        <p className="text-[7px] text-orange-400 font-black uppercase mb-1">Historical Context</p>
+                      <div className="p-4 bg-[#FACC15]/5 rounded-2xl border border-[#FACC15]/10">
+                        <p className="text-[7px] text-[#FACC15] font-black uppercase mb-1">Historical Context</p>
                         <p className="text-[9px] text-white/60 leading-tight italic">"{selectedMeteorShower.historicalStorms}"</p>
                       </div>
                     )}
@@ -1635,18 +1698,18 @@ const CesiumGlobe: React.FC = () => {
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="bg-green-500/10 backdrop-blur-xl p-6 rounded-3xl border border-green-500/20 text-white relative"
+                  className="bg-black/80 backdrop-blur-xl p-6 rounded-3xl border border-[#FACC15]/20 text-white relative"
                 >
                   <button onClick={() => setSelectedUFO(null)} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-white/20 hover:text-white">
                     <CloseIcon size={14} />
                   </button>
                   <div className="flex items-center gap-4 mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-green-500/20 text-green-400 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-xl bg-[#FACC15]/20 text-[#FACC15] flex items-center justify-center">
                       <Eye size={20} />
                     </div>
                     <div>
                       <h3 className="font-black text-xs uppercase tracking-tight">Signal Analysis</h3>
-                      <p className="text-[8px] text-green-400 uppercase tracking-widest font-black">Anomalous</p>
+                      <p className="text-[8px] text-[#FACC15] uppercase tracking-widest font-black">Anomalous</p>
                     </div>
                   </div>
                   <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
@@ -1661,11 +1724,102 @@ const CesiumGlobe: React.FC = () => {
         {/* Toggle Hook */}
         <button 
           onClick={() => setShowRightSidebar(!showRightSidebar)}
-          className="absolute top-1/2 -left-12 -translate-y-1/2 w-8 h-20 bg-black/60 shadow-xl backdrop-blur-xl border border-white/10 border-r-0 rounded-l-2xl pointer-events-auto flex items-center justify-center text-white/30 hover:text-cyan-400 transition-colors"
+          className="absolute top-1/2 -left-12 -translate-y-1/2 w-8 h-20 bg-black/60 shadow-xl backdrop-blur-xl border border-white/10 border-r-0 rounded-l-2xl pointer-events-auto flex items-center justify-center text-white/30 hover:text-[#FACC15] transition-colors"
         >
           <ChevronRight size={18} className={`transition-transform duration-500 ${showRightSidebar ? '' : 'rotate-180'}`} />
         </button>
       </div>
+
+      {/* Selected Object HUD (Amazing TheSkyLive Feature) */}
+      <AnimatePresence>
+        {(selectedSatellite || selectedMeteorShower) && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 100 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 100 }}
+            className="absolute bottom-12 left-1/2 -translate-x-1/2 z-50 w-[450px]"
+          >
+            <div className="technical-panel p-6 rounded-[2rem] border border-[#FACC15]/30 overflow-hidden relative backdrop-blur-xl bg-black/80">
+              <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#FACC15] to-transparent opacity-50" />
+              
+              <div className="flex items-start justify-between mb-6">
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5 font-mono text-[9px] uppercase tracking-widest text-[#FACC15]">
+                    <span className="w-1.5 h-1.5 bg-[#FACC15] rounded-full animate-pulse" />
+                    Target Identification
+                  </div>
+                  <h2 className="text-2xl font-black text-white uppercase tracking-tight font-space italic">
+                    {selectedSatellite?.name || selectedMeteorShower?.name}
+                  </h2>
+                </div>
+                <button 
+                  onClick={() => { setSelectedSatellite(null); setSelectedMeteorShower(null); viewerRef.current!.trackedEntity = undefined; setIsLockedOnSelected(false); }}
+                  className="p-2 rounded-full hover:bg-white/10 text-white/40 transition-colors"
+                >
+                  <CloseIcon size={20} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-x-10 gap-y-6">
+                {selectedSatellite ? (
+                  <>
+                    <div className="space-y-1">
+                      <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Orbital Latitude</p>
+                      <p className="text-sm font-mono text-[#FACC15]">{ephemeris?.lat?.toFixed(4)}°</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Orbital Longitude</p>
+                      <p className="text-sm font-mono text-[#FACC15]">{ephemeris?.lng?.toFixed(4)}°</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Current Altitude</p>
+                      <p className="text-sm font-mono text-[#FACC15]">{ephemeris?.alt?.toFixed(1)} km</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Vector Distance</p>
+                      <p className="text-sm font-mono text-[#FACC15]">{ephemeris?.dist?.toFixed(0)} km</p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="space-y-1">
+                      <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Zenith rate</p>
+                      <p className="text-sm font-mono text-[#FACC15]">{selectedMeteorShower?.zhr} ZHR</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Constellation</p>
+                      <p className="text-sm font-mono text-[#FACC15]">{selectedMeteorShower?.constellation}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Parent Body</p>
+                      <p className="text-sm font-mono text-[#FACC15] truncate">{selectedMeteorShower?.parent || 'Unknown'}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Entry Speed</p>
+                      <p className="text-sm font-mono text-[#FACC15]">{selectedMeteorShower?.speed} km/s</p>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="mt-8 flex gap-3">
+                <button 
+                  onClick={() => setIsLockedOnSelected(!isLockedOnSelected)}
+                  className={`flex-1 py-3 rounded-xl border transition-all flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest ${
+                    isLockedOnSelected ? 'bg-[#FACC15] border-[#FACC15] text-black' : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
+                  }`}
+                >
+                  <Navigation size={14} className={isLockedOnSelected ? 'animate-pulse' : ''} />
+                  {isLockedOnSelected ? 'Lock Engaged' : 'Engage Lock'}
+                </button>
+                <button className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all text-white/60">
+                   <ExternalLink size={16} />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Bottom HUD Telemetry */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none w-full max-w-4xl px-6">
@@ -1674,16 +1828,16 @@ const CesiumGlobe: React.FC = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-black/60 backdrop-blur-3xl p-6 md:p-8 rounded-[2.5rem] border border-white/10 flex flex-col md:flex-row items-center gap-8 md:gap-16 pointer-events-auto relative overflow-hidden"
+              className="bg-black/80 backdrop-blur-3xl p-6 md:p-8 rounded-[2.5rem] border border-white/10 flex flex-col md:flex-row items-center gap-8 md:gap-16 pointer-events-auto relative overflow-hidden"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 to-transparent pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#FACC15]/5 to-transparent pointer-events-none" />
               
               <div className="flex flex-col min-w-[200px]">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className="w-1 h-1 bg-cyan-400 rounded-full animate-pulse" />
-                  <span className="text-[8px] font-black text-cyan-400 uppercase tracking-widest">Global Vector</span>
+                  <div className="w-1 h-1 bg-[#FACC15] rounded-full animate-pulse" />
+                  <span className="text-[8px] font-black text-[#FACC15] uppercase tracking-widest">Global Vector</span>
                 </div>
-                <h2 className="text-xl md:text-2xl font-black text-white tracking-tighter uppercase truncate leading-none">
+                <h2 className="text-xl md:text-2xl font-black text-white tracking-tighter uppercase truncate leading-none font-space italic">
                   {telemetry.location}
                 </h2>
               </div>
@@ -1691,15 +1845,15 @@ const CesiumGlobe: React.FC = () => {
               <div className="flex flex-col md:flex-row items-center gap-6 flex-1">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-8 flex-1 w-full md:border-l md:border-white/10 md:pl-8">
                   {[
-                    { label: 'Altitude', value: Math.round(telemetry.alt), unit: 'KM', color: 'cyan' },
-                    { label: 'Velocity', value: Math.round(telemetry.vel / 3.6).toLocaleString(), unit: 'M/S', color: 'cyan' },
+                    { label: 'Altitude', value: Math.round(telemetry.alt), unit: 'KM', color: 'yellow' },
+                    { label: 'Velocity', value: Math.round(telemetry.vel / 3.6).toLocaleString(), unit: 'M/S', color: 'yellow' },
                     { label: 'Latitude', value: telemetry.lat.toFixed(3), unit: 'DEG', color: 'white' },
                     { label: 'Longitude', value: telemetry.lng.toFixed(3), unit: 'DEG', color: 'white' },
                   ].map((item) => (
                     <div key={item.label} className="relative">
                       <p className="text-[7px] text-white/30 uppercase tracking-[0.2em] font-black mb-1">{item.label}</p>
                       <div className="flex items-baseline gap-1">
-                        <p className={`text-lg md:text-xl font-black font-mono leading-none ${item.color === 'cyan' ? 'text-cyan-400' : 'text-white'}`}>
+                        <p className={`text-lg md:text-xl font-black font-mono leading-none ${item.color === 'yellow' ? 'text-[#FACC15]' : 'text-white'}`}>
                           {item.value}
                         </p>
                         <span className="text-[8px] font-bold text-white/20">{item.unit}</span>
@@ -1723,7 +1877,7 @@ const CesiumGlobe: React.FC = () => {
                       }
                     }}
                     className={`flex-1 md:w-40 h-14 rounded-2xl flex items-center justify-center gap-3 transition-all font-black text-[10px] uppercase tracking-widest border border-white/10 ${
-                      isTrackingIss ? 'bg-cyan-500 text-black border-cyan-500' : 'bg-white/5 text-white/40 hover:bg-white/10'
+                      isTrackingIss ? 'bg-[#FACC15] text-black border-[#FACC15]' : 'bg-white/5 text-white/40 hover:bg-white/10'
                     }`}
                   >
                     <Activity size={14} className={isTrackingIss ? 'animate-pulse' : ''} />
@@ -1733,7 +1887,7 @@ const CesiumGlobe: React.FC = () => {
                   <button 
                     onClick={() => setShowIssTrail(!showIssTrail)}
                     className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all border border-white/10 ${
-                      showIssTrail ? 'bg-green-500/20 text-green-400 border-green-500/50' : 'bg-white/5 text-white/20'
+                      showIssTrail ? 'bg-[#FACC15]/20 text-[#FACC15] border-[#FACC15]/50' : 'bg-white/5 text-white/20'
                     }`}
                     title="Toggle ISS Trail"
                   >
@@ -1757,18 +1911,18 @@ const CesiumGlobe: React.FC = () => {
           >
             <div className="flex flex-col items-center gap-8">
               <div className="relative">
-                <div className="w-24 h-24 border-2 border-cyan-500/20 rounded-full animate-pulse" />
-                <div className="absolute inset-0 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+                <div className="w-24 h-24 border-2 border-[#FACC15]/20 rounded-full animate-pulse" />
+                <div className="absolute inset-0 border-2 border-[#FACC15] border-t-transparent rounded-full animate-spin" />
                 <div className="absolute inset-4 border border-white/10 rounded-full flex items-center justify-center">
-                  <Globe className="text-cyan-400 animate-pulse" size={24} />
+                  <Globe className="text-[#FACC15] animate-pulse" size={24} />
                 </div>
               </div>
               <div className="text-center">
                 <p className="text-white font-black uppercase tracking-[0.4em] text-xs mb-2">INITIALIZING ORBITAL PROTOCOL</p>
                 <div className="flex items-center justify-center gap-1">
-                  <span className="w-1 h-1 bg-cyan-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                  <span className="w-1 h-1 bg-cyan-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                  <span className="w-1 h-1 bg-cyan-500 rounded-full animate-bounce" />
+                  <span className="w-1 h-1 bg-[#FACC15] rounded-full animate-bounce [animation-delay:-0.3s]" />
+                  <span className="w-1 h-1 bg-[#FACC15] rounded-full animate-bounce [animation-delay:-0.15s]" />
+                  <span className="w-1 h-1 bg-[#FACC15] rounded-full animate-bounce" />
                 </div>
               </div>
             </div>
