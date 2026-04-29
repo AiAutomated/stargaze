@@ -1550,13 +1550,13 @@ const CesiumGlobe: React.FC = () => {
               <h1 className="text-2xl font-black text-white tracking-[-0.08em] uppercase leading-none italic">
                 Stargaze
               </h1>
-              <span className="pro-mono !text-[9px] mt-2 block italic opacity-40 uppercase tracking-widest">Stargaze Configurator v2.5</span>
+              <span className="pro-mono !text-[9px] mt-2 block italic opacity-40 uppercase tracking-widest">Celestial Tracker v2.5</span>
             </div>
           </div>
 
           {/* Search Section */}
           <div className="space-y-6 mb-12">
-            <h3 className="pro-mono !text-white/20 !text-[8px] px-2 italic uppercase">Synthesis Search Engine</h3>
+            <h3 className="pro-mono !text-white/20 !text-[8px] px-2 italic uppercase">Satellite & Meteor Search</h3>
             <div className="relative group">
               <form onSubmit={handleSearch} className="relative">
                 <input 
@@ -2036,7 +2036,7 @@ const CesiumGlobe: React.FC = () => {
                   Stargaze.
                 </h2>
                 <p className="pro-mono !text-[10px] !text-white/40 uppercase tracking-[0.4em] italic">
-                   Configuring Universal Layers | 37.9% More Circular
+                   Tracking Universal Layers | 100% Focused on the Stars
                 </p>
               </div>
             </div>

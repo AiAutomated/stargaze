@@ -1,6 +1,6 @@
 {
-  "name": "Stargaze - Orbital Tracking & Meteor Guide",
-  "description": "Celestial tracking system. Monitor meteor showers, ISS trajectories, and atmospheric conditions with cinematic precision. Get real-time updates for the best stargazing windows in your location.",
+  "name": "Stargaze - Meteor Shower Tracker",
+  "description": "Track meteor showers, watch the ISS, and get stargazing forecasts. Stargaze provides real-time data for the best cosmic viewing windows in your location.",
   "requestFramePermissions": [
     "geolocation"
   ]

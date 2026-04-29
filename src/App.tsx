@@ -281,7 +281,7 @@ function Navbar({ watched, notifications }: { watched: WatchedShower[]; notifica
 
   const links = [
     { to: '/', label: 'Observatory', icon: HomeIcon },
-    { to: '/calendar', label: 'Chronicles', icon: Calendar },
+    { to: '/calendar', label: 'Meteor Shower', icon: Calendar },
     { to: '/globe', label: 'Globe', icon: Globe },
     { to: '/live', label: 'Live', icon: Radio },
   ];
@@ -303,7 +303,7 @@ function Navbar({ watched, notifications }: { watched: WatchedShower[]; notifica
             </div>
             <div>
               <span className="font-sans font-black text-white text-2xl tracking-[-0.08em] uppercase leading-none block">Stargaze</span>
-              <span className="pro-mono mt-1 block">Oryzo Configurator</span>
+              <span className="pro-mono mt-1 block">Celestial Guide</span>
             </div>
           </Link>
 
@@ -423,7 +423,7 @@ function Footer() {
           </div>
           <div>
             <p className="text-[10px] font-black text-white uppercase tracking-[0.2em] mb-8">Navigation</p>
-            {[['/', 'Explorer'], ['/calendar', 'Chronicles'], ['/live', 'Community'], ['/globe', 'System View']].map(([to, label]) => (
+            {[['/', 'Explorer'], ['/calendar', 'Meteor Shower'], ['/live', 'Community'], ['/globe', 'System View']].map(([to, label]) => (
               <Link key={to} to={to} className="block text-[11px] font-black text-white/30 hover:text-[#FACC15] mb-4 transition-all uppercase tracking-widest">{label}</Link>
             ))}
           </div>
@@ -1052,14 +1052,14 @@ function Home({ watched, addNotification, toggleWatch }: {
       {/* ── NASA APOD ── */}
       <div className="mb-32">
         <div className="flex flex-col mb-12">
-            <span className="pro-mono !text-[#FACC15] !tracking-[0.5em] mb-4">Aperture Stream</span>
-            <h2 className="text-4xl font-bold tracking-tight text-white uppercase italic">Cosmic Feed</h2>
+            <span className="pro-mono !text-[#FACC15] !tracking-[0.5em] mb-4">Cosmic Aperture</span>
+            <h2 className="text-4xl font-bold tracking-tight text-white uppercase italic">Daily Celestial View</h2>
         </div>
         <div className="glass-pro-card !p-0 overflow-hidden min-h-[700px] group relative">
           {apodLoading ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black">
               <RefreshCw size={32} className="text-white/20 animate-spin mb-6" />
-              <p className="pro-mono !text-white/30 italic">Synchronizing Optic Array…</p>
+              <p className="pro-mono !text-white/30 italic">Retrieving cosmic imagery…</p>
             </div>
           ) : apod ? (
             <div className="h-full flex flex-col">
@@ -1077,7 +1077,7 @@ function Home({ watched, addNotification, toggleWatch }: {
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60" />
                 <div className="absolute bottom-12 left-12 right-12 z-10">
-                   <p className="pro-mono !text-white/40 mb-2 italic">NASA DEEP SPACE CAPTURE</p>
+                   <p className="pro-mono !text-white/40 mb-2 italic">NASA ASTRONOMY DATA</p>
                    <h3 className="text-5xl font-bold tracking-tighter text-white uppercase italic">{apod.title}</h3>
                 </div>
               </div>
@@ -1085,10 +1085,10 @@ function Home({ watched, addNotification, toggleWatch }: {
                  <div className="md:w-1/3">
                     <div className="flex items-center gap-4 mb-8">
                        <div className="w-1.5 h-1.5 bg-[#FACC15] rounded-full intensity-active" />
-                       <span className="pro-mono !text-white">Analysis Node 04</span>
+                       <span className="pro-mono !text-white">NASA Metadata</span>
                     </div>
                     <p className="pro-mono !text-[11px] leading-relaxed italic text-white/40">
-                      Automated extraction of luminance coefficients and stellar coordinates for subsequent orbital mapping.
+                      Real-time updates from NASA's Astronomy Picture of the Day API.
                     </p>
                  </div>
                  <div className="flex-1">
@@ -1108,16 +1108,16 @@ function Home({ watched, addNotification, toggleWatch }: {
       {/* ── Observing Conditions ── */}
       <div className="mb-32">
         <div className="flex flex-col mb-12">
-            <span className="pro-mono !text-[#FACC15] !tracking-[0.5em] mb-4">Diagnostic Array</span>
-            <h2 className="text-4xl font-bold tracking-tight text-white uppercase italic">Atmospheric Dynamics</h2>
+            <span className="pro-mono !text-[#FACC15] !tracking-[0.5em] mb-4">Local Status</span>
+            <h2 className="text-4xl font-bold tracking-tight text-white uppercase italic">Viewing Conditions</h2>
         </div>
         <div className="glass-pro-card p-16">
           {weatherDenied || (!weather && !weatherLoading) ? (
             <div className="flex flex-col md:flex-row items-center gap-16">
               <div className="flex-1">
-                <p className="text-3xl font-bold text-white mb-6 uppercase italic leading-tight">Authorize Sensor Node Access</p>
+                <p className="text-3xl font-bold text-white mb-6 uppercase italic leading-tight">Enable Location Access</p>
                 <p className="text-lg text-white/40 font-medium leading-relaxed max-w-xl">
-                  Synchronize with your local coordinate system to unlock real-time visibility metrics, cloud density diagnostics, and thermal coefficients.
+                  Enable location access to unlock real-time visibility metrics, cloud coverage, and precise viewing conditions for your specific area.
                 </p>
                 <button className="btn-pro mt-12 overflow-hidden group">
                    <span className="relative z-10">Initialize Sync</span>
@@ -1203,7 +1203,7 @@ function MeteorCalendar({ watched, toggleWatch, addNotification }: {
           <div className="flex flex-col mb-12">
              <span className="pro-mono !text-[#FACC15] !tracking-[0.5em] mb-4">Universal Registry</span>
              <h1 className="text-7xl font-bold text-white tracking-tighter leading-tight uppercase italic">
-              Celestial <br/>Chronicles.
+              Meteor Shower <br/>Chronicles.
              </h1>
           </div>
           <p className="text-xl text-white/40 max-w-2xl font-medium leading-relaxed">
