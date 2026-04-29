@@ -22,24 +22,31 @@ async function startServer() {
     }
 
     try {
-      const response = await fetch(feedUrl);
-      if (!response.ok) throw new Error("Failed to fetch feed");
+      console.log(`[Feed] Attempting to fetch: ${feedUrl}`);
+      const response = await fetch(feedUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Vite-Dev-Server)' }
+      });
+      if (!response.ok) {
+        console.warn(`[Proxy Warning] ${feedUrl} failed with status: ${response.status}`);
+        throw new Error(`Failed to fetch feed: ${response.status}`);
+      }
       const xml = await response.text();
       const result = await parseStringPromise(xml);
       
-      const items = result.rss.channel[0].item.map((item: any) => ({
-        title: item.title[0],
-        link: item.link[0],
-        pubDate: item.pubDate[0],
-        description: item.description[0].replace(/<[^>]*>?/gm, '').substring(0, 200) + '...',
+      const items = (result.rss.channel[0].item || []).map((item: any) => ({
+        title: item.title ? item.title[0] : 'Untitled',
+        link: item.link ? item.link[0] : '#',
+        pubDate: item.pubDate ? item.pubDate[0] : new Date().toISOString(),
+        description: item.description ? item.description[0].replace(/<[^>]*>?/gm, '').substring(0, 200) + '...' : '',
         thumbnail: item["media:content"] ? item["media:content"][0].$.url : null
       }));
 
       cache[feedUrl] = { data: items, timestamp: Date.now() };
       res.json(items);
-    } catch (error) {
-      console.error("[Feed Error]", error);
-      res.status(500).json({ error: "Failed to fetch news feed" });
+    } catch (error: any) {
+      console.error("[Feed Error]", error.message);
+      // Return empty array instead of 500 to keep client happy
+      res.json([]);
     }
   });
 

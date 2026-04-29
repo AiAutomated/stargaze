@@ -562,10 +562,12 @@ function MeteorVisualizer({ zhr, active }: { zhr: number; active: boolean }) {
 function ISSWidget() {
   const [iss, setIss] = useState<{ latitude: number; longitude: number; altitude: number; velocity: number } | null>(null);
   const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const fetchISS = useCallback(async () => {
     try {
       const r = await fetch('https://api.wheretheiss.at/v1/satellites/25544');
+      if (!r.ok) throw new Error('Orbital signal lost');
       const d = await r.json();
       setIss({
         latitude:  +d.latitude.toFixed(3),
@@ -576,6 +578,8 @@ function ISSWidget() {
       setError(false);
     } catch {
       setError(true);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -586,57 +590,72 @@ function ISSWidget() {
   }, [fetchISS]);
 
   return (
-    <div className="glass-card p-8 rounded-[40px] border-white/5 shadow-2xl shadow-black/5 flex-1 flex flex-col justify-between">
+    <div className="h-full flex flex-col p-10 min-h-[400px] justify-between relative overflow-hidden">
+      {/* Background Tech Detail */}
+      <div className="absolute top-0 right-0 w-64 h-64 bg-[#FACC15]/5 rounded-full blur-[80px] -mr-32 -mt-32 pointer-events-none" />
+      
       <div>
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-12">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-[#FACC15]/10 border border-[#FACC15]/20 flex items-center justify-center">
-              <Rocket size={20} className="text-[#FACC15]" />
+            <div className="w-14 h-14 rounded-2xl bg-[#FACC15]/10 border border-[#FACC15]/20 flex items-center justify-center">
+              <Rocket size={24} className="text-[#FACC15]" />
             </div>
             <div>
-              <p className="text-xs font-black text-white uppercase tracking-wider">ISS Tracker</p>
-              <p className="text-[10px] text-[#FACC15] font-black uppercase tracking-widest mt-0.5">Orbital Node</p>
+              <p className="pro-mono !text-white !text-[10px]">ISS LIVE TRACKER</p>
+              <p className="pro-mono !text-[#FACC15] !text-[8px] mt-1 italic tracking-[0.4em]">Z-Vector Mapping</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#FACC15]/5 border border-[#FACC15]/10">
-            <span className="live-dot" />
-            <span className="text-[9px] text-[#FACC15] font-black tracking-widest">LIVE SIGNAL</span>
+          <div className="flex items-center gap-3 px-4 py-2 rounded-2xl bg-[#FACC15]/5 border border-[#FACC15]/10 animate-pulse">
+            <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]" />
+            <span className="text-[10px] text-[#FACC15] font-black tracking-widest uppercase">Live Signal</span>
           </div>
         </div>
 
         {error ? (
-          <div className="flex flex-col items-center justify-center gap-4 py-8 text-white/20">
-            <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center">
-                <AlertTriangle size={24} />
+          <div className="flex flex-col items-center justify-center gap-6 py-12 text-center bg-red-500/5 rounded-3xl border border-red-500/20">
+            <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center border border-red-500/20">
+                <AlertTriangle size={28} className="text-red-500" />
             </div>
-            <span className="text-[10px] uppercase font-black tracking-widest">Signal Intersection Failed</span>
+            <div>
+              <p className="text-red-500 font-black uppercase text-sm mb-2">Connection Error</p>
+              <p className="text-[10px] text-white/30 uppercase tracking-widest leading-relaxed">Orbital sync failed. Satellite link temporarily unreachable.</p>
+            </div>
+            <button onClick={fetchISS} className="px-6 py-2.5 bg-red-500/20 text-red-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-500/30 transition-all">Manual Sync</button>
           </div>
-        ) : iss ? (
-          <div className="grid grid-cols-2 gap-4">
+        ) : (loading || !iss) ? (
+          <div className="flex flex-col items-center justify-center gap-6 py-20">
+            <RefreshCw size={32} className="text-[#FACC15] animate-spin opacity-40" />
+            <p className="pro-mono !text-white/20 italic">Calibrating Transponder...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-6">
             {[
-              { label: 'Latitude',  value: `${iss.latitude}°`,                   icon: MapPin },
-              { label: 'Longitude', value: `${iss.longitude}°`,                  icon: MapPin },
-              { label: 'Altitude',  value: `${iss.altitude} KM`,                 icon: TrendingUp },
-              { label: 'Velocity',  value: `${iss.velocity.toLocaleString()}`, icon: Zap, unit: 'KM/H' },
-            ].map(({ label, value, icon: Icon, unit }) => (
-              <div key={label} className="bg-white/5 border border-white/5 rounded-[20px] p-4 group hover:bg-[#FACC15]/5 transition-all">
-                <div className="flex items-center gap-2 mb-2">
-                  <Icon size={12} className="text-[#FACC15]/40" />
-                  <span className="text-[8px] text-white/30 uppercase tracking-[0.2em] font-black">{label}</span>
+              { label: 'Latitude',  value: `${iss.latitude}°`,                   icon: MapPin,      color: '#FACC15' },
+              { label: 'Longitude', value: `${iss.longitude}°`,                  icon: MapPin,      color: '#3B82F6' },
+              { label: 'Altitude',  value: `${iss.altitude}`, unit: 'KM',         icon: TrendingUp,  color: '#A855F7' },
+              { label: 'Velocity',  value: `${iss.velocity.toLocaleString()}`, unit: 'KM/H', icon: Zap, color: '#22C55E' },
+            ].map(({ label, value, icon: Icon, unit, color }) => (
+              <div key={label} className="bg-white/[0.03] border border-white/5 rounded-[32px] p-6 hover:bg-white/5 transition-all group overflow-hidden relative">
+                <div className="absolute top-0 left-0 w-1 h-full opacity-0 group-hover:opacity-100 transition-opacity" style={{ backgroundColor: color }} />
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center">
+                    <Icon size={12} className="text-white/30" />
+                  </div>
+                  <span className="text-[9px] text-white/30 uppercase tracking-[0.2em] font-black">{label}</span>
                 </div>
-                <div className="flex items-baseline gap-1">
-                  <p className="text-sm font-black font-mono text-white">{value}</p>
-                  {unit && <span className="text-[8px] font-black text-white/20">{unit}</span>}
+                <div className="flex items-baseline gap-2">
+                  <p className="text-xl font-bold font-mono text-white tracking-tighter">{value}</p>
+                  {unit && <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">{unit}</span>}
                 </div>
               </div>
             ))}
           </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center gap-4 py-12">
-            <RefreshCw size={24} className="text-[#FACC15]/30 animate-spin" />
-            <span className="text-[10px] text-white/20 font-black uppercase tracking-widest">Synchronizing Orbital Data…</span>
-          </div>
         )}
+      </div>
+
+      <div className="mt-12 pt-8 border-t border-white/5 flex items-center justify-between">
+         <p className="text-[9px] text-white/20 font-black uppercase tracking-[0.3em]">Hardware ID: ISS-42</p>
+         <p className="text-[9px] text-white/20 font-black uppercase tracking-[0.3em] italic">Station Alpha</p>
       </div>
     </div>
   );
@@ -687,23 +706,23 @@ function FaqSection() {
 function ShootingStars() {
   return (
     <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-      {[...Array(6)].map((_, i) => (
+      {[...Array(12)].map((_, i) => (
         <motion.div
           key={i}
-          initial={{ top: '-10%', left: `${20 + i * 15}%`, opacity: 0, scale: 0 }}
+          initial={{ top: '-10%', left: `${20 + i * 8}%`, opacity: 0, scale: 0 }}
           animate={{ 
-            top: '110%', 
-            left: `${i * 15}%`, 
-            opacity: [0, 1, 0],
-            scale: [0.5, 1, 0.5]
+            top: '120%', 
+            left: `${i * 8 - 10}%`, 
+            opacity: [0, 0.8, 0],
+            scale: [0.3, 1.2, 0.3]
           }}
           transition={{
-            duration: 2 + Math.random() * 2,
+            duration: 1.5 + Math.random() * 2.5,
             repeat: Infinity,
-            delay: Math.random() * 10,
-            ease: "linear"
+            delay: Math.random() * 15,
+            ease: "easeIn"
           }}
-          className="absolute w-[2px] h-[100px] bg-gradient-to-t from-transparent via-[#FACC15]/40 to-transparent -rotate-[35deg] blur-[1px]"
+          className={`absolute w-[1px] h-[150px] bg-gradient-to-t from-transparent ${i % 2 === 0 ? 'via-white/60' : 'via-[#FACC15]/60'} to-transparent rotate-[45deg] blur-[0.5px]`}
         />
       ))}
     </div>
@@ -774,8 +793,33 @@ function Home({ watched, addNotification, toggleWatch }: {
           transition={{ duration: 2 }}
           className="absolute -top-48 inset-x-0 -z-10 h-[120vh] pointer-events-none overflow-hidden"
         >
-          <div className="absolute inset-0 bg-black/50 z-10" />
+          <div className="absolute inset-0 bg-black/60 z-10" />
           <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black to-transparent z-20" />
+          
+          {/* Generative Starfield Overlay */}
+          <div className="absolute inset-0 z-0">
+             {[...Array(20)].map((_, i) => (
+               <motion.div
+                 key={i}
+                 initial={{ opacity: 0, scale: 0 }}
+                 animate={{ opacity: [0, 0.4, 0], scale: [0.5, 1.2, 0.5] }}
+                 transition={{ 
+                   duration: 5 + Math.random() * 10, 
+                   repeat: Infinity,
+                   delay: Math.random() * 20
+                 }}
+                 className="absolute bg-white rounded-full blur-[40px]"
+                 style={{
+                   left: `${Math.random() * 100}%`,
+                   top: `${Math.random() * 100}%`,
+                   width: `${Math.random() * 300 + 100}px`,
+                   height: `${Math.random() * 300 + 100}px`,
+                   backgroundColor: i % 3 === 0 ? '#FACC1510' : (i % 3 === 1 ? '#3B82F610' : '#FFFFFF05')
+                 }}
+               />
+             ))}
+          </div>
+
           <motion.video 
             autoPlay 
             loop 
@@ -850,7 +894,9 @@ function Home({ watched, addNotification, toggleWatch }: {
         </div>
 
         <div className="flex flex-col gap-8">
-          <ISSWidget />
+          <div className="glass-pro-card p-0 overflow-hidden relative group">
+            <ISSWidget />
+          </div>
           <div className="glass-pro-card p-12 flex-1 flex flex-col justify-between">
             <div>
               <div className="flex items-center gap-5 mb-12">
@@ -976,34 +1022,42 @@ function Home({ watched, addNotification, toggleWatch }: {
       {activeShowers.length > 0 && (
         <div className="mb-32">
           <div className="flex flex-col mb-12">
-            <span className="pro-mono !text-[#FACC15] !tracking-[0.5em] mb-4">Real-Time Synthesis</span>
-            <h2 className="text-4xl font-bold tracking-tight text-white uppercase italic">Active Events</h2>
+            <span className="pro-mono !text-[#FACC15] !tracking-[0.5em] mb-4 uppercase">Orbital Intersections</span>
+            <h2 className="text-4xl font-bold tracking-tight text-white uppercase italic">Active Phase Monitoring</h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {activeShowers.map(s => (
               <motion.div
                 key={s.id}
-                whileHover={{ scale: 1.02 }}
-                className="glass-pro-card p-12 group relative overflow-hidden h-full flex flex-col justify-between border-[#FACC15]/20"
+                whileHover={{ y: -8 }}
+                className="glass-pro-card p-12 group relative overflow-hidden h-full flex flex-col justify-between border-[#FACC15]/20 shadow-2xl shadow-black/10"
               >
                 <MeteorVisualizer zhr={s.zhr} active />
                 <div className="absolute inset-0 border-2 border-[#FACC15]/10 pro-radius intensity-active pointer-events-none" />
                 <div className="absolute inset-0 bg-gradient-to-br from-[#FACC15]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+                
                 <div className="relative z-10">
                   <div className="flex items-start justify-between mb-12">
                     <div className="px-4 py-2 pro-radius-sm bg-[#FACC15]/10 border border-[#FACC15]/20 flex items-center gap-2">
                       <div className="w-1.5 h-1.5 bg-[#FACC15] rounded-full intensity-active" />
-                      <span className="pro-mono !text-[#FACC15] !text-[9px]">Sync Active</span>
+                      <span className="pro-mono !text-[#FACC15] !text-[9px]">ACTIVE</span>
                     </div>
                     <div className="text-right">
+                       <p className="pro-mono !text-white/20 !text-[8px] mb-1">THRESHOLD</p>
                        <span className="text-2xl font-bold text-[#FACC15] font-mono tracking-tighter italic">{s.zhr} ZHR</span>
                     </div>
                   </div>
                   <h3 className="text-3xl font-bold mb-4 text-white group-hover:tracking-wider transition-all duration-700 uppercase italic tracking-tighter">{s.name}</h3>
-                  <p className="text-base text-white/30 mb-12 font-medium leading-relaxed max-w-sm">{s.description}</p>
+                  <div className="flex items-center gap-4 mb-8">
+                     <div className="pro-radius-sm px-2 py-1 bg-white/5 border border-white/10 text-[9px] font-black text-white/40 uppercase tracking-widest">{s.constellation}</div>
+                     <div className="text-[9px] font-black text-white/20 uppercase tracking-widest">Peak: {formatDate(s.peak)}</div>
+                  </div>
+                  <p className="text-sm text-white/30 mb-12 font-medium leading-relaxed line-clamp-3">
+                    {s.description}
+                  </p>
                 </div>
-                <Link to={`/shower/${s.id}`} className="relative z-10 w-fit flex items-center gap-3 pro-mono !text-white hover:italic transition-all group/link">
-                  Launch Synthesis <ArrowRight size={14} className="group-hover/link:translate-x-2 transition-transform" />
+                <Link to={`/shower/${s.id}`} className="relative z-10 w-fit flex items-center gap-3 pro-mono !text-[#FACC15] hover:italic transition-all group/link font-black text-[10px] tracking-widest">
+                  ACCESS DATA <ArrowRight size={14} className="group-hover/link:translate-x-2 transition-transform" />
                 </Link>
               </motion.div>
             ))}
@@ -1011,18 +1065,18 @@ function Home({ watched, addNotification, toggleWatch }: {
         </div>
       )}
 
-      {/* ── Upcoming Showers ── */}
-      <div className="mb-16">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3">
-             <div className="w-1.5 h-6 bg-white/10 rounded-full" />
-             <h2 className="text-2xl font-black font-space text-white tracking-tight uppercase">Future Trajectories</h2>
+      {/* ── Upcoming Showers Widget ── */}
+      <div className="mb-32">
+        <div className="flex items-end justify-between mb-12">
+          <div className="flex flex-col">
+            <span className="pro-mono !text-[#FACC15] !tracking-[0.5em] mb-4 uppercase">Schedule Projection</span>
+            <h2 className="text-4xl font-bold tracking-tight text-white uppercase italic tracking-tighter">Proximity Alerts</h2>
           </div>
-          <Link to="/calendar" className="inline-flex items-center gap-2 text-xs font-black text-white/40 uppercase tracking-widest hover:text-[#FACC15] transition-colors">
-            Universal Schedule <ChevronRight size={14} />
+          <Link to="/calendar" className="btn-pro-outline !px-8 !py-3 flex items-center gap-3 group/link italic">
+            Full Chronicle <ChevronRight size={14} className="group-hover/link:translate-x-1 transition-transform" />
           </Link>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {upcomingShowers.map((s, i) => {
             const daysUntil = getDaysUntilPeak(s);
             return (
@@ -1032,22 +1086,36 @@ function Home({ watched, addNotification, toggleWatch }: {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1 }}
                 whileHover={{ y: -4 }}
-                className="glass-card p-6 rounded-[32px] group flex flex-col justify-between border-white/5 hover:border-[#FACC15]/20 transition-all shadow-sm hover:shadow-xl hover:shadow-black/2 bg-white/[0.02]"
+                className="glass-pro-card p-10 group relative overflow-hidden transition-all duration-500 border-white/5 hover:border-[#FACC15]/20 bg-white/[0.02]"
               >
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-[10px] font-black text-[#FACC15] bg-[#FACC15]/5 px-2.5 py-1 rounded-lg border border-[#FACC15]/10 tracking-widest uppercase">
-                      {daysUntil > 0 ? `T-MINUS ${daysUntil}D` : 'LAUNCHING'}
-                    </span>
-                    <Sparkles size={14} className="text-white/10 group-hover:text-[#FACC15]/40 transition-colors" />
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-12">
+                    <div className="bg-[#FACC15]/5 border border-[#FACC15]/10 px-3 py-1.5 rounded-xl">
+                      <span className="pro-mono !text-[#FACC15] !text-[9px] font-black uppercase">
+                        T-MINUS {daysUntil}D
+                      </span>
+                    </div>
+                    <div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center">
+                       <Clock size={16} className="text-white/20 group-hover:text-[#FACC15] transition-colors" />
+                    </div>
                   </div>
-                  <h3 className="text-base font-black text-white mb-1 font-space tracking-tight group-hover:text-[#FACC15] transition-colors uppercase">{s.name}</h3>
-                  <p className="text-[9px] text-white/30 font-black uppercase tracking-widest mb-4">PEAK WINDOW: {formatDate(s.peak)}</p>
+                  
+                  <h3 className="text-2xl font-bold text-white mb-2 uppercase tracking-tighter italic group-hover:text-[#FACC15] transition-colors">{s.name}</h3>
+                  <p className="text-[10px] text-white/30 font-black tracking-[0.2em] uppercase mb-10">{s.constellation} SECTOR</p>
+                  
+                  <div className="grid grid-cols-2 gap-4 pt-8 border-t border-white/5">
+                    <div>
+                       <p className="text-white/20 text-[8px] font-black uppercase tracking-widest mb-1">Peak Flux</p>
+                       <p className="text-lg font-bold text-white font-mono tracking-tighter">{s.zhr} ZHR</p>
+                    </div>
+                    <div className="text-right">
+                       <p className="text-white/20 text-[8px] font-black uppercase tracking-widest mb-1">Velocity</p>
+                       <p className="text-lg font-bold text-white font-mono tracking-tighter">{s.speed || 40} KM/S</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                  <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">{s.constellation}</span>
-                  <span className="text-[10px] font-black font-mono text-[#FACC15] tracking-tighter">{s.zhr} ZHR FLOW</span>
-                </div>
+
+                <Link to={`/shower/${s.id}`} className="absolute inset-0 z-20" />
               </motion.div>
             );
           })}
@@ -1139,22 +1207,24 @@ function Home({ watched, addNotification, toggleWatch }: {
             <>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-16">
                 {[
-                  { label: 'Cloud Density', value: `${weather.cloudCover}%`, icon: Cloud },
-                  { label: 'Thermal Window', value: `${weather.temp}°C`, icon: Thermometer },
-                  { label: 'Signal Clarity', value: weather.cloudCover < 20 ? 'Optimum' : 'Partial', icon: Eye },
-                  { label: 'Optical Path', value: 'Nominal', icon: Zap },
-                ].map(({ label, value, icon: Icon }) => (
+                  { label: 'Cloud Density', value: `${weather.cloudCover}%`, icon: Cloud, desc: weather.cloudCover < 10 ? 'Pristine transparency' : (weather.cloudCover < 40 ? 'Atmospheric interference' : 'Obscured visibility') },
+                  { label: 'Thermal Window', value: `${weather.temp}°C`, icon: Thermometer, desc: 'External ambient' },
+                  { label: 'Humidity', value: `${weather.humidity}%`, icon: Wind, desc: 'Moisture coefficients' },
+                  { label: 'Optical Integrity', value: weather.cloudCover < 5 ? 'OPTIMUM' : (weather.cloudCover < 25 ? 'NOMINAL' : 'DEGRADED'), icon: Eye, desc: 'Signal strength' },
+                ].map(({ label, value, icon: Icon, desc }) => (
                   <div key={label} className="p-10 pro-radius-sm bg-white/5 border border-white/10 group hover:bg-white/[0.08] transition-all duration-700">
                     <Icon size={24} className="text-[#FACC15] mb-8 transition-transform group-hover:rotate-12" />
                     <p className="text-3xl font-bold text-white mb-2">{value}</p>
-                    <p className="pro-mono !text-white/30 !text-[9px]">{label}</p>
+                    <p className="pro-mono !text-white/30 !text-[9px] mb-4 uppercase">{label}</p>
+                    <p className="text-[10px] text-white/20 font-black uppercase tracking-widest italic">{desc}</p>
                   </div>
                 ))}
               </div>
               <div className="pt-12 border-t border-white/5 flex items-center gap-6">
-                 <div className="w-2 h-2 rounded-full bg-[#FACC15] intensity-active" />
-                 <p className="pro-mono !text-white/40 italic">
-                  Status: All atmospheric sensors reporting nominal thresholds for high-fidelity observation.
+                 <div className={`w-3 h-3 rounded-full ${weather.cloudCover < 20 ? 'bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'bg-[#FACC15] intensity-active'}`} />
+                 <p className="pro-mono !text-white/60 italic text-sm">
+                  <span className="text-[#FACC15] font-black uppercase mr-3 tracking-widest">Diagnostic:</span>
+                  {weather.cloudCover < 20 ? 'Clear skies detected. High-fidelity celestial mapping window is currently open.' : 'Significant cloud cover identified. Sensor arrays may experience signal interference.'}
                  </p>
               </div>
             </>
@@ -1581,7 +1651,11 @@ function LiveFeed({ addNotification }: { addNotification: (n: Omit<Notification,
           </div>
 
           {/* Submit form */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-8">
+            <div className="glass-pro-card p-0 overflow-hidden relative group">
+              <ISSWidget />
+            </div>
+
             <div className="glass-card p-10 rounded-[48px] sticky top-32 border-white/5 shadow-2xl shadow-black/5">
               <div className="flex items-center gap-4 mb-10">
                 <div className="w-12 h-12 rounded-2xl bg-[#FACC15]/10 border border-[#FACC15]/20 flex items-center justify-center">
