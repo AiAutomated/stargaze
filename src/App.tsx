@@ -197,6 +197,76 @@ function NotificationToasts({ notifications, dismiss }: { notifications: Notific
 
 
 
+// ─── Sale Popup ─────────────────────────────────────────────────────────────
+function SalePopup() {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const checkVisibility = () => {
+      const hiddenUntil = localStorage.getItem('stargaze_sale_hidden_until');
+      if (!hiddenUntil || Date.now() > parseInt(hiddenUntil, 10)) {
+        setIsVisible(true);
+      } else {
+        setIsVisible(false);
+      }
+    };
+
+    checkVisibility();
+    const interval = setInterval(checkVisibility, 30000); // Check every 30s
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleClose = () => {
+    const hiddenUntil = Date.now() + 45 * 60 * 1000; // 45 Minutes re-display
+    localStorage.setItem('stargaze_sale_hidden_until', hiddenUntil.toString());
+    setIsVisible(false);
+  };
+
+  return (
+    <AnimatePresence>
+      {isVisible && (
+        <motion.div
+          initial={{ x: -100, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          exit={{ x: -100, opacity: 0 }}
+          className="fixed bottom-6 left-6 z-[200] max-w-sm w-full pointer-events-none"
+        >
+          <div className="technical-panel bg-black/90 backdrop-blur-2xl p-6 rounded-3xl border border-[#FACC15]/30 shadow-2xl shadow-[#FACC15]/10 relative overflow-hidden pointer-events-auto">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#FACC15] to-transparent" />
+            
+            <button 
+              onClick={handleClose}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/40 hover:text-white transition-colors"
+            >
+              <X size={14} />
+            </button>
+
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-[#FACC15]/20 flex items-center justify-center flex-shrink-0">
+                <Rocket className="text-[#FACC15]" size={24} />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-black text-white uppercase tracking-tight mb-1">Stargaze Studio for Sale</h3>
+                <p className="text-[10px] text-white/50 leading-relaxed mb-4">
+                  The domain Stargaze.io and this entire celestial visualization platform are now available for acquisition.
+                </p>
+                <a 
+                  href="https://www.atom.com/view/name/Stargaze.io"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 bg-[#FACC15] text-black px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all"
+                >
+                  View Listing <ExternalLink size={10} />
+                </a>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 // ─── Navbar ───────────────────────────────────────────────────────────────────
 function Navbar({ watched, notifications }: { watched: WatchedShower[]; notifications: Notification[] }) {
   const [open, setOpen] = useState(false);
@@ -1917,6 +1987,7 @@ export default function App() {
         <ScrollToTop />
         <Navbar watched={watched} notifications={notifications} />
         <NotificationToasts notifications={notifications} dismiss={dismissNotification} />
+        <SalePopup />
 
         <AnimatedRoutes watched={watched} addNotification={addNotification} toggleWatch={toggleWatch} />
 
