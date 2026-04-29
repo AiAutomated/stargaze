@@ -195,75 +195,7 @@ function NotificationToasts({ notifications, dismiss }: { notifications: Notific
   );
 }
 
-// ─── Sale Popup ─────────────────────────────────────────────────────────────
-function SalePopup() {
-  const [isVisible, setIsVisible] = useState(false);
 
-  useEffect(() => {
-    const checkVisibility = () => {
-      const hiddenUntil = localStorage.getItem('stargaze_sale_hidden_until');
-      if (!hiddenUntil || Date.now() > parseInt(hiddenUntil, 10)) {
-        setIsVisible(true);
-      } else {
-        setIsVisible(false);
-      }
-    };
-
-    checkVisibility();
-    const interval = setInterval(checkVisibility, 30000); // Check every 30s
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleClose = () => {
-    const hiddenUntil = Date.now() + 45 * 60 * 1000; // 45 Minutes re-display
-    localStorage.setItem('stargaze_sale_hidden_until', hiddenUntil.toString());
-    setIsVisible(false);
-  };
-
-  return (
-    <AnimatePresence>
-      {isVisible && (
-        <motion.div
-          initial={{ x: -100, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          exit={{ x: -100, opacity: 0 }}
-          className="fixed bottom-6 left-6 z-[200] max-w-sm w-full pointer-events-none"
-        >
-          <div className="technical-panel bg-black/90 backdrop-blur-2xl p-6 rounded-3xl border border-[#FACC15]/30 shadow-2xl shadow-[#FACC15]/10 relative overflow-hidden pointer-events-auto">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#FACC15] to-transparent" />
-            
-            <button 
-              onClick={handleClose}
-              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/40 hover:text-white transition-colors"
-            >
-              <X size={14} />
-            </button>
-
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-[#FACC15]/20 flex items-center justify-center flex-shrink-0">
-                <Rocket className="text-[#FACC15]" size={24} />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-sm font-black text-white uppercase tracking-tight mb-1">Stargaze Studio for Sale</h3>
-                <p className="text-[10px] text-white/50 leading-relaxed mb-4">
-                  The domain Stargaze.io and this entire celestial visualization platform are now available for acquisition.
-                </p>
-                <a 
-                  href="https://www.atom.com/view/name/Stargaze.io"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 bg-[#FACC15] text-black px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all"
-                >
-                  View Listing <ExternalLink size={10} />
-                </a>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
 
 // ─── Navbar ───────────────────────────────────────────────────────────────────
 function Navbar({ watched, notifications }: { watched: WatchedShower[]; notifications: Notification[] }) {
@@ -506,19 +438,19 @@ function MeteorVisualizer({ zhr, active }: { zhr: number; active: boolean }) {
 
     const meteors: { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; len: number }[] = [];
     let animId: number;
-    const spawnRate = Math.max(1, Math.floor(zhr / 20));
+    const spawnRate = active ? Math.max(3, Math.floor(zhr / 12)) : Math.max(1, Math.floor(zhr / 25));
 
     function spawn() {
       for (let i = 0; i < spawnRate; i++) {
-        if (Math.random() < 0.3) {
+        if (Math.random() < (active ? 0.4 : 0.2)) {
           meteors.push({
             x: Math.random() * canvas!.width,
-            y: -10,
-            vx: 2 + Math.random() * 3,
-            vy: 3 + Math.random() * 4,
+            y: -20,
+            vx: (Math.random() - 0.5) * 4 + (4 + Math.random() * 4), 
+            vy: 4 + Math.random() * 6,
             life: 0,
-            maxLife: 40 + Math.random() * 30,
-            len: 20 + Math.random() * 40,
+            maxLife: 30 + Math.random() * 40,
+            len: 30 + Math.random() * 60,
           });
         }
       }
@@ -982,19 +914,22 @@ function Home({ watched, addNotification, toggleWatch }: {
               <motion.div
                 key={s.id}
                 whileHover={{ scale: 1.02 }}
-                className="glass-pro-card p-12 group relative overflow-hidden h-full flex flex-col justify-between"
+                className="glass-pro-card p-12 group relative overflow-hidden h-full flex flex-col justify-between border-[#FACC15]/20"
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+                <MeteorVisualizer zhr={s.zhr} active />
+                <div className="absolute inset-0 border-2 border-[#FACC15]/10 pro-radius intensity-active pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-br from-[#FACC15]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
                 <div className="relative z-10">
                   <div className="flex items-start justify-between mb-12">
-                    <div className="px-4 py-2 pro-radius-sm bg-white/5 border border-white/10">
-                      <span className="pro-mono !text-white !text-[9px]">Sync Active</span>
+                    <div className="px-4 py-2 pro-radius-sm bg-[#FACC15]/10 border border-[#FACC15]/20 flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-[#FACC15] rounded-full intensity-active" />
+                      <span className="pro-mono !text-[#FACC15] !text-[9px]">Sync Active</span>
                     </div>
                     <div className="text-right">
-                      <span className="text-2xl font-bold text-[#FACC15] font-mono tracking-tighter italic">{s.zhr} ZHR</span>
+                       <span className="text-2xl font-bold text-[#FACC15] font-mono tracking-tighter italic">{s.zhr} ZHR</span>
                     </div>
                   </div>
-                  <h3 className="text-3xl font-bold mb-4 text-white group-hover:tracking-wider transition-all duration-700">{s.name}</h3>
+                  <h3 className="text-3xl font-bold mb-4 text-white group-hover:tracking-wider transition-all duration-700 uppercase italic tracking-tighter">{s.name}</h3>
                   <p className="text-base text-white/30 mb-12 font-medium leading-relaxed max-w-sm">{s.description}</p>
                 </div>
                 <Link to={`/shower/${s.id}`} className="relative z-10 w-fit flex items-center gap-3 pro-mono !text-white hover:italic transition-all group/link">
@@ -1256,12 +1191,18 @@ function MeteorCalendar({ watched, toggleWatch, addNotification }: {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ delay: i * 0.05 }}
-                  className="glass-pro-card p-12 group relative overflow-hidden flex flex-col justify-between h-[500px]"
+                  className={`glass-pro-card p-12 group relative overflow-hidden flex flex-col justify-between h-[500px] transition-all duration-700 ${status === 'active' ? 'border-[#FACC15]/30 shadow-2xl shadow-[#FACC15]/5' : ''}`}
                 >
+                  {status === 'active' && <MeteorVisualizer zhr={s.zhr} active />}
+                  {status === 'active' && (
+                    <div className="absolute inset-0 border-2 border-[#FACC15]/20 pro-radius intensity-active pointer-events-none" />
+                  )}
                   <div className="relative z-10 h-full flex flex-col justify-between">
                     <div>
                       <div className="flex items-center justify-between mb-12">
-                        <span className="pro-mono !text-[#FACC15] !text-[9px]">Node {s.id.slice(0, 4)}</span>
+                        <span className={`pro-mono !text-[9px] ${status === 'active' ? '!text-[#FACC15]' : '!text-white/20'}`}>
+                          {status === 'active' ? 'ACTIVE PHASE' : `Node ${s.id.slice(0, 4)}`}
+                        </span>
                         <button
                           onClick={() => {
                             toggleWatch(s);
@@ -1976,7 +1917,6 @@ export default function App() {
         <ScrollToTop />
         <Navbar watched={watched} notifications={notifications} />
         <NotificationToasts notifications={notifications} dismiss={dismissNotification} />
-        <SalePopup />
 
         <AnimatedRoutes watched={watched} addNotification={addNotification} toggleWatch={toggleWatch} />
 

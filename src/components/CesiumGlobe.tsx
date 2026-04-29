@@ -120,8 +120,14 @@ const CesiumGlobe: React.FC = () => {
     setIsSearching(true);
     
     // Satellite Search First
-    const satMatches = satellites.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()));
-    const debrisMatches = debris.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    const satMatches = satellites.filter(s => 
+      s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      (s.line1 && s.line1.substring(2, 7).includes(searchQuery))
+    );
+    const debrisMatches = debris.filter(s => 
+      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (s.line1 && s.line1.substring(2, 7).includes(searchQuery))
+    );
     
     try {
       const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5`);
@@ -315,6 +321,12 @@ const CesiumGlobe: React.FC = () => {
         }
         viewer.imageryLayers.addImageryProvider(provider);
 
+        // Add Grid Layer if enabled
+        if (visualSettings.grid) {
+          const gridProvider = new Cesium.GridImageryProvider({});
+          viewer.imageryLayers.addImageryProvider(gridProvider);
+        }
+
         // Re-add Night Lights on top of all layers
         const ionToken = (import.meta as any).env.VITE_CESIUM_ION_TOKEN || '';
         if (ionToken) {
@@ -331,7 +343,7 @@ const CesiumGlobe: React.FC = () => {
     };
 
     updateLayer();
-  }, [currentLayer, visualSettings.nightLights]);
+  }, [currentLayer, visualSettings.nightLights, visualSettings.grid]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -1369,6 +1381,7 @@ const CesiumGlobe: React.FC = () => {
                 { key: 'nightLights', label: 'City Lights', icon: Moon },
                 { key: 'stars', label: 'Space Stars', icon: Sparkles },
                 { key: 'terrain', label: '3D Terrain', icon: MapIcon },
+                { key: 'grid', label: 'Coord Grid', icon: Navigation },
               ].map((s) => (
                 <div key={s.key} className="flex items-center justify-between group">
                   <div className="flex items-center gap-3">
@@ -1410,6 +1423,7 @@ const CesiumGlobe: React.FC = () => {
               { id: 'meteors', icon: Sparkles, label: 'Celestial', desc: 'Active Meteor Showers', color: 'orange' },
               { id: 'satellites', icon: Satellite, label: 'Orbital', desc: 'Satellite Passages', color: 'green' },
               { id: 'debris', icon: Trash2, label: 'Hazardous', desc: 'Debris & re-entry', color: 'red' },
+              { id: 'ufo', icon: Eye, label: 'Anomalous', desc: 'Unidentified Signals', color: 'yellow' },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -1485,6 +1499,116 @@ const CesiumGlobe: React.FC = () => {
                       <p className="text-[10px] font-black uppercase tracking-widest">No Signals Detected</p>
                     </div>
                   )}
+                </motion.div>
+              )}
+
+              {activeTab === 'meteors' && (
+                <motion.div
+                  key="meteors-feed"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 10 }}
+                  className="space-y-3"
+                >
+                  {meteorShowersData.map((shower, i) => {
+                    const now = new Date();
+                    const isActive = now >= new Date(shower.start) && now <= new Date(shower.end);
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => {
+                          setSelectedMeteorShower(shower);
+                          const entity = entitiesRef.current.find(e => e.name?.includes(shower.name));
+                          if (entity && viewerRef.current) {
+                             viewerRef.current.camera.flyTo({
+                               destination: entity.position?.getValue(Cesium.JulianDate.now()),
+                               duration: 2.0
+                             });
+                          }
+                        }}
+                        className={`w-full text-left p-4 rounded-2xl border transition-all group ${
+                          isActive ? 'bg-[#FACC15]/5 border-[#FACC15]/20' : 'bg-white/[0.02] border-transparent hover:bg-white/5'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                           <span className={`text-[10px] font-black uppercase tracking-tight ${isActive ? 'text-[#FACC15]' : 'text-white/60'}`}>{shower.name}</span>
+                           {isActive && <div className="w-1.5 h-1.5 bg-[#FACC15] rounded-full animate-pulse" />}
+                        </div>
+                        <div className="flex items-center justify-between text-[8px] font-bold uppercase tracking-widest opacity-30 group-hover:opacity-60 transition-opacity">
+                           <span>{shower.constellation}</span>
+                           <span>{shower.zhr} ZHR</span>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </motion.div>
+              )}
+
+              {(activeTab === 'satellites' || activeTab === 'debris') && (
+                <motion.div
+                  key="orbital-feed"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 10 }}
+                  className="space-y-2"
+                >
+                  {(activeTab === 'satellites' ? satellites : debris).slice(0, 50).map((sat, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        setSelectedSatellite(sat);
+                        const entity = entitiesRef.current.find(e => e.name === sat.name);
+                        if (entity && viewerRef.current) {
+                          viewerRef.current.trackedEntity = entity;
+                          viewerRef.current.zoomTo(entity, new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-45), 1000000));
+                        }
+                      }}
+                      className="w-full text-left p-4 bg-white/[0.02] border border-transparent hover:bg-white/5 hover:border-white/5 rounded-2xl transition-all group"
+                    >
+                      <div className="flex items-center gap-3">
+                         <div className={`w-1 h-1 rounded-full ${activeTab === 'satellites' ? 'bg-[#FACC15]' : 'bg-red-500'}`} />
+                         <span className="text-[10px] font-black text-white/80 uppercase truncate flex-1">{sat.name}</span>
+                         <span className="text-[8px] font-mono text-white/20">{sat.line1?.substring(2, 7)}</span>
+                      </div>
+                    </button>
+                  ))}
+                  <div className="py-4 text-center">
+                    <p className="text-[8px] font-black text-white/10 uppercase tracking-[0.2em]">Showing Top 50 Objects</p>
+                  </div>
+                </motion.div>
+              )}
+
+              {activeTab === 'ufo' && (
+                <motion.div
+                  key="ufo-feed"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 10 }}
+                  className="space-y-4"
+                >
+                  <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-2xl mb-4">
+                    <p className="text-[9px] font-black text-yellow-500 uppercase tracking-widest leading-tight">Experimental Anomalous Signal Detection Enabled</p>
+                  </div>
+                  {[
+                    { name: 'Roswell, NM', desc: '1947 Recovery' },
+                    { name: 'Area 51, NV', desc: 'Classified Operations' },
+                    { name: 'Phoenix, AZ', desc: '1997 Formation' },
+                    { name: 'Varginha, Brazil', desc: '1996 Contact' },
+                  ].map((loc, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        flyToLocation(i === 0 ? 33.3943 : (i === 1 ? 37.2431 : (i === 2 ? 33.4484 : -21.5517)), i === 0 ? -104.5230 : (i === 1 ? -115.7930 : (i === 2 ? -112.0740 : -45.4303)), 100000);
+                      }}
+                      className="w-full text-left p-4 bg-white/[0.03] border border-white/5 rounded-2xl hover:bg-white/10 transition-all group"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-black text-white uppercase">{loc.name}</span>
+                        <Eye size={12} className="text-[#FACC15] opacity-30 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                      <p className="text-[8px] text-white/30 uppercase font-bold tracking-widest">{loc.desc}</p>
+                    </button>
+                  ))}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -1949,6 +2073,10 @@ const CesiumGlobe: React.FC = () => {
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-1.5 h-1.5 bg-[#FACC15] rounded-full intensity-active" />
                   <span className="pro-mono !text-[10px] !text-white tracking-[0.3em] uppercase italic">Global Synthesis Vector</span>
+                  <div className="ml-auto flex items-center gap-2 bg-red-600/20 px-3 py-1 rounded-full border border-red-600/30 animate-pulse">
+                    <div className="w-1.5 h-1.5 bg-red-500 rounded-full" />
+                    <span className="text-[8px] font-black text-red-500 uppercase tracking-widest">Live</span>
+                  </div>
                 </div>
                 <h2 className="text-3xl font-bold text-white tracking-tighter uppercase truncate leading-none italic">
                   {telemetry.location}
