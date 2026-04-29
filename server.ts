@@ -1,15 +1,47 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
+import { parseStringPromise } from "xml2js";
 
 const PORT = 3000;
 
 async function startServer() {
   const app = express();
 
-  // Cache object for TLE data
-  const cache: Record<string, { data: string, timestamp: number }> = {};
+  // Cache object for TLE and Feed data
+  const cache: Record<string, { data: any, timestamp: number }> = {};
   const CACHE_TTL = 1000 * 60 * 15; // 15 minutes
+  const FEED_CACHE_TTL = 1000 * 60 * 60; // 1 hour for news
+
+  // Feed Proxy Route
+  app.get("/api/feed", async (req, res) => {
+    const feedUrl = "https://www.nasa.gov/news-release/feed/";
+    
+    if (cache[feedUrl] && (Date.now() - cache[feedUrl].timestamp < FEED_CACHE_TTL)) {
+      return res.json(cache[feedUrl].data);
+    }
+
+    try {
+      const response = await fetch(feedUrl);
+      if (!response.ok) throw new Error("Failed to fetch feed");
+      const xml = await response.text();
+      const result = await parseStringPromise(xml);
+      
+      const items = result.rss.channel[0].item.map((item: any) => ({
+        title: item.title[0],
+        link: item.link[0],
+        pubDate: item.pubDate[0],
+        description: item.description[0].replace(/<[^>]*>?/gm, '').substring(0, 200) + '...',
+        thumbnail: item["media:content"] ? item["media:content"][0].$.url : null
+      }));
+
+      cache[feedUrl] = { data: items, timestamp: Date.now() };
+      res.json(items);
+    } catch (error) {
+      console.error("[Feed Error]", error);
+      res.status(500).json({ error: "Failed to fetch news feed" });
+    }
+  });
 
   // TLE Proxy Route with multi-source fallback
   app.get("/api/tle", async (req, res) => {
@@ -18,19 +50,18 @@ async function startServer() {
     const catnr = req.query.catnr;
     
     const userAgents = [
-      'curl/7.81.0',
-      'Wget/1.21.2',
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0',
-      'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
     ];
 
     const baseUrls = [
       "https://celestrak.org/NORAD/elements/gp.php",
-      "https://celestrak.com/NORAD/elements/gp.php",
-      "https://www.celestrak.com/NORAD/elements/gp.php",
+      "https://raw.githubusercontent.com/Ivan-Vanish/TLE-Mirror/main/active.txt",
+      "https://db.satnogs.org/api/tles/",
       "https://tle.mountainway.space/gp.php",
       "https://amsat.org.ar/keps.txt",
-      "https://db.satnogs.org/api/tles/" // Primary mirror
+      "https://www.amsat.org/amsat/ftp/keps/nodisplay/nasabare.txt"
     ];
 
     // Map common groups to fallback static text files
@@ -48,7 +79,7 @@ async function startServer() {
     let lastError = null;
 
     // Retry logic with SatNOGS Fallback
-    const fetchWithTimeout = async (url: string, options: any, timeout = 8000) => {
+    const fetchWithTimeout = async (url: string, options: any, timeout = 10000) => {
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), timeout);
       try {
@@ -61,14 +92,40 @@ async function startServer() {
       }
     };
 
-    // Try primary GP API sources
+    // Try primary TLE sources
     for (const baseUrl of baseUrls) {
       const isSatNogs = baseUrl.includes('satnogs');
-      const url = isSatNogs 
-        ? baseUrl 
-        : (catnr 
-            ? `${baseUrl}?CATNR=${catnr}&FORMAT=${format}`
-            : `${baseUrl}?GROUP=${group}&FORMAT=${format}`);
+      const isTxt = baseUrl.endsWith('.txt');
+      const isMirror = baseUrl.includes('githubusercontent');
+      
+      let url: string;
+      if (isSatNogs) {
+        // SatNOGS DB API structure: https://db.satnogs.org/api/tles/?norad_cat_id=25544
+        const params = new URLSearchParams();
+        if (catnr) {
+          params.append('norad_cat_id', catnr.toString());
+        }
+        params.append('items', '100'); // Increase items returned
+        url = `${baseUrl}?${params.toString()}`;
+      } else if (isTxt) {
+        // Mirrored or static files
+        if (isMirror && group !== 'active') {
+          // If mirror and not active, try to swap the filename if possible
+          const mirrorFile = groupMap[group as string] || 'active.txt';
+          url = baseUrl.replace('active.txt', mirrorFile);
+        } else {
+          url = baseUrl;
+        }
+      } else {
+        const params = new URLSearchParams();
+        if (catnr) {
+          params.append('CATNR', catnr.toString());
+        } else {
+          params.append('GROUP', (group as string) || 'active');
+        }
+        params.append('FORMAT', 'TLE');
+        url = `${baseUrl}?${params.toString()}`;
+      }
 
       // Check Cache
       if (cache[url] && (Date.now() - cache[url].timestamp < CACHE_TTL)) {
@@ -82,8 +139,9 @@ async function startServer() {
         const response = await fetchWithTimeout(url, {
           headers: {
             'User-Agent': randomUA,
-            'Accept': isSatNogs ? 'application/json' : '*/*',
-            'Connection': 'keep-alive'
+            'Accept': isSatNogs ? 'application/json' : 'text/plain, */*',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
           }
         });
 
@@ -93,10 +151,11 @@ async function startServer() {
         }
 
         let data = '';
-        if (isSatNogs) {
-          const json = await response.json() as any[];
-          if (Array.isArray(json)) {
-            data = json.map(s => `${s.tle0}\n${s.tle1}\n${s.tle2}`).join('\n');
+        if (isSatNogs || (response.headers.get('content-type')?.includes('application/json'))) {
+          const json = await response.json() as any;
+          const resultArray = Array.isArray(json) ? json : json.results || [];
+          if (Array.isArray(resultArray) && resultArray.length > 0) {
+            data = resultArray.map((s: any) => `${s.tle0 || s.name || 'UNKNOWN'}\n${s.tle1}\n${s.tle2}`).join('\n');
           }
         } else {
           data = await response.text();
@@ -112,79 +171,39 @@ async function startServer() {
       }
     }
 
-    // --- SECONDARY FALLBACK: SatNOGS (JSON to TLE reconstruction) ---
+    // --- SECONDARY FALLBACK: SatNOGS Reconstruction ---
     if (group === 'active' || group === 'stations') {
       try {
-        const satNogsUrl = 'https://db.satnogs.org/api/tles/';
-        console.log(`[Proxy] Trying SatNOGS fallback: ${satNogsUrl}`);
+        const satNogsUrl = 'https://db.satnogs.org/api/tles/?format=json';
         const response = await fetchWithTimeout(satNogsUrl, {
-          headers: { 'User-Agent': 'Satellite-Tracker-App/1.0' }
+          headers: { 'User-Agent': userAgents[0], 'Accept': 'application/json' }
         });
         
         if (response.ok) {
           const json = await response.json() as any[];
           if (Array.isArray(json) && json.length > 0) {
-            const reconstructed = json.map(s => `${s.tle0}\n${s.tle1}\n${s.tle2}`).join('\n');
-            return res.send(reconstructed);
+            return res.send(json.map(s => `${s.tle0}\n${s.tle1}\n${s.tle2}`).join('\n'));
           }
         }
-      } catch (e) {
-        console.warn(`[Proxy Warning] SatNOGS fallback failed`);
-      }
+      } catch (e) {}
     }
 
-    // Try multiple fallback domains for static files
-    const fallbackDomains = [
-      "https://celestrak.org/NORAD/elements",
-      "https://celestrak.com/NORAD/elements",
-      "https://www.celestrak.com/NORAD/elements",
-      "http://celestrak.org/NORAD/elements",
-      "http://celestrak.com/NORAD/elements"
+    // Try alternate mirrors
+    const emergencyUrls = [
+      'https://raw.githubusercontent.com/Ivan-Vanish/TLE-Mirror/main/active.txt',
+      'https://www.amsat.org/amsat/ftp/keps/nodisplay/nasabare.txt',
+      'https://live.ariss.org/tle/' 
     ];
 
-    if (!catnr && groupMap[group as string]) {
-      for (const domain of fallbackDomains) {
-        const fallbackUrl = `${domain}/${groupMap[group as string]}`;
-        try {
-          console.log(`[Proxy] Fetching Fallback TLE from: ${fallbackUrl}`);
-          const randomUA = userAgents[Math.floor(Math.random() * userAgents.length)];
-          const response = await fetchWithTimeout(fallbackUrl, {
-            headers: { 'User-Agent': randomUA }
-          });
-          if (response.ok) {
-            const data = await response.text();
-            if (data && data.length > 50) {
-              cache[fallbackUrl] = { data, timestamp: Date.now() };
-              return res.send(data);
-            }
-          }
-        } catch (e) {
-          console.warn(`[Proxy Warning] Fallback failed: ${fallbackUrl}`);
+    for (const emergencyUrl of emergencyUrls) {
+      if (group !== 'active' && !emergencyUrl.includes('active')) continue;
+      try {
+        const response = await fetchWithTimeout(emergencyUrl, { headers: { 'User-Agent': userAgents[0] } });
+        if (response.ok) {
+          const data = await response.text();
+          if (data && data.length > 50) return res.send(data);
         }
-      }
-
-      // Final fallback to AMSAT or direct ISS API for active/ISS
-      if (group === 'active' || catnr === '25544') {
-        const emergencyUrls = [
-          'https://www.amsat.org/amsat/ftp/keps/nodisplay/nasabare.txt',
-          'https://live.ariss.org/tle/' // ISS specific 
-        ];
-        
-        for (const emergencyUrl of emergencyUrls) {
-          try {
-             console.log(`[Proxy] Fetching Emergency Fallback TLE from: ${emergencyUrl}`);
-             const response = await fetchWithTimeout(emergencyUrl, { 
-               headers: { 'User-Agent': 'curl/7.81.0' } 
-             });
-             if (response.ok) {
-               const data = await response.text();
-               if (data && data.length > 50) return res.send(data);
-             }
-          } catch (e) {
-             console.warn(`[Proxy Warning] Emergency fallback failed: ${emergencyUrl}`);
-          }
-        }
-      }
+      } catch (e) {}
     }
 
     console.error(`[Proxy Error] All sources failed: ${lastError?.message}`);

@@ -29,11 +29,19 @@ interface TelemetryData {
   timestamp: string;
 }
 
+interface NewsItem {
+  title: string;
+  link: string;
+  pubDate: string;
+  description: string;
+  thumbnail: string | null;
+}
+
 const CesiumGlobe: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Cesium.Viewer | null>(null);
   const handlerRef = useRef<Cesium.ScreenSpaceEventHandler | null>(null);
-  const [activeTab, setActiveTab] = useState<'satellites' | 'debris' | 'meteors' | 'ufo'>('meteors');
+  const [activeTab, setActiveTab] = useState<'satellites' | 'debris' | 'meteors' | 'ufo' | 'news'>('news');
   const [loading, setLoading] = useState(true);
   const [satellites, setSatellites] = useState<SatelliteData[]>([]);
   const [debris, setDebris] = useState<SatelliteData[]>([]);
@@ -44,6 +52,8 @@ const CesiumGlobe: React.FC = () => {
   const [selectedSatellite, setSelectedSatellite] = useState<SatelliteData | null>(null);
   const [selectedMeteorShower, setSelectedMeteorShower] = useState<any | null>(null);
   const [selectedUFO, setSelectedUFO] = useState<any | null>(null);
+  const [news, setNews] = useState<NewsItem[]>([]);
+  const [newsLoading, setNewsLoading] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -64,6 +74,7 @@ const CesiumGlobe: React.FC = () => {
   const [isTrackingIss, setIsTrackingIss] = useState(false);
   const [isLockedOnSelected, setIsLockedOnSelected] = useState(false);
   const [ephemeris, setEphemeris] = useState<{ az: number, el: number, dist: number, lat: number, lng: number, alt: number } | null>(null);
+  const [cesiumError, setCesiumError] = useState<string | null>(null);
 
   const flyToLocation = (lat: number, lon: number, height = 2000000) => {
     if (!viewerRef.current) return;
@@ -140,10 +151,14 @@ const CesiumGlobe: React.FC = () => {
     if (viewer.scene.sun) viewer.scene.sun.show = visualSettings.atmosphere;
     if (viewer.scene.moon) viewer.scene.moon.show = visualSettings.atmosphere;
     
-    // Toggle Stars (using any to bypass missing property in some types)
-    if (viewer.scene.skyBox) {
-      (viewer.scene.skyBox as any).show = visualSettings.stars;
-    }
+        // Visualize Stars (more robust check)
+        if (viewer.scene.skyBox) {
+          try {
+            (viewer.scene.skyBox as any).show = visualSettings.stars;
+          } catch (e) {
+            console.warn('Could not toggle stars:', e);
+          }
+        }
 
     // Terrain Handling
     const updateTerrain = async () => {
@@ -252,6 +267,25 @@ const CesiumGlobe: React.FC = () => {
       setLoading(false);
     }
   }, []);
+
+  const fetchNews = useCallback(async () => {
+    setNewsLoading(true);
+    try {
+      const res = await fetch('/api/feed');
+      if (res.ok) {
+        const data = await res.json();
+        setNews(data);
+      }
+    } catch (e) {
+      console.error('News fetch failed:', e);
+    } finally {
+      setNewsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNews();
+  }, [fetchNews]);
 
   useEffect(() => {
     if (!viewerRef.current) return;
@@ -458,8 +492,9 @@ const CesiumGlobe: React.FC = () => {
 
       // Fetch data initially
       fetchData();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Cesium initialization failed:', err);
+      setCesiumError(err.message || 'Cesium Engine failed to initialize. Check if WebGL is enabled.');
     }
   };
 
@@ -851,10 +886,14 @@ const CesiumGlobe: React.FC = () => {
     if (selectedSatellite) {
       const entity = entitiesRef.current.find(e => e.name === selectedSatellite.name);
       if (entity && viewer && !viewer.isDestroyed()) {
-        if (isLockedOnSelected) {
-          viewer.trackedEntity = entity;
+        try {
+          if (isLockedOnSelected) {
+            viewer.trackedEntity = entity;
+          }
+          viewer.zoomTo(entity, new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-45), 1000000));
+        } catch (e) {
+          console.warn('Zoom to satellite failed:', e);
         }
-        viewer.zoomTo(entity, new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-45), 1000000));
       }
     } else if (viewer && !viewer.isDestroyed()) {
       if (!isTrackingIss) {
@@ -1253,7 +1292,23 @@ const CesiumGlobe: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-0 bg-[#050505] overflow-hidden select-none font-sans text-white">
-      <div ref={containerRef} className="w-full h-full cursor-crosshair" />
+      {cesiumError ? (
+        <div className="w-full h-full flex items-center justify-center bg-black/90 p-8 text-center">
+          <div className="max-w-md">
+            <AlertCircle size={48} className="text-red-500 mx-auto mb-6" />
+            <h2 className="text-2xl font-black font-space mb-4 uppercase tracking-tighter italic">Engine Critical Failure</h2>
+            <p className="text-xs text-white/40 leading-relaxed font-black uppercase tracking-widest mb-8">{cesiumError}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-8 py-4 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#FACC15] hover:text-black transition-all"
+            >
+              Restart Simulation
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div ref={containerRef} className="w-full h-full cursor-crosshair" />
+      )}
 
       {/* Layer Picker Overlay */}
       <AnimatePresence>
@@ -1334,27 +1389,27 @@ const CesiumGlobe: React.FC = () => {
       </AnimatePresence>
 
       {/* Technical Sidebar (Left) */}
-      <div className={`absolute left-6 top-24 bottom-6 z-40 w-80 pointer-events-none transition-all duration-500 ease-in-out ${
-        showSidebar ? 'translate-x-0' : '-translate-x-[calc(100%+40px)]'
+      <div className={`absolute left-0 sm:left-6 top-16 sm:top-24 bottom-0 sm:bottom-6 z-40 w-full sm:w-80 pointer-events-none transition-all duration-500 ease-in-out ${
+        showSidebar ? 'translate-x-0' : '-translate-x-full sm:-translate-x-[calc(100%+40px)]'
       }`}>
-        <motion.div className="h-full bg-black/80 shadow-2xl backdrop-blur-3xl rounded-[2.5rem] border border-white/5 p-8 flex flex-col pointer-events-auto overflow-hidden relative">
+        <motion.div className="h-full bg-black/80 shadow-2xl backdrop-blur-3xl rounded-none sm:rounded-[2.5rem] border-0 sm:border border-white/5 p-6 sm:p-8 flex flex-col pointer-events-auto overflow-hidden relative">
           {/* Status Rings */}
           <div className="absolute -top-20 -left-20 w-40 h-40 border border-[#FACC15]/5 rounded-full animate-spin-slow pointer-events-none" />
           <div className="absolute -top-10 -left-10 w-20 h-20 border border-[#FACC15]/2 rounded-full animate-reverse-spin pointer-events-none" />
 
           {/* Sidebar Header */}
           <div className="mb-8 pl-1">
-            <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-[#FACC15]/80 mb-1 font-space italic">Stargaze Intelligence</h2>
+            <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-[#FACC15]/80 mb-1 font-space italic">Stargaze Feed</h2>
             <p className="text-[18px] font-black uppercase tracking-tight text-white leading-none">Event Tracker</p>
           </div>
 
           {/* Tabs */}
           <div className="space-y-3 mb-10 overflow-y-auto custom-scrollbar pr-2">
             {[
-              { id: 'meteors', icon: Sparkles, label: 'Celestial', desc: 'Active & Upcoming Meteor Showers', color: 'orange' },
-              { id: 'satellites', icon: Satellite, label: 'Orbital', desc: 'Active Satellite Passages', color: 'green' },
-              { id: 'debris', icon: Trash2, label: 'Hazardous', desc: 'Re-entry & Debris Risks', color: 'red' },
-              { id: 'ufo', icon: Eye, label: 'Anomalies', desc: 'Unknown & Transient Events', color: 'slate' },
+              { id: 'news', icon: Database, label: 'Signals', desc: 'NASA Feed & Global Intel', color: 'blue' },
+              { id: 'meteors', icon: Sparkles, label: 'Celestial', desc: 'Active Meteor Showers', color: 'orange' },
+              { id: 'satellites', icon: Satellite, label: 'Orbital', desc: 'Satellite Passages', color: 'green' },
+              { id: 'debris', icon: Trash2, label: 'Hazardous', desc: 'Debris & re-entry', color: 'red' },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -1392,8 +1447,58 @@ const CesiumGlobe: React.FC = () => {
             ))}
           </div>
 
+          {/* Interaction Content Based on Tab */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 mt-4">
+            <AnimatePresence mode="wait">
+              {activeTab === 'news' && (
+                <motion.div
+                  key="news-feed"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 10 }}
+                  className="space-y-4"
+                >
+                  {newsLoading ? (
+                    <div className="flex flex-col items-center justify-center py-20 gap-4 opacity-30">
+                      <Loader2 size={24} className="animate-spin text-[#FACC15]" />
+                      <p className="text-[10px] font-black uppercase tracking-widest leading-none">Scanning News Frequency...</p>
+                    </div>
+                  ) : news.length > 0 ? (
+                    news.map((item, i) => (
+                      <a 
+                        key={i} 
+                        href={item.link} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="block p-4 bg-white/[0.03] border border-white/5 rounded-2xl hover:bg-white/5 hover:border-[#FACC15]/20 transition-all group"
+                      >
+                       <p className="text-[8px] font-black text-[#FACC15] uppercase tracking-widest mb-2 opacity-50 group-hover:opacity-100 transition-opacity">
+                         NASA INTEL • {new Date(item.pubDate).toLocaleDateString()}
+                       </p>
+                       <h4 className="text-xs font-black text-white leading-tight mb-2 group-hover:text-[#FACC15] transition-colors">{item.title}</h4>
+                       <p className="text-[10px] text-white/30 line-clamp-2 leading-relaxed">{item.description}</p>
+                      </a>
+                    ))
+                  ) : (
+                    <div className="text-center py-20 opacity-20">
+                      <AlertCircle size={24} className="mx-auto mb-4" />
+                      <p className="text-[10px] font-black uppercase tracking-widest">No Signals Detected</p>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
           {/* HUD Section */}
           <div className="mt-auto space-y-6 pt-6 border-t border-white/5">
+            {fetchError && (
+              <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl flex items-center gap-3 animate-pulse">
+                <AlertCircle size={14} className="text-red-500 flex-shrink-0" />
+                <p className="text-[9px] font-black uppercase text-red-400 tracking-tight leading-tight">{fetchError}</p>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-white/[0.03] p-4 rounded-2xl border border-white/5">
                 <p className="text-[7px] font-black text-white/20 uppercase tracking-widest mb-1">Active Showers</p>
@@ -1432,35 +1537,37 @@ const CesiumGlobe: React.FC = () => {
       </div>
 
       {/* Command Sidebar (Right) */}
-      <div className={`absolute right-6 top-24 bottom-6 z-40 w-80 pointer-events-none transition-all duration-500 ease-in-out ${
-        showRightSidebar ? 'translate-x-0' : 'translate-x-[calc(100%+40px)]'
-      }`}>
-        <motion.div className="h-full bg-black/80 shadow-2xl backdrop-blur-3xl rounded-[2.5rem] border border-white/5 p-8 flex flex-col pointer-events-auto relative">
+      <div className={`absolute right-0 sm:right-10 top-10 bottom-10 z-40 w-full sm:w-96 pointer-events-none transition-all duration-700 ease-in-out ${
+        showRightSidebar ? 'translate-x-0' : 'translate-x-full sm:translate-x-[calc(100%+80px)]'
+      } ${!showSidebar && !showRightSidebar ? 'pointer-events-none' : ''}`}>
+        <motion.div className="h-full glass-pro shadow-2xl p-8 flex flex-col pointer-events-auto relative">
           {/* Logo / Title Section */}
-          <div className="flex items-center gap-4 mb-8">
-            <div className="w-12 h-12 rounded-xl bg-[#FACC15]/10 border border-[#FACC15]/20 flex items-center justify-center text-[#FACC15]">
-              <Globe size={24} className="animate-pulse" />
+          <div className="flex items-center gap-6 mb-12">
+            <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center text-black shadow-2xl shadow-white/20">
+              <Globe size={28} className="transition-transform group-hover:rotate-12" />
             </div>
             <div className="flex flex-col">
-              <h1 className="text-lg font-black uppercase tracking-[0.2em] leading-none text-white whitespace-nowrap">STARGAZE<span className="text-[#FACC15]">.EVENTS</span></h1>
-              <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest mt-1">Celestial Observation Hub</span>
+              <h1 className="text-2xl font-black text-white tracking-[-0.08em] uppercase leading-none italic">
+                Stargaze
+              </h1>
+              <span className="pro-mono !text-[9px] mt-2 block italic opacity-40 uppercase tracking-widest">Stargaze Configurator v2.5</span>
             </div>
           </div>
 
           {/* Search Section */}
-          <div className="space-y-4 mb-8">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20 px-2">Global Search</h3>
+          <div className="space-y-6 mb-12">
+            <h3 className="pro-mono !text-white/20 !text-[8px] px-2 italic uppercase">Synthesis Search Engine</h3>
             <div className="relative group">
               <form onSubmit={handleSearch} className="relative">
                 <input 
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Meteor, Satellite, Event..."
-                  className="w-full h-14 bg-white/5 border border-white/5 rounded-2xl px-12 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#FACC15]/20 transition-all placeholder:text-white/20 text-white"
+                  placeholder="Identify Event or Object..."
+                  className="w-full h-16 bg-white/[0.03] border border-white/5 pro-radius-sm px-14 text-[13px] font-medium focus:outline-none focus:bg-white/[0.08] transition-all placeholder:text-white/20 text-white italic"
                 />
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={18} />
-                {isSearching && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 text-[#FACC15] animate-spin" size={18} />}
+                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-white/30" size={18} />
+                {isSearching && <Loader2 className="absolute right-6 top-1/2 -translate-y-1/2 text-[#FACC15] animate-spin" size={18} />}
               </form>
               
               <AnimatePresence>
@@ -1719,16 +1826,25 @@ const CesiumGlobe: React.FC = () => {
               )}
             </AnimatePresence>
           </div>
-        </motion.div>
 
-        {/* Toggle Hook */}
-        <button 
-          onClick={() => setShowRightSidebar(!showRightSidebar)}
-          className="absolute top-1/2 -left-12 -translate-y-1/2 w-8 h-20 bg-black/60 shadow-xl backdrop-blur-xl border border-white/10 border-r-0 rounded-l-2xl pointer-events-auto flex items-center justify-center text-white/30 hover:text-[#FACC15] transition-colors"
-        >
-          <ChevronRight size={18} className={`transition-transform duration-500 ${showRightSidebar ? '' : 'rotate-180'}`} />
-        </button>
+          {/* Toggle Hook */}
+          <button 
+            onClick={() => setShowRightSidebar(!showRightSidebar)}
+            className="absolute top-1/2 -left-8 sm:-left-12 -translate-y-1/2 w-8 h-20 bg-black/80 shadow-xl backdrop-blur-xl border border-white/5 border-r-0 rounded-l-2xl pointer-events-auto flex items-center justify-center text-white/30 hover:text-[#FACC15] transition-colors"
+          >
+            <ChevronRight size={18} className={`transition-transform duration-500 ${showRightSidebar ? '' : 'rotate-180'}`} />
+          </button>
+        </motion.div>
       </div>
+
+    {!showSidebar && !showRightSidebar && (
+      <button 
+        onClick={() => { setShowSidebar(true); setShowRightSidebar(true); }}
+        className="absolute bottom-10 left-1/2 -translate-x-1/2 z-50 px-8 py-4 bg-[#FACC15] text-black rounded-full font-black text-xs uppercase tracking-widest shadow-2xl animate-bounce pointer-events-auto"
+      >
+        Restore Interface
+      </button>
+    )}
 
       {/* Selected Object HUD (Amazing TheSkyLive Feature) */}
       <AnimatePresence>
@@ -1737,83 +1853,80 @@ const CesiumGlobe: React.FC = () => {
             initial={{ opacity: 0, scale: 0.9, y: 100 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 100 }}
-            className="absolute bottom-12 left-1/2 -translate-x-1/2 z-50 w-[450px]"
+            className="absolute bottom-6 sm:bottom-12 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-3rem)] sm:w-[500px]"
           >
-            <div className="technical-panel p-6 rounded-[2rem] border border-[#FACC15]/30 overflow-hidden relative backdrop-blur-xl bg-black/80">
-              <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#FACC15] to-transparent opacity-50" />
+            <div className="glass-pro p-10 shadow-2xl relative overflow-hidden backdrop-blur-3xl">
+              <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
               
-              <div className="flex items-start justify-between mb-6">
+              <div className="flex items-start justify-between mb-8">
                 <div>
-                  <div className="flex items-center gap-2 mb-1.5 font-mono text-[9px] uppercase tracking-widest text-[#FACC15]">
-                    <span className="w-1.5 h-1.5 bg-[#FACC15] rounded-full animate-pulse" />
-                    Target Identification
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-1.5 h-1.5 bg-[#FACC15] rounded-full intensity-active" />
+                    <span className="pro-mono !text-[9px] !text-white/40 uppercase tracking-[0.3em] italic">Identification Protocol</span>
                   </div>
-                  <h2 className="text-2xl font-black text-white uppercase tracking-tight font-space italic">
+                  <h2 className="text-3xl font-bold text-white uppercase tracking-tighter italic leading-none">
                     {selectedSatellite?.name || selectedMeteorShower?.name}
                   </h2>
                 </div>
                 <button 
                   onClick={() => { setSelectedSatellite(null); setSelectedMeteorShower(null); viewerRef.current!.trackedEntity = undefined; setIsLockedOnSelected(false); }}
-                  className="p-2 rounded-full hover:bg-white/10 text-white/40 transition-colors"
+                  className="w-10 h-10 pro-radius-sm bg-white/5 border border-white/10 flex items-center justify-center text-white/20 hover:text-white transition-all shadow-inner"
                 >
-                  <CloseIcon size={20} />
+                  <CloseIcon size={18} />
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-x-10 gap-y-6">
+              <div className="grid grid-cols-2 gap-x-10 gap-y-8 mb-10">
                 {selectedSatellite ? (
                   <>
-                    <div className="space-y-1">
-                      <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Orbital Latitude</p>
-                      <p className="text-sm font-mono text-[#FACC15]">{ephemeris?.lat?.toFixed(4)}°</p>
+                    <div className="space-y-2">
+                      <p className="pro-mono !text-[8px] !text-white/30 uppercase italic">Orbital Lat</p>
+                      <p className="text-lg font-bold text-white tracking-tighter">{ephemeris?.lat?.toFixed(4)}°</p>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Orbital Longitude</p>
-                      <p className="text-sm font-mono text-[#FACC15]">{ephemeris?.lng?.toFixed(4)}°</p>
+                    <div className="space-y-2">
+                      <p className="pro-mono !text-[8px] !text-white/30 uppercase italic">Orbital Lng</p>
+                      <p className="text-lg font-bold text-white tracking-tighter">{ephemeris?.lng?.toFixed(4)}°</p>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Current Altitude</p>
-                      <p className="text-sm font-mono text-[#FACC15]">{ephemeris?.alt?.toFixed(1)} km</p>
+                    <div className="space-y-2">
+                      <p className="pro-mono !text-[8px] !text-white/30 uppercase italic">Altitude</p>
+                      <p className="text-lg font-bold text-[#FACC15] tracking-tighter">{ephemeris?.alt?.toFixed(1)} km</p>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Vector Distance</p>
-                      <p className="text-sm font-mono text-[#FACC15]">{ephemeris?.dist?.toFixed(0)} km</p>
+                    <div className="space-y-2">
+                      <p className="pro-mono !text-[8px] !text-white/30 uppercase italic">Vector Dist</p>
+                      <p className="text-lg font-bold text-white tracking-tighter">{ephemeris?.dist?.toFixed(0)} km</p>
                     </div>
                   </>
                 ) : (
                   <>
-                    <div className="space-y-1">
-                      <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Zenith rate</p>
-                      <p className="text-sm font-mono text-[#FACC15]">{selectedMeteorShower?.zhr} ZHR</p>
+                    <div className="space-y-2">
+                      <p className="pro-mono !text-[8px] !text-white/30 uppercase italic">Intensity</p>
+                      <p className="text-lg font-bold text-[#FACC15] tracking-tighter">{selectedMeteorShower?.zhr} ZHR</p>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Constellation</p>
-                      <p className="text-sm font-mono text-[#FACC15]">{selectedMeteorShower?.constellation}</p>
+                    <div className="space-y-2">
+                      <p className="pro-mono !text-[8px] !text-white/30 uppercase italic">Host Constellation</p>
+                      <p className="text-lg font-bold text-white tracking-tighter">{selectedMeteorShower?.constellation}</p>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Parent Body</p>
-                      <p className="text-sm font-mono text-[#FACC15] truncate">{selectedMeteorShower?.parent || 'Unknown'}</p>
+                    <div className="space-y-2">
+                      <p className="pro-mono !text-[8px] !text-white/30 uppercase italic">Parent Body</p>
+                      <p className="text-lg font-bold text-white tracking-tighter truncate">{selectedMeteorShower?.parent || 'Unknown'}</p>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Entry Speed</p>
-                      <p className="text-sm font-mono text-[#FACC15]">{selectedMeteorShower?.speed} km/s</p>
+                    <div className="space-y-2">
+                      <p className="pro-mono !text-[8px] !text-white/30 uppercase italic">Intersect Velocity</p>
+                      <p className="text-lg font-bold text-white tracking-tighter">{selectedMeteorShower?.speed} km/s</p>
                     </div>
                   </>
                 )}
               </div>
 
-              <div className="mt-8 flex gap-3">
+              <div className="flex gap-4">
                 <button 
                   onClick={() => setIsLockedOnSelected(!isLockedOnSelected)}
-                  className={`flex-1 py-3 rounded-xl border transition-all flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest ${
-                    isLockedOnSelected ? 'bg-[#FACC15] border-[#FACC15] text-black' : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
+                  className={`flex-1 py-5 pro-radius-sm border transition-all flex items-center justify-center gap-3 text-[10px] font-bold uppercase tracking-[0.2em] ${
+                    isLockedOnSelected ? 'bg-white text-black border-white shadow-2xl shadow-white/20' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white'
                   }`}
                 >
                   <Navigation size={14} className={isLockedOnSelected ? 'animate-pulse' : ''} />
-                  {isLockedOnSelected ? 'Lock Engaged' : 'Engage Lock'}
-                </button>
-                <button className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all text-white/60">
-                   <ExternalLink size={16} />
+                  {isLockedOnSelected ? 'Synchronized' : 'Initialize Lock'}
                 </button>
               </div>
             </div>
@@ -1822,47 +1935,47 @@ const CesiumGlobe: React.FC = () => {
       </AnimatePresence>
 
       {/* Bottom HUD Telemetry */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none w-full max-w-4xl px-6">
+      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20 pointer-events-none w-full max-w-5xl px-6">
         <AnimatePresence>
           {telemetry && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-black/80 backdrop-blur-3xl p-6 md:p-8 rounded-[2.5rem] border border-white/10 flex flex-col md:flex-row items-center gap-8 md:gap-16 pointer-events-auto relative overflow-hidden"
+              className="glass-pro shadow-2xl p-10 flex flex-col md:flex-row items-center gap-12 md:gap-20 pointer-events-auto relative overflow-hidden"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-[#FACC15]/5 to-transparent pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent pointer-events-none" />
               
-              <div className="flex flex-col min-w-[200px]">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-1 h-1 bg-[#FACC15] rounded-full animate-pulse" />
-                  <span className="text-[8px] font-black text-[#FACC15] uppercase tracking-widest">Global Vector</span>
+              <div className="flex flex-col min-w-[240px]">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-1.5 h-1.5 bg-[#FACC15] rounded-full intensity-active" />
+                  <span className="pro-mono !text-[10px] !text-white tracking-[0.3em] uppercase italic">Global Synthesis Vector</span>
                 </div>
-                <h2 className="text-xl md:text-2xl font-black text-white tracking-tighter uppercase truncate leading-none font-space italic">
+                <h2 className="text-3xl font-bold text-white tracking-tighter uppercase truncate leading-none italic">
                   {telemetry.location}
                 </h2>
               </div>
 
-              <div className="flex flex-col md:flex-row items-center gap-6 flex-1">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-8 flex-1 w-full md:border-l md:border-white/10 md:pl-8">
+              <div className="flex flex-col md:flex-row items-center gap-12 flex-1">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-12 gap-y-8 flex-1 w-full md:border-l md:border-white/5 md:pl-12">
                   {[
-                    { label: 'Altitude', value: Math.round(telemetry.alt), unit: 'KM', color: 'yellow' },
-                    { label: 'Velocity', value: Math.round(telemetry.vel / 3.6).toLocaleString(), unit: 'M/S', color: 'yellow' },
-                    { label: 'Latitude', value: telemetry.lat.toFixed(3), unit: 'DEG', color: 'white' },
-                    { label: 'Longitude', value: telemetry.lng.toFixed(3), unit: 'DEG', color: 'white' },
+                    { label: 'Altitude Matrix', value: Math.round(telemetry.alt), unit: 'KM' },
+                    { label: 'Velocity Coefficient', value: Math.round(telemetry.vel / 3.6).toLocaleString(), unit: 'M/S' },
+                    { label: 'Obs Lat', value: telemetry.lat.toFixed(3), unit: 'DEG' },
+                    { label: 'Obs Lng', value: telemetry.lng.toFixed(3), unit: 'DEG' },
                   ].map((item) => (
                     <div key={item.label} className="relative">
-                      <p className="text-[7px] text-white/30 uppercase tracking-[0.2em] font-black mb-1">{item.label}</p>
-                      <div className="flex items-baseline gap-1">
-                        <p className={`text-lg md:text-xl font-black font-mono leading-none ${item.color === 'yellow' ? 'text-[#FACC15]' : 'text-white'}`}>
+                      <p className="pro-mono !text-[8px] !text-white/30 uppercase mb-3 italic">{item.label}</p>
+                      <div className="flex items-baseline gap-2">
+                        <p className="text-2xl font-bold text-white leading-none tracking-tighter">
                           {item.value}
                         </p>
-                        <span className="text-[8px] font-bold text-white/20">{item.unit}</span>
+                        <span className="pro-mono !text-[8px] !text-white/20 italic">{item.unit}</span>
                       </div>
                     </div>
                   ))}
                 </div>
 
-                <div className="flex items-center gap-3 w-full md:w-auto">
+                <div className="flex items-center gap-4 w-full md:w-auto">
                   <button 
                     onClick={() => {
                       const newState = !isTrackingIss;
@@ -1876,22 +1989,22 @@ const CesiumGlobe: React.FC = () => {
                         }
                       }
                     }}
-                    className={`flex-1 md:w-40 h-14 rounded-2xl flex items-center justify-center gap-3 transition-all font-black text-[10px] uppercase tracking-widest border border-white/10 ${
-                      isTrackingIss ? 'bg-[#FACC15] text-black border-[#FACC15]' : 'bg-white/5 text-white/40 hover:bg-white/10'
+                    className={`flex-1 md:w-56 h-16 pro-radius-sm flex items-center justify-center gap-4 transition-all font-bold text-[11px] uppercase tracking-[0.2em] border ${
+                      isTrackingIss ? 'bg-white text-black border-white shadow-2xl shadow-white/20' : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white border-white/10'
                     }`}
                   >
-                    <Activity size={14} className={isTrackingIss ? 'animate-pulse' : ''} />
-                    {isTrackingIss ? 'Locked on ISS' : 'Follow ISS'}
+                    <Activity size={16} className={isTrackingIss ? 'animate-pulse' : ''} />
+                    {isTrackingIss ? 'Target Synchronized' : 'Follow Primary ISS'}
                   </button>
 
                   <button 
                     onClick={() => setShowIssTrail(!showIssTrail)}
-                    className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all border border-white/10 ${
-                      showIssTrail ? 'bg-[#FACC15]/20 text-[#FACC15] border-[#FACC15]/50' : 'bg-white/5 text-white/20'
+                    className={`w-16 h-16 pro-radius-sm flex items-center justify-center transition-all border ${
+                      showIssTrail ? 'bg-[#FACC15]/20 text-[#FACC15] border-[#FACC15]/50' : 'bg-white/5 text-white/20 border-white/10 hover:text-white'
                     }`}
-                    title="Toggle ISS Trail"
+                    title="Toggle Vector Path"
                   >
-                    <Navigation size={18} className={showIssTrail ? 'rotate-45' : ''} />
+                    <Navigation size={20} className={showIssTrail ? 'rotate-45' : ''} />
                   </button>
                 </div>
               </div>
@@ -1907,23 +2020,24 @@ const CesiumGlobe: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-2xl"
+            className="absolute inset-0 z-[100] flex items-center justify-center bg-black backdrop-blur-3xl"
           >
-            <div className="flex flex-col items-center gap-8">
-              <div className="relative">
-                <div className="w-24 h-24 border-2 border-[#FACC15]/20 rounded-full animate-pulse" />
-                <div className="absolute inset-0 border-2 border-[#FACC15] border-t-transparent rounded-full animate-spin" />
-                <div className="absolute inset-4 border border-white/10 rounded-full flex items-center justify-center">
-                  <Globe className="text-[#FACC15] animate-pulse" size={24} />
+             <div className="cinematic-vignette" />
+             <div className="flex flex-col items-center gap-12 relative z-10">
+              <div className="relative group">
+                <div className="w-32 h-32 border border-white/5 rounded-full" />
+                <div className="absolute inset-0 border-t-2 border-white rounded-full animate-spin [animation-duration:3s]" />
+                <div className="absolute inset-6 border border-white/10 rounded-full flex items-center justify-center">
+                  <Sparkles className="text-white animate-pulse" size={32} />
                 </div>
               </div>
-              <div className="text-center">
-                <p className="text-white font-black uppercase tracking-[0.4em] text-xs mb-2">INITIALIZING ORBITAL PROTOCOL</p>
-                <div className="flex items-center justify-center gap-1">
-                  <span className="w-1 h-1 bg-[#FACC15] rounded-full animate-bounce [animation-delay:-0.3s]" />
-                  <span className="w-1 h-1 bg-[#FACC15] rounded-full animate-bounce [animation-delay:-0.15s]" />
-                  <span className="w-1 h-1 bg-[#FACC15] rounded-full animate-bounce" />
-                </div>
+              <div className="text-center space-y-4">
+                <h2 className="text-4xl font-bold tracking-tighter text-white uppercase italic">
+                  Stargaze.
+                </h2>
+                <p className="pro-mono !text-[10px] !text-white/40 uppercase tracking-[0.4em] italic">
+                   Configuring Universal Layers | 37.9% More Circular
+                </p>
               </div>
             </div>
           </motion.div>

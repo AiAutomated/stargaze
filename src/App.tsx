@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useScroll, useTransform } from 'motion/react';
 import { useInView } from 'react-intersection-observer';
 import {
   Sparkles, Star, Globe, Radio, Info, Menu, X, Home as HomeIcon,
@@ -8,9 +8,8 @@ import {
   Eye, EyeOff, Zap, Activity, Bell, BellOff, Send, Shield, FileText,
   RefreshCw, AlertTriangle, CheckCircle, ExternalLink, Rocket, Moon,
   Cloud, Wind, BarChart2, Users, MessageSquare, Plus, Search,
-  Filter, TrendingUp, Navigation, Compass, Gauge, Bot, Cpu, Sparkle
+  Filter, TrendingUp, Navigation, Compass, Gauge, Thermometer
 } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
 import meteorShowers from './data/meteorShowers.json';
 import CesiumGlobe from './components/CesiumGlobe';
 
@@ -289,27 +288,27 @@ function Navbar({ watched, notifications }: { watched: WatchedShower[]; notifica
 
   return (
     <nav 
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-        scrolled ? 'py-4' : 'py-8'
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 ${
+        scrolled ? 'py-4' : 'py-10'
       }`}
     >
-      <div className="max-w-7xl mx-auto px-6">
-        <div className={`glass-nav px-8 py-4 rounded-[32px] border border-white/10 flex items-center justify-between transition-all ${
-          scrolled ? 'bg-black/60 shadow-2xl' : 'bg-transparent'
+      <div className="max-w-screen-2xl mx-auto px-6 lg:px-12">
+        <div className={`glass-pro px-8 py-5 rounded-[26px] flex items-center justify-between transition-all duration-500 ${
+          scrolled ? 'bg-black/40 scale-[0.98] shadow-2xl' : 'bg-transparent'
         }`}>
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FACC15] to-[#EAB308] flex items-center justify-center shadow-lg shadow-[#FACC15]/15 group-hover:scale-105 transition-transform">
-              <Sparkles size={18} className="text-black" />
+          <Link to="/" className="flex items-center gap-4 group">
+            <div className="w-11 h-11 rounded-[14px] bg-white flex items-center justify-center shadow-2xl shadow-white/10 group-hover:invert transition-all duration-500">
+              <Sparkles size={20} className="text-black" />
             </div>
             <div>
-              <span className="font-space font-black text-white text-xl tracking-tighter uppercase leading-none block">Stargaze</span>
-              <span className="text-[9px] text-[#FACC15] font-black tracking-[0.2em] uppercase mt-0.5 block">Studio v2.5</span>
+              <span className="font-sans font-black text-white text-2xl tracking-[-0.08em] uppercase leading-none block">Stargaze</span>
+              <span className="pro-mono mt-1 block">Oryzo Configurator</span>
             </div>
           </Link>
 
           {/* Desktop nav */}
-          <div className="hidden md:flex items-center gap-1">
+          <div className="hidden md:flex items-center gap-2">
             {links.map((link) => {
               const active = pathname === link.to;
               const Icon = link.icon;
@@ -317,16 +316,16 @@ function Navbar({ watched, notifications }: { watched: WatchedShower[]; notifica
                 <Link
                   key={link.to}
                   to={link.to}
-                  className={`relative px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
-                    active ? 'text-[#FACC15]' : 'text-white/40 hover:text-white hover:bg-white/5'
+                  className={`relative px-6 py-2.5 rounded-full text-[11px] font-bold uppercase tracking-[0.15em] transition-all flex items-center gap-3 ${
+                    active ? 'text-white' : 'text-white/30 hover:text-white'
                   }`}
                 >
-                  <Icon size={14} className={active ? 'text-[#FACC15]' : ''} />
+                  {/* <Icon size={14} className={active ? 'text-white' : ''} /> */}
                   <span>{link.label}</span>
                   {active && (
                     <motion.div
                       layoutId="nav-pill"
-                      className="absolute inset-0 bg-[#FACC15]/5 rounded-xl border border-[#FACC15]/10 -z-10"
+                      className="absolute inset-0 bg-white/5 border border-white/10 rounded-full -z-10"
                     />
                   )}
                 </Link>
@@ -335,32 +334,27 @@ function Navbar({ watched, notifications }: { watched: WatchedShower[]; notifica
           </div>
 
           {/* Right side icons */}
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:flex flex-col items-end mr-2">
-              <div className="flex items-center gap-1.5">
-                <span className="live-dot" />
-                <span className="text-[10px] font-black text-white tracking-widest uppercase">System Online</span>
+          <div className="flex items-center gap-6">
+            <div className="hidden lg:flex flex-col items-end">
+              <div className="flex items-center gap-2 opacity-50">
+                <span className="w-1.5 h-1.5 bg-[#FACC15] rounded-full intensity-active" />
+                <span className="pro-mono !text-[9px]">Sensor Alpha-7 Active</span>
               </div>
             </div>
             
-            <button className="hidden sm:flex w-10 h-10 rounded-xl border border-white/5 items-center justify-center text-white/40 hover:text-[#FACC15] transition-all">
+            <button className="hidden sm:flex w-11 h-11 rounded-full border border-white/10 items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-all">
               <Search size={18} />
             </button>
 
             <Link 
-              to="/calendar" 
-              className="relative w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-white/40 hover:text-[#FACC15] transition-all"
+              to="/live" 
+              className="btn-pro !px-6 !py-3 !text-[11px] uppercase tracking-widest hidden sm:flex"
             >
-              <Bell size={18} />
-              {watched.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#FACC15] text-black text-[8px] font-black flex items-center justify-center rounded-full border-2 border-[#050505]">
-                  {watched.length}
-                </span>
-              )}
+              Live Tracking
             </Link>
 
             <button
-              className="md:hidden text-white/60 hover:text-[#FACC15] p-1.5 rounded-lg hover:bg-white/5 transition-all"
+              className="md:hidden text-white/60 hover:text-white p-2 rounded-full hover:bg-white/5 transition-all"
               onClick={() => setOpen(o => !o)}
               aria-label="Toggle menu"
             >
@@ -408,17 +402,17 @@ function Footer() {
       <div className="max-w-7xl mx-auto px-8 py-24">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-16 mb-20">
           <div className="col-span-2">
-            <Link to="/" className="flex items-center gap-3 mb-8 group">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#FACC15] to-[#EAB308] flex items-center justify-center shadow-xl shadow-[#FACC15]/20 transition-transform group-hover:scale-105">
-                <Sparkles size={18} className="text-black" />
-              </div>
-              <span className="font-space font-black text-white text-xl tracking-tighter uppercase italic">
-                Stargaze<span className="text-[#FACC15]">.io</span>
-              </span>
-            </Link>
-            <p className="text-xs text-white/40 leading-relaxed font-medium max-w-xs mb-8">
-              A premium technical atlas for the modern astronomer. Aggregating high-fidelity orbital data into a seamless architectural experience.
-            </p>
+             <Link to="/" className="flex items-center gap-3 mb-8 group">
+               <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-xl shadow-white/5 transition-transform group-hover:scale-105 group-hover:invert duration-500">
+                 <Sparkles size={18} className="text-black" />
+               </div>
+               <span className="font-sans font-black text-white text-xl tracking-tighter uppercase italic">
+                 Stargaze
+               </span>
+             </Link>
+             <p className="text-xs text-white/40 leading-relaxed font-medium max-w-xs mb-8">
+               A professional celestial tracking system. We help you find exactly when and where to see the next meteor shower, track the ISS, and monitor global space events in real-time.
+             </p>
             <div className="flex gap-4">
                {['Twitter', 'GitHub', 'Discord'].map(social => (
                  <div key={social} className="w-8 h-8 rounded-lg bg-white/5 border border-white/5 flex items-center justify-center text-white/20 hover:text-[#FACC15] hover:border-[#FACC15]/20 transition-all cursor-pointer">
@@ -688,17 +682,45 @@ function FaqSection() {
   );
 }
 
+function ShootingStars() {
+  return (
+    <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+      {[...Array(6)].map((_, i) => (
+        <motion.div
+          key={i}
+          initial={{ top: '-10%', left: `${20 + i * 15}%`, opacity: 0, scale: 0 }}
+          animate={{ 
+            top: '110%', 
+            left: `${i * 15}%`, 
+            opacity: [0, 1, 0],
+            scale: [0.5, 1, 0.5]
+          }}
+          transition={{
+            duration: 2 + Math.random() * 2,
+            repeat: Infinity,
+            delay: Math.random() * 10,
+            ease: "linear"
+          }}
+          className="absolute w-[2px] h-[100px] bg-gradient-to-t from-transparent via-[#FACC15]/40 to-transparent -rotate-[35deg] blur-[1px]"
+        />
+      ))}
+    </div>
+  );
+}
+
 // ─── HOME PAGE ────────────────────────────────────────────────────────────────
 function Home({ watched, addNotification, toggleWatch }: {
   watched: WatchedShower[];
   addNotification: (n: Omit<Notification, 'id' | 'timestamp'>) => void;
   toggleWatch: (s: MeteorShower) => void;
 }) {
+  const { scrollYProgress } = useScroll();
+  const y = useTransform(scrollYProgress, [0, 1], [0, 300]);
   const nextShower = getNextShower();
   const moon = getMoonPhase();
   const [apod, setApod] = useState<{ title: string; url: string; explanation: string; media_type: string } | null>(null);
   const [apodLoading, setApodLoading] = useState(true);
-  const [weather, setWeather] = useState<{ cloudCover: number; humidity: number } | null>(null);
+  const [weather, setWeather] = useState<{ cloudCover: number; humidity: number; temp: number } | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(false);
   const [weatherDenied, setWeatherDenied] = useState(false);
   const [ref, inView] = useInView({ triggerOnce: true, threshold: 0.1 });
@@ -715,12 +737,16 @@ function Home({ watched, addNotification, toggleWatch }: {
   useEffect(() => {
     if (!navigator.geolocation) { setWeatherDenied(true); return; }
     setWeatherLoading(true);
-    navigator.geolocation.getCurrentPosition(
+        navigator.geolocation.getCurrentPosition(
       async pos => {
         try {
-          const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&current=cloud_cover,relative_humidity_2m&timezone=auto`);
+          const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&current=cloud_cover,relative_humidity_2m,temperature_2m&timezone=auto`);
           const d = await r.json();
-          setWeather({ cloudCover: d.current.cloud_cover, humidity: d.current.relative_humidity_2m });
+          setWeather({ 
+            cloudCover: d.current.cloud_cover, 
+            humidity: d.current.relative_humidity_2m,
+            temp: Math.round(d.current.temperature_2m)
+          });
         } catch {}
         setWeatherLoading(false);
       },
@@ -732,94 +758,130 @@ function Home({ watched, addNotification, toggleWatch }: {
   const upcomingShowers = showers.filter(s => getShowerStatus(s) === 'upcoming').slice(0, 3);
 
   return (
-    <div className="relative z-10 max-w-7xl mx-auto px-4 pt-28 pb-16">
+    <div className="relative min-h-screen overflow-hidden">
+      <div className="cinematic-vignette" />
+      <div className="relative z-10 max-w-screen-2xl mx-auto px-6 lg:px-12 pt-48 pb-32">
 
       {/* ── Hero ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
-        <div className="md:col-span-2 glass-card p-0 rounded-[48px] overflow-hidden relative min-h-[550px] shadow-2xl shadow-black/5">
+      <div className="flex flex-col items-center text-center mb-40 relative">
+        <ShootingStars />
+        {/* Cinematic Background Layer */}
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 2 }}
+          className="absolute -top-48 inset-x-0 -z-10 h-[120vh] pointer-events-none overflow-hidden"
+        >
+          <div className="absolute inset-0 bg-black/50 z-10" />
+          <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black to-transparent z-20" />
+          <motion.video 
+            autoPlay 
+            loop 
+            muted 
+            playsInline
+            style={{ y }}
+            className="w-full h-full object-cover grayscale opacity-20 scale-125"
+          >
+            <source src="https://assets.mixkit.co/videos/preview/mixkit-stars-in-the-night-sky-moving-slowly-3798-large.mp4" type="video/mp4" />
+          </motion.video>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+          className="mb-12"
+        >
+          <span className="pro-mono !text-[#FACC15] !tracking-[0.6em] mb-6 block intensity-active">Optical Grade Clarity</span>
+          <h1 className="hero-title">
+            Stargaze. <br/>
+            <span className="text-white/40 italic">Precision Orbital Tracking.</span>
+          </h1>
+        </motion.div>
+
+        <motion.p 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6, duration: 1.5 }}
+          className="text-xl text-white/30 max-w-3xl leading-relaxed font-medium mb-16 px-6"
+        >
+          The definitive technical observatory for mapping meteor trajectories, 
+          orbital windows, and local atmospheric dynamics with cinematic fidelity.
+        </motion.p>
+
+        <div className="flex flex-wrap justify-center gap-8">
+          <Link to="/globe" className="btn-pro">
+            Open Configurator
+          </Link>
+          <Link to="/calendar" className="btn-pro-outline">
+            The Chronicle
+          </Link>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="md:col-span-2 glass-pro-card p-0 overflow-hidden relative min-h-[600px]">
           <div className="absolute inset-0 z-0">
-             <img src="https://images.unsplash.com/photo-1444703686981-a3abbc4d4fe3?auto=format&fit=crop&q=80&w=2000" className="w-full h-full object-cover opacity-20 mix-blend-screen" alt="Space" />
-             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+             <img 
+               src="https://images.unsplash.com/photo-1444703686981-a3abbc4d4fe3?auto=format&fit=crop&q=80&w=2000" 
+               className="w-full h-full object-cover grayscale opacity-40 mix-blend-screen" 
+               alt="Deep space nebula visualization for celestial tracking" 
+             />
+             <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black via-black/80 to-transparent" />
           </div>
           
-          <div className="relative z-10 p-16 flex flex-col justify-center h-full">
-            <motion.div 
-               initial={{ opacity: 0, x: -20 }}
-               animate={{ opacity: 1, x: 0 }}
-               className="flex items-center gap-3 mb-8"
-            >
-              <div className="h-0.5 w-16 bg-[#FACC15]" />
-              <p className="section-label">Real-time Celestial Synthesis</p>
-            </motion.div>
+          <div className="relative z-10 p-16 flex flex-col justify-end h-full">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="h-[1px] w-12 bg-white/20" />
+              <p className="pro-mono">Celestial Synthesis v4.2</p>
+            </div>
             
-            <h1 className="hero-title mb-8 text-white">
-              Navigate <br/>
-              The <span className="hero-gradient-text">Atmosphere.</span>
-            </h1>
+            <h2 className="text-5xl font-bold tracking-tight mb-8">
+              Cinematic Simulation. <br/>
+              <span className="text-white/30 italic">Pure hardware acceleration.</span>
+            </h2>
             
             <p className="text-lg text-white/40 max-w-md leading-relaxed font-medium mb-12">
-              A premium technical engine for tracking orbital dynamics, meteor trajectories, and global stargazing conditions.
+              Advanced tracking of orbital dynamics, meteor trajectories, and global atmospheric states.
             </p>
-            
-            <div className="flex flex-wrap gap-5">
-              <Link to="/globe" className="btn-primary px-10">
-                Launch Explorer <ArrowRight size={18} />
-              </Link>
-              <Link to="/calendar" className="btn-secondary px-10 border-[#FACC15]/20">
-                View Calendar
-              </Link>
-            </div>
           </div>
         </div>
 
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-8">
           <ISSWidget />
-          <div className="glass-card p-10 rounded-[48px] flex-1 flex flex-col justify-between border-white/5 shadow-2xl shadow-black/5">
+          <div className="glass-pro-card p-12 flex-1 flex flex-col justify-between">
             <div>
-              <div className="flex items-center gap-4 mb-8">
-                <div className="w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shadow-lg shadow-orange-500/5">
-                  <Moon size={24} className="text-orange-500" />
+              <div className="flex items-center gap-5 mb-12">
+                <div className="w-14 h-14 pro-radius-sm bg-white/5 border border-white/10 flex items-center justify-center">
+                  <Moon size={28} className="text-white/60" />
                 </div>
                 <div>
-                  <p className="text-xs font-black text-white uppercase tracking-wider">Lunar Phase</p>
-                  <p className="text-[10px] text-[#FACC15] font-black uppercase tracking-widest mt-0.5">Orbital Status</p>
+                  <p className="pro-mono !text-white">Lunar Integration</p>
+                  <p className="pro-mono !text-[9px] mt-1 italic">Orbital Phase: Verified</p>
                 </div>
               </div>
-              <div className="flex items-center gap-8 mb-8">
-                <span className="text-8xl group-hover:scale-110 transition-transform duration-1000">{moon.emoji}</span>
+              <div className="flex items-center gap-10">
+                <span className="text-8xl">{moon.emoji}</span>
                 <div>
-                  <p className="text-3xl font-black text-white font-space tracking-tight">{moon.phase}</p>
-                  <p className="text-base font-bold text-[#FACC15] mt-1">{moon.illumination}% luminous</p>
+                  <p className="text-4xl font-bold tracking-tight">{moon.phase}</p>
+                  <p className="pro-mono !text-[#FACC15] mt-2 !tracking-widest">{moon.illumination}% Luminous</p>
                 </div>
               </div>
             </div>
             
-            <div>
-              <div className="mb-6">
-                 <div className="flex justify-between text-[10px] font-black text-white/30 uppercase tracking-widest mb-3">
-                   <span>Luminescence</span>
-                   <span>{moon.illumination}%</span>
-                 </div>
-                 <div className="h-2.5 w-full bg-white/5 rounded-full overflow-hidden">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: `${moon.illumination}%` }}
-                      transition={{ duration: 1, ease: 'circOut' }}
-                      className="h-full bg-gradient-to-r from-orange-400 to-orange-200"
-                    />
-                 </div>
-              </div>
-              <div className="p-6 rounded-[24px] bg-white/5 border border-white/5">
-                <p className="text-[11px] text-white/40 font-bold leading-relaxed">
-                  {moon.illumination > 50 ? 'Moderate moonlight interference — prioritize tracking high-velocity fireballs.' : 'Excellent darkness threshold — sensitivity allows for faint trail detection.'}
-                </p>
-              </div>
+            <div className="pt-12 mt-12 border-t border-white/5">
+                <p className="pro-mono !text-[9px] mb-4">Luminescence Gradient</p>
+                <div className="h-[1px] w-full bg-white/10 relative">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${moon.illumination}%` }}
+                    className="absolute inset-y-0 left-0 bg-white"
+                  />
+                </div>
             </div>
           </div>
         </div>
       </div>
-
-      <SkyIntelligence />
 
       {/* ── Status Cards ── */}
       <motion.div
@@ -827,171 +889,117 @@ function Home({ watched, addNotification, toggleWatch }: {
         initial={{ opacity: 0, y: 20 }}
         animate={inView ? { opacity: 1, y: 0 } : {}}
         transition={{ duration: 0.6, delay: 0.1 }}
-        className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10"
+        className="grid grid-cols-2 md:grid-cols-4 gap-6 my-16"
       >
         {[
-          {
-            label: activeShowers.length > 0 ? 'Active Showers' : 'Next Shower',
-            value: activeShowers.length > 0 ? activeShowers.length.toString() : (nextShower ? `${getDaysUntilPeak(nextShower)}d` : '—'),
-            sub:   activeShowers.length > 0 ? 'happening now' : (nextShower ? nextShower.name : undefined),
-            icon: Activity,
-            color: activeShowers.length > 0 ? 'text-[#FACC15]' : 'text-[#FACC15]',
-            accent: '#FACC15',
-          },
-          {
-            label: 'Moon Phase',
-            value: moon.emoji,
-            sub: moon.phase,
-            icon: Moon,
-            color: 'text-neutral-400',
-            accent: '#FFFFFF',
-          },
-          {
-            label: 'Illumination',
-            value: `${moon.illumination}%`,
-            sub: moon.illumination > 60 ? 'high intensity' : 'optimal sky',
-            icon: Eye,
-            color: 'text-[#FACC15]',
-            accent: '#FACC15',
-          },
-          {
-            label: 'Cloud Cover',
-            value: weather ? `${weather.cloudCover}%` : weatherDenied ? 'Unlock' : '…',
-            sub: weather
-              ? (weather.cloudCover < 30 ? 'clear skies' : weather.cloudCover < 60 ? 'partly cloudy' : 'overcast')
-              : (weatherDenied ? 'Allow location' : undefined),
-            icon: Cloud,
-            color: 'text-neutral-500',
-            accent: '#a1a1aa',
-          },
-        ].map(({ label, value, sub, icon: Icon, color, accent }) => (
-          <div
-            key={label}
-            className="glass-card p-5 border-white/5"
-            style={{ borderLeft: `4px solid ${accent}` }}
-          >
-            <Icon size={18} className={`${color} mb-3`} />
-            <p className="text-2xl font-black font-display leading-none mb-1 text-white">{value}</p>
-            {sub && <p className="text-[11px] text-white/60 font-bold mt-0.5">{sub}</p>}
-            <p className="text-[10px] text-white/30 uppercase tracking-[0.2em] mt-3 font-mono font-black">{label}</p>
+          { label: 'Active Showers', value: activeShowers.length.toString(), sub: 'In Orbit', icon: Activity },
+          { label: 'System status', value: 'Alpha-7', sub: 'Operational', icon: Gauge },
+          { label: 'Sky Clarity', value: weather ? `${100 - weather.cloudCover}%` : '—', sub: 'Optical Grade', icon: Eye },
+          { label: 'Orbital Path', value: 'Locked', sub: 'Nadir Vector', icon: Navigation },
+        ].map(({ label, value, sub, icon: Icon }) => (
+          <div key={label} className="glass-pro-card p-8 group hover:scale-[1.02]">
+            <Icon size={18} className="text-white/40 mb-6 group-hover:text-white transition-colors" />
+            <p className="text-3xl font-bold tracking-tight mb-1 text-white">{value}</p>
+            <p className="pro-mono !text-[9px] !text-white/30">{label}</p>
           </div>
         ))}
       </motion.div>
 
     {/* ─── Main Grid: Countdown + ISS/Moon ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-20">
         {/* Next Shower Countdown */}
         <div className="lg:col-span-2">
           {nextShower ? (
             <motion.div
-              initial={{ opacity: 0, scale: 0.97 }}
+              initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.2 }}
-              className="glass-card p-6 rounded-2xl h-full relative overflow-hidden"
+              className="glass-pro-card p-12 h-full relative overflow-hidden group"
             >
               <MeteorVisualizer zhr={nextShower.zhr} active />
-              <div className="relative z-10">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="section-label text-orange-400">Next Peak Event</span>
-                  {nextShower.speed && (
-                    <span className="text-[10px] font-mono text-white/30 flex items-center gap-1 ml-auto">
-                      <Gauge size={9} />
-                      {nextShower.speed} km/s
-                    </span>
-                  )}
+              <div className="relative z-10 flex flex-col h-full justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-12">
+                    <span className="pro-mono !text-[#FACC15] !tracking-[0.4em]">Primary Event Sync</span>
+                    {nextShower.speed && (
+                      <span className="pro-mono !text-white/20">
+                        Velocity: {nextShower.speed} km/s
+                      </span>
+                    )}
+                  </div>
+                  <h2 className="text-6xl font-bold tracking-tighter mb-4 group-hover:italic transition-all duration-1000">{nextShower.name}</h2>
+                  <p className="text-xl text-white/30 max-w-lg mb-12 font-medium">
+                    Intersection with {nextShower.constellation} constellation clusters. Expected frequency threshold: {nextShower.zhr} ZHR.
+                  </p>
                 </div>
-                <h2 className="text-3xl font-bold font-space mb-1">{nextShower.name}</h2>
-                <p className="text-sm text-white/50 mb-6">
-                  {nextShower.constellation} constellation · Up to {nextShower.zhr} meteors/hour
-                </p>
-                <CountdownTimer targetDate={nextShower.peak} label="Until Peak" />
-                <div className="mt-6 flex flex-wrap items-center gap-3">
-                  <Link to={`/shower/${nextShower.id}`} className="btn-primary text-xs">
-                    <ArrowRight size={12} />
-                    Full Details
-                  </Link>
-                  <button
-                    onClick={() => {
-                      toggleWatch(nextShower);
-                      addNotification({
-                        title: watched?.some(w => w.id === nextShower.id) ? 'Removed from watchlist' : 'Added to watchlist!',
-                        message: `${nextShower.name} — peak ${formatDate(nextShower.peak)}`,
-                        type: 'success',
-                      });
-                    }}
-                    className="btn-secondary text-xs"
-                  >
-                    {watched?.some(w => w.id === nextShower.id) ? <BellOff size={12} /> : <Bell size={12} />}
-                    {watched?.some(w => w.id === nextShower.id) ? 'Unwatch' : 'Watch'}
-                  </button>
+                
+                <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row items-end justify-between gap-8">
+                  <div className="flex-1 w-full">
+                    <CountdownTimer targetDate={nextShower.peak} label="Synchronization Window" />
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <Link to={`/shower/${nextShower.id}`} className="btn-pro text-[10px]">
+                      Analysis
+                    </Link>
+                  </div>
                 </div>
               </div>
             </motion.div>
           ) : (
-            <div className="glass-card p-6 rounded-2xl flex items-center justify-center h-full min-h-48">
-              <p className="text-white/30 text-sm">No upcoming showers found</p>
+            <div className="glass-pro-card p-20 flex items-center justify-center h-full">
+              <p className="pro-mono !text-white/20 italic text-xl">No active trajectories detected</p>
             </div>
           )}
         </div>
 
-        {/* ISS + Moon */}
-        <div className="flex flex-col gap-4">
+        {/* ISS + Moon Mini Column */}
+        <div className="flex flex-col gap-8">
           <ISSWidget />
-          <div className="glass-card p-4 rounded-2xl flex-1">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-6 h-6 rounded-lg bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center">
-                <Moon size={12} className="text-yellow-300" />
-              </div>
-              <span className="text-xs font-semibold font-space text-white/75">Moon Status</span>
+          <div className="glass-pro-card p-10 flex flex-col justify-between">
+            <div className="flex items-center gap-4 mb-4">
+               <div className="w-1.5 h-1.5 bg-[#FACC15] rounded-full intensity-active" />
+               <span className="pro-mono !text-[9px]">Orbital Beacon</span>
             </div>
-            <p className="text-3xl mb-1">{moon.emoji}</p>
-            <p className="text-sm font-semibold text-white/85">{moon.phase}</p>
-            <p className="text-xs text-white/40 mt-1">{moon.illumination}% illuminated</p>
-            <div className="mt-3 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
-              <div
-                className="h-full bg-gradient-to-r from-yellow-500 to-yellow-200 rounded-full transition-all duration-700"
-                style={{ width: `${moon.illumination}%` }}
-              />
-            </div>
-            <p className="text-[10px] text-white/30 mt-2.5 leading-relaxed">
-              {moon.illumination > 50 ? 'Bright moon — expect reduced meteor visibility' : 'Good dark-sky conditions for viewing'}
+            <p className="text-xs text-white/40 leading-relaxed font-medium">
+              The observatory is currently synchronizing with the latest lunar phase data and atmospheric clarity coefficients.
             </p>
+            <div className="mt-8 pt-8 border-t border-white/5">
+               <p className="pro-mono !text-[10px] text-white tracking-widest uppercase">Studio v2.5</p>
+            </div>
           </div>
         </div>
       </div>
 
       {/* ── Active Showers ── */}
       {activeShowers.length > 0 && (
-        <div className="mb-16">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-1.5 h-6 bg-[#FACC15] rounded-full" />
-            <h2 className="text-2xl font-black font-space text-white tracking-tight uppercase">Active Synthesis</h2>
+        <div className="mb-32">
+          <div className="flex flex-col mb-12">
+            <span className="pro-mono !text-[#FACC15] !tracking-[0.5em] mb-4">Real-Time Synthesis</span>
+            <h2 className="text-4xl font-bold tracking-tight text-white uppercase italic">Active Events</h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {activeShowers.map(s => (
               <motion.div
                 key={s.id}
-                whileHover={{ y: -4, scale: 1.01 }}
-                className="glass-card p-8 rounded-[32px] group relative overflow-hidden border-white/5"
-                style={{ borderLeft: '4px solid #FACC15' }}
+                whileHover={{ scale: 1.02 }}
+                className="glass-pro-card p-12 group relative overflow-hidden h-full flex flex-col justify-between"
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-[#FACC15]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
                 <div className="relative z-10">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <span className="bg-[#FACC15] text-black text-[9px] px-2.5 py-1 rounded-lg font-black tracking-widest uppercase">Active Event</span>
-                      <h3 className="text-xl font-black mt-3 text-white font-space uppercase italic">{s.name}</h3>
+                  <div className="flex items-start justify-between mb-12">
+                    <div className="px-4 py-2 pro-radius-sm bg-white/5 border border-white/10">
+                      <span className="pro-mono !text-white !text-[9px]">Sync Active</span>
                     </div>
                     <div className="text-right">
-                      <span className="text-sm font-black text-[#FACC15] font-mono tracking-tight">{s.zhr} ZHR</span>
-                      {s.speed && <p className="text-[10px] text-white/30 font-black uppercase tracking-widest mt-1">{s.speed} KM/S</p>}
+                      <span className="text-2xl font-bold text-[#FACC15] font-mono tracking-tighter italic">{s.zhr} ZHR</span>
                     </div>
                   </div>
-                  <p className="text-xs text-white/50 mb-6 font-medium leading-relaxed">{s.description}</p>
-                  <Link to={`/shower/${s.id}`} className="inline-flex items-center gap-2 text-xs font-black text-[#FACC15] uppercase tracking-widest hover:translate-x-1 transition-transform">
-                    Synthesis Report <ArrowRight size={12} />
-                  </Link>
+                  <h3 className="text-3xl font-bold mb-4 text-white group-hover:tracking-wider transition-all duration-700">{s.name}</h3>
+                  <p className="text-base text-white/30 mb-12 font-medium leading-relaxed max-w-sm">{s.description}</p>
                 </div>
+                <Link to={`/shower/${s.id}`} className="relative z-10 w-fit flex items-center gap-3 pro-mono !text-white hover:italic transition-all group/link">
+                  Launch Synthesis <ArrowRight size={14} className="group-hover/link:translate-x-2 transition-transform" />
+                </Link>
               </motion.div>
             ))}
           </div>
@@ -1026,7 +1034,7 @@ function Home({ watched, addNotification, toggleWatch }: {
                     <span className="text-[10px] font-black text-[#FACC15] bg-[#FACC15]/5 px-2.5 py-1 rounded-lg border border-[#FACC15]/10 tracking-widest uppercase">
                       {daysUntil > 0 ? `T-MINUS ${daysUntil}D` : 'LAUNCHING'}
                     </span>
-                    <Sparkle size={14} className="text-white/10 group-hover:text-[#FACC15]/40 transition-colors" />
+                    <Sparkles size={14} className="text-white/10 group-hover:text-[#FACC15]/40 transition-colors" />
                   </div>
                   <h3 className="text-base font-black text-white mb-1 font-space tracking-tight group-hover:text-[#FACC15] transition-colors uppercase">{s.name}</h3>
                   <p className="text-[9px] text-white/30 font-black uppercase tracking-widest mb-4">PEAK WINDOW: {formatDate(s.peak)}</p>
@@ -1041,116 +1049,108 @@ function Home({ watched, addNotification, toggleWatch }: {
         </div>
       </div>
 
-      {/* ── NASA APOD — always render ── */}
-      <div className="mb-16">
-        <div className="flex items-center gap-3 mb-8">
-           <div className="w-1.5 h-6 bg-[#FACC15] rounded-full" />
-           <h2 className="text-2xl font-black font-space text-white tracking-tight uppercase">Cosmic Feed</h2>
+      {/* ── NASA APOD ── */}
+      <div className="mb-32">
+        <div className="flex flex-col mb-12">
+            <span className="pro-mono !text-[#FACC15] !tracking-[0.5em] mb-4">Aperture Stream</span>
+            <h2 className="text-4xl font-bold tracking-tight text-white uppercase italic">Cosmic Feed</h2>
         </div>
-        <div className="glass-card rounded-[48px] overflow-hidden border-white/5 shadow-2xl shadow-black/5 bg-[#050505]">
+        <div className="glass-pro-card !p-0 overflow-hidden min-h-[700px] group relative">
           {apodLoading ? (
-            <div className="h-96 flex items-center justify-center bg-white/2 shimmer">
-              <div className="text-center">
-                <Rocket size={40} className="text-[#FACC15]/20 mx-auto mb-4 animate-float" />
-                <p className="text-[10px] text-white/20 font-black tracking-widest uppercase">Synchronizing with NASA…</p>
-              </div>
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black">
+              <RefreshCw size={32} className="text-white/20 animate-spin mb-6" />
+              <p className="pro-mono !text-white/30 italic">Synchronizing Optic Array…</p>
             </div>
           ) : apod ? (
-            <div className="relative group cursor-pointer overflow-hidden max-h-[600px]">
-              {apod.media_type === 'image' ? (
-                <img 
-                  src={apod.url} 
-                  alt={apod.title} 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[2000ms]" 
-                  loading="lazy" 
-                  referrerPolicy="no-referrer" 
-                />
-              ) : (
-                <div className="h-96 flex items-center justify-center bg-white/5">
-                  <a href={apod.url} target="_blank" rel="noopener noreferrer" className="btn-primary">
-                    <ExternalLink size={16} /> Stream Synthesis
-                  </a>
+            <div className="h-full flex flex-col">
+              <div className="relative flex-1 group/img overflow-hidden min-h-[500px]">
+                {apod.media_type === 'image' ? (
+                  <img 
+                    src={apod.url} 
+                    alt={apod.title} 
+                    className="w-full h-full object-cover grayscale brightness-75 group-hover/img:scale-105 transition-transform duration-[4000ms]" 
+                  />
+                ) : (
+                  <div className="w-full h-full bg-black flex items-center justify-center">
+                    <ExternalLink size={40} className="text-white/20" />
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60" />
+                <div className="absolute bottom-12 left-12 right-12 z-10">
+                   <p className="pro-mono !text-white/40 mb-2 italic">NASA DEEP SPACE CAPTURE</p>
+                   <h3 className="text-5xl font-bold tracking-tighter text-white uppercase italic">{apod.title}</h3>
                 </div>
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 flex flex-col justify-end p-12">
-                  <p className="text-white/60 text-[10px] font-black uppercase tracking-[0.2em] mb-2">NASA ASTRONOMY PICTURE OF THE DAY</p>
-                  <h3 className="text-3xl font-black text-white font-space tracking-tight mb-4 uppercase">{apod.title}</h3>
-                  <p className="text-white/70 text-sm max-w-2xl leading-relaxed font-medium line-clamp-3">{apod.explanation}</p>
+              </div>
+              <div className="p-16 border-t border-white/5 flex flex-col md:flex-row gap-16 items-start">
+                 <div className="md:w-1/3">
+                    <div className="flex items-center gap-4 mb-8">
+                       <div className="w-1.5 h-1.5 bg-[#FACC15] rounded-full intensity-active" />
+                       <span className="pro-mono !text-white">Analysis Node 04</span>
+                    </div>
+                    <p className="pro-mono !text-[11px] leading-relaxed italic text-white/40">
+                      Automated extraction of luminance coefficients and stellar coordinates for subsequent orbital mapping.
+                    </p>
+                 </div>
+                 <div className="flex-1">
+                    <p className="text-lg text-white/50 leading-relaxed font-medium line-clamp-4">
+                      {apod.explanation}
+                    </p>
+                    <Link to="https://apod.nasa.gov" target="_blank" className="mt-8 btn-pro-outline !w-fit group/btn italic">
+                      View Full Data <ArrowRight className="group-hover/btn:translate-x-2 transition-transform" />
+                    </Link>
+                 </div>
               </div>
             </div>
-          ) : (
-            <div className="h-96 relative overflow-hidden flex items-center justify-center bg-white/[0.02]">
-              <div className="relative text-center">
-                <div className="w-20 h-20 rounded-[32px] bg-white/5 flex items-center justify-center mx-auto mb-6">
-                  <Eye size={32} className="text-white/10" />
-                </div>
-                <p className="text-xl font-black text-white mb-2 font-space tracking-tight">Discovery Feed Unavailable</p>
-                <p className="text-xs text-white/30 mb-8 font-black uppercase tracking-widest font-mono">OFFLINE · CHECK NETWORK</p>
-                <a href="https://apod.nasa.gov" target="_blank" rel="noopener noreferrer" className="btn-secondary px-8 border-white/10">
-                  <ExternalLink size={14} /> Visit Source
-                </a>
-              </div>
-            </div>
-          )}
-          {apod && (
-            <div className="p-12 bg-white/[0.02] border-t border-white/5">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-[10px] font-black text-[#FACC15] uppercase tracking-widest">Metadata Report</span>
-              </div>
-              <h3 className="font-black text-2xl mb-4 text-white font-space tracking-tight uppercase italic">{apod.title}</h3>
-              <p className="text-sm text-white/50 leading-relaxed font-medium">{apod.explanation}</p>
-            </div>
-          )}
+          ) : null}
         </div>
       </div>
 
-      {/* ── Observing Conditions — always render ── */}
-      <div className="mb-16">
-        <div className="flex items-center gap-3 mb-8">
-           <div className="w-1.5 h-6 bg-[#FACC15] rounded-full" />
-           <h2 className="text-2xl font-black font-space text-white tracking-tight uppercase">Environmental Dynamics</h2>
+      {/* ── Observing Conditions ── */}
+      <div className="mb-32">
+        <div className="flex flex-col mb-12">
+            <span className="pro-mono !text-[#FACC15] !tracking-[0.5em] mb-4">Diagnostic Array</span>
+            <h2 className="text-4xl font-bold tracking-tight text-white uppercase italic">Atmospheric Dynamics</h2>
         </div>
-        <div className="glass-card p-10 rounded-[48px] border-white/5 shadow-2xl shadow-black/5 bg-[#050505]">
+        <div className="glass-pro-card p-16">
           {weatherDenied || (!weather && !weatherLoading) ? (
-            <div className="flex items-center gap-8 py-4">
+            <div className="flex flex-col md:flex-row items-center gap-16">
               <div className="flex-1">
-                <p className="text-xl font-black text-white font-space tracking-tight mb-3 uppercase italic">Sync Local Atmosphere</p>
-                <p className="text-sm text-white/40 font-medium leading-relaxed max-w-md">
-                  Enable location metrics to calculate real-time visibility, cloud density, and moisture thresholds for optimized observation.
+                <p className="text-3xl font-bold text-white mb-6 uppercase italic leading-tight">Authorize Sensor Node Access</p>
+                <p className="text-lg text-white/40 font-medium leading-relaxed max-w-xl">
+                  Synchronize with your local coordinate system to unlock real-time visibility metrics, cloud density diagnostics, and thermal coefficients.
                 </p>
+                <button className="btn-pro mt-12 overflow-hidden group">
+                   <span className="relative z-10">Initialize Sync</span>
+                </button>
               </div>
-              <div className="w-20 h-20 rounded-[32px] bg-white/5 flex items-center justify-center text-3xl shadow-inner border border-white/5">📍</div>
+              <div className="w-48 h-48 pro-radius bg-white/5 border border-white/10 flex items-center justify-center text-6xl shadow-2xl">📡</div>
             </div>
           ) : weatherLoading ? (
-            <div className="flex items-center justify-center gap-4 py-12">
-              <RefreshCw size={24} className="text-[#FACC15]/30 animate-spin" />
-              <p className="text-[10px] text-white/20 font-black uppercase tracking-widest uppercase">Scanning Atmosphere…</p>
+            <div className="flex flex-col items-center justify-center py-20">
+              <RefreshCw size={40} className="text-white/20 animate-spin mb-8" />
+              <p className="pro-mono !text-white/30 italic">Scanning Tropospheric Layers…</p>
             </div>
           ) : weather ? (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-16">
                 {[
-                  { label: 'Cloud Density', value: `${weather.cloudCover}%`,    good: weather.cloudCover < 30, icon: Cloud },
-                  { label: 'Moisture Level', value: `${weather.humidity}%`,       good: weather.humidity < 70,   icon: Wind },
-                  { label: 'Studio Clarity', value: weather.cloudCover < 20 ? 'Optimal' : weather.cloudCover < 50 ? 'Limited' : 'Locked', good: weather.cloudCover < 50, icon: Eye },
-                  { label: 'Lunar Impact', value: moon.illumination < 30 ? 'Minimal' : moon.illumination < 70 ? 'Moderate' : 'Severe', good: moon.illumination < 50, icon: Moon },
-                ].map(({ label, value, good, icon: Icon }) => (
-                  <div key={label} className="p-6 rounded-[24px] bg-white/[0.02] border border-white/5 group hover:bg-white/[0.05] transition-all duration-500 hover:border-[#FACC15]/30">
-                    <Icon size={20} className={`mb-3 transition-transform group-hover:scale-110 ${good ? 'text-[#FACC15]' : 'text-orange-500'}`} />
-                    <p className="text-xl font-black text-white font-space tracking-tight">{value}</p>
-                    <p className="text-[9px] text-white/30 uppercase tracking-[0.2em] font-black mt-1">{label}</p>
+                  { label: 'Cloud Density', value: `${weather.cloudCover}%`, icon: Cloud },
+                  { label: 'Thermal Window', value: `${weather.temp}°C`, icon: Thermometer },
+                  { label: 'Signal Clarity', value: weather.cloudCover < 20 ? 'Optimum' : 'Partial', icon: Eye },
+                  { label: 'Optical Path', value: 'Nominal', icon: Zap },
+                ].map(({ label, value, icon: Icon }) => (
+                  <div key={label} className="p-10 pro-radius-sm bg-white/5 border border-white/10 group hover:bg-white/[0.08] transition-all duration-700">
+                    <Icon size={24} className="text-[#FACC15] mb-8 transition-transform group-hover:rotate-12" />
+                    <p className="text-3xl font-bold text-white mb-2">{value}</p>
+                    <p className="pro-mono !text-white/30 !text-[9px]">{label}</p>
                   </div>
                 ))}
               </div>
-              <div className="pt-8 border-t border-white/5">
-                <div className="flex items-center gap-3">
-                   <div className={`w-2 h-2 rounded-full ${weather.cloudCover < 50 ? 'bg-[#FACC15]' : 'bg-orange-500'}`} />
-                   <p className="text-xs text-white/40 font-bold leading-relaxed uppercase tracking-widest">
-                    {weather.cloudCover < 20 ? 'SYNERGY DETECTED — OPTIMAL OBSERVATION THRESHOLD MET.' :
-                     weather.cloudCover < 50 ? 'ATMOSPHERIC INTERFERENCE DETECTED — PARTIAL VISIBILITY.' :
-                     'ENVIRONMENT LOCKED — CRITICAL CLOUD DENSITY DETECTED.'}
-                   </p>
-                </div>
+              <div className="pt-12 border-t border-white/5 flex items-center gap-6">
+                 <div className="w-2 h-2 rounded-full bg-[#FACC15] intensity-active" />
+                 <p className="pro-mono !text-white/40 italic">
+                  Status: All atmospheric sensors reporting nominal thresholds for high-fidelity observation.
+                 </p>
               </div>
             </>
           ) : null}
@@ -1167,6 +1167,7 @@ function Home({ watched, addNotification, toggleWatch }: {
         </div>
         <FaqSection />
       </div>
+     </div>
     </div>
   );
 }
@@ -1194,54 +1195,48 @@ function MeteorCalendar({ watched, toggleWatch, addNotification }: {
       : b.zhr - a.zhr);
 
   return (
-    <div className="relative z-10 max-w-7xl mx-auto px-4 pt-40 pb-24">
+    <div className="relative min-h-screen overflow-hidden">
+      <div className="cinematic-vignette" />
+      <div className="relative z-10 max-w-screen-2xl mx-auto px-6 lg:px-12 pt-48 pb-32">
       <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="mb-12">
-          <div className="flex items-center gap-3 mb-4">
-             <div className="w-1.5 h-8 bg-[#FACC15] rounded-full" />
-             <p className="text-xs font-black text-[#FACC15] uppercase tracking-[0.2em]">Universal Registry</p>
+        <div className="mb-24">
+          <div className="flex flex-col mb-12">
+             <span className="pro-mono !text-[#FACC15] !tracking-[0.5em] mb-4">Universal Registry</span>
+             <h1 className="text-7xl font-bold text-white tracking-tighter leading-tight uppercase italic">
+              Celestial <br/>Chronicles.
+             </h1>
           </div>
-          <h1 className="text-5xl md:text-7xl font-black font-space mb-6 text-white tracking-tighter leading-none font-black">
-            Celestial <br/><span className="hero-gradient-text italic">Chronicles.</span>
-          </h1>
-          <p className="text-sm text-white/40 max-w-xl font-medium leading-relaxed">
+          <p className="text-xl text-white/40 max-w-2xl font-medium leading-relaxed">
             The definitive technical atlas of major meteor streams, orbital windows, and atmospheric intersection events for the current epoch.
           </p>
         </div>
 
         {/* Controls */}
-        <div className="flex flex-col md:flex-row gap-4 mb-12">
+        <div className="flex flex-col md:flex-row gap-6 mb-24">
           <div className="relative flex-1 group">
-            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-[#FACC15] transition-colors" />
+            <Search size={22} className="absolute left-6 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-white transition-colors" />
             <input
               type="text"
               placeholder="Query identifier or constellation host..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full bg-white/[0.02] border border-white/5 rounded-2xl py-4 pl-12 pr-6 text-sm font-black text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-[#FACC15]/10 focus:border-[#FACC15]/30 transition-all"
+              className="w-full bg-white/5 border border-white/10 pro-radius-sm py-6 pl-16 pr-8 text-lg font-medium text-white placeholder:text-white/20 focus:outline-none focus:bg-white/[0.08] transition-all italic"
             />
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-4">
             {(['all', 'active', 'upcoming', 'past'] as const).map(f => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-6 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
+                className={`px-8 py-6 pro-radius-sm text-[11px] font-bold uppercase tracking-[0.2em] transition-all ${
                   filter === f
-                    ? 'bg-[#FACC15] text-black shadow-xl shadow-[#FACC15]/15'
-                    : 'bg-white/[0.02] text-white/40 hover:text-white hover:bg-white/5 border border-white/5'
+                    ? 'bg-white text-black shadow-2xl shadow-white/20'
+                    : 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10 border border-white/10'
                 }`}
               >
                 {f}
               </button>
             ))}
-            <button
-              onClick={() => setSortBy(s => s === 'date' ? 'zhr' : 'date')}
-              className="px-6 py-4 rounded-2xl text-xs font-black uppercase tracking-widest bg-white/[0.02] text-white/40 hover:text-[#FACC15] hover:bg-[#FACC15]/5 border border-white/5 flex items-center gap-2 transition-all"
-            >
-              <Filter size={14} />
-              {sortBy === 'date' ? 'Intensity' : 'Chronology'}
-            </button>
           </div>
         </div>
 
@@ -1257,71 +1252,38 @@ function MeteorCalendar({ watched, toggleWatch, addNotification }: {
                 <motion.div
                   key={s.id}
                   layout
-                  initial={{ opacity: 0, scale: 0.9 }}
+                  initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ delay: i * 0.05 }}
-                  className="glass-card p-8 rounded-[40px] group relative overflow-hidden flex flex-col justify-between border-white/5 hover:border-[#FACC15]/10 shadow-sm hover:shadow-2xl transition-all bg-[#050505]"
+                  className="glass-pro-card p-12 group relative overflow-hidden flex flex-col justify-between h-[500px]"
                 >
-                  {status === 'active' && <MeteorVisualizer zhr={s.zhr} active />}
-                  <div className="relative z-10">
-                    <div className="flex items-start justify-between mb-6">
-                      <span className={`text-[9px] px-3 py-1.5 rounded-lg font-black tracking-widest uppercase border ${
-                        status === 'active'   ? 'bg-[#FACC15] text-black border-transparent' :
-                        status === 'upcoming' ? 'bg-[#FACC15]/10 text-[#FACC15] border-[#FACC15]/20' : 'bg-white/5 text-white/30 border-transparent'
-                      }`}>
-                        {status.toUpperCase()}
-                      </span>
-                      <button
-                        onClick={() => {
-                          toggleWatch(s);
-                          addNotification({ title: isWatched ? 'WATCH DEACTIVATED' : `SIGNAL TRACKING: ${s.name}`, message: `Peak synchronization: ${formatDate(s.peak)}`, type: 'success' });
-                        }}
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isWatched ? 'bg-[#FACC15] text-black shadow-lg shadow-[#FACC15]/20' : 'bg-white/[0.02] text-white/20 hover:text-[#FACC15] hover:bg-[#FACC15]/5'}`}
-                      >
-                        <Bell size={16} />
-                      </button>
+                  <div className="relative z-10 h-full flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-12">
+                        <span className="pro-mono !text-[#FACC15] !text-[9px]">Node {s.id.slice(0, 4)}</span>
+                        <button
+                          onClick={() => {
+                            toggleWatch(s);
+                          }}
+                          className={`w-12 h-12 pro-radius-sm border flex items-center justify-center transition-all ${isWatched ? 'bg-[#FACC15] border-[#FACC15] text-black shadow-2xl shadow-[#FACC15]/20' : 'bg-white/5 border-white/10 text-white/20 hover:text-white hover:border-white/30'}`}
+                        >
+                          <Bell size={18} />
+                        </button>
+                      </div>
+
+                      <h3 className="text-3xl font-bold mb-4 text-white uppercase italic tracking-tighter group-hover:tracking-normal transition-all duration-700">{s.name}</h3>
+                      <p className="pro-mono !text-white/30 mb-8 italic">Peak Event: {formatDate(s.peak)}</p>
+                      <p className="text-base text-white/40 mb-12 line-clamp-3 leading-relaxed font-medium">{s.description}</p>
                     </div>
 
-                    <h3 className="text-xl font-black font-space mb-2 text-white tracking-tight group-hover:text-[#FACC15] transition-colors italic uppercase">{s.name}</h3>
-                    <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-6">
-                       Peak: {new Date(s.peak).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                    </p>
-                    <p className="text-xs text-white/50 mb-8 line-clamp-3 leading-relaxed font-medium">{s.description}</p>
-
-                    {/* Intensity */}
-                    <div className="mb-8">
-                      <div className="flex justify-between text-[9px] text-white/30 font-black uppercase tracking-widest mb-2.5">
-                        <span>Intensity Magnitude</span>
-                        <span className="text-[#FACC15]">{s.zhr} ZHR</span>
+                    <div className="pt-8 border-t border-white/5">
+                      <div className="flex items-center justify-between mb-8">
+                        <span className="pro-mono !text-[11px] !text-white">{s.zhr} ZHR Synthesis</span>
+                        <Link to={`/shower/${s.id}`} className="w-12 h-12 bg-white/5 pro-radius-sm flex items-center justify-center text-white/20 hover:text-white transition-all">
+                             <ArrowRight size={18} />
+                        </Link>
                       </div>
-                      <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${intensityPct}%` }}
-                          transition={{ delay: i * 0.05 + 0.3, duration: 1.2, ease: 'circOut' }}
-                          className="h-full bg-gradient-to-r from-[#FACC15] to-[#EAB308]"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-6 border-t border-white/5">
-                      <div className="flex items-center gap-4">
-                        <span className="text-[9px] font-black text-white/40 uppercase tracking-widest flex items-center gap-1.5">
-                          <Compass size={11} /> {s.constellation}
-                        </span>
-                        {s.speed && (
-                          <span className="text-[9px] font-black text-white/40 uppercase tracking-widest flex items-center gap-1.5">
-                            <Gauge size={11} /> {s.speed} KM/S
-                          </span>
-                        )}
-                      </div>
-                      <Link
-                        to={`/shower/${s.id}`}
-                        className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-white/40 hover:text-[#FACC15] hover:bg-[#FACC15]/10 transition-all"
-                      >
-                        <ChevronRight size={16} />
-                      </Link>
                     </div>
                   </div>
                 </motion.div>
@@ -1339,6 +1301,7 @@ function MeteorCalendar({ watched, toggleWatch, addNotification }: {
           </div>
         )}
       </motion.div>
+     </div>
     </div>
   );
 }
@@ -1458,7 +1421,7 @@ function ShowerDetail({ watched, toggleWatch }: { watched: WatchedShower[]; togg
           <div className="md:col-span-2 flex flex-col gap-6">
              <div className="glass-card p-10 rounded-[48px] border-white/5 bg-white/[0.02]">
                 <h3 className="section-label mb-8 flex items-center gap-2">
-                  <Cpu size={14} className="text-[#FACC15]" /> Ballistic Parameters
+                  <Zap size={14} className="text-[#FACC15]" /> Ballistic Parameters
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
                   {[
@@ -1537,7 +1500,7 @@ function LiveFeed({ addNotification }: { addNotification: (n: Omit<Notification,
         <div className="mb-12">
           <div className="flex items-center gap-3 mb-4">
              <div className="w-1.5 h-8 bg-[#FACC15] rounded-full" />
-             <p className="text-xs font-black text-[#FACC15] uppercase tracking-[0.2em]">Community Intelligence</p>
+             <p className="text-xs font-black text-[#FACC15] uppercase tracking-[0.2em]">Community Feed</p>
           </div>
           <h1 className="text-5xl md:text-7xl font-black font-space mb-6 text-white tracking-tighter leading-none">
             Live Sighting <br/><span className="hero-gradient-text italic">Network.</span>
@@ -1911,216 +1874,9 @@ function NotFound() {
   );
 }
 
-// ─── AI ASSISTANT ─────────────────────────────────────────────────────────────
-function StargazeAI() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; text: string }[]>([]);
-  const [loading, setLoading] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [messages]);
 
-  const askGemini = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim() || loading) return;
 
-    const userText = query.trim();
-    setQuery('');
-    setMessages(prev => [...prev, { role: 'user', text: userText }]);
-    setLoading(true);
-
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: userText,
-        config: {
-          systemInstruction: "You are the Stargaze.io Intelligence Assistant. You are an expert in astronomy, astrophysics, and orbital mechanics. Provide concise, fascinating, and helpful answers about space events, meteor showers, and satellites. Use a professional yet awe-inspired tone. Keep responses under 150 words.",
-        }
-      });
-      
-      const assistantText = response.text || "I was unable to retrieve celestial data at this time.";
-      setMessages(prev => [...prev, { role: 'assistant', text: assistantText }]);
-    } catch (err) {
-      setMessages(prev => [...prev, { role: 'assistant', text: "The signal was lost. Please check your connection to the cosmos." }]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed bottom-6 right-6 z-50">
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="technical-panel mb-4 w-[350px] sm:w-[400px] h-[500px] rounded-3xl overflow-hidden flex flex-col shadow-2xl border-white/5"
-          >
-            {/* Header */}
-            <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/5">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-[#FACC15]/10 border border-[#FACC15]/20 flex items-center justify-center">
-                  <Bot size={16} className="text-[#FACC15]" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold font-space text-white">Stargaze AI</h3>
-                  <p className="text-[9px] text-white/40 uppercase tracking-[0.2em] font-mono">Expert Assistant</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setIsOpen(false)}
-                className="p-1.5 rounded-lg hover:bg-white/5 text-white/40 transition-colors"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Chat area */}
-            <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#050505]">
-              {messages.length === 0 && (
-                <div className="text-center py-10">
-                  <Sparkle size={32} className="text-[#FACC15]/10 mx-auto mb-3 animate-pulse" />
-                  <p className="text-xs text-white/30 max-w-[200px] mx-auto">
-                    Ask me about upcoming meteor showers, lunar phases, or orbital mechanics.
-                  </p>
-                </div>
-              )}
-              {messages.map((m, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, x: m.role === 'user' ? 10 : -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div className={`max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed ${
-                    m.role === 'user' 
-                      ? 'bg-[#FACC15] text-black rounded-tr-none font-bold' 
-                      : 'bg-white/10 text-white/90 rounded-tl-none'
-                  }`}>
-                    {m.text}
-                  </div>
-                </motion.div>
-              ))}
-              {loading && (
-                <div className="flex justify-start">
-                  <div className="bg-white/5 p-3 rounded-2xl rounded-tl-none">
-                    <RefreshCw size={14} className="text-[#FACC15] animate-spin" />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Input */}
-            <form onSubmit={askGemini} className="p-4 border-t border-white/5 bg-white/5">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Inquire with the cosmos..."
-                  value={query}
-                  onChange={e => setQuery(e.target.value)}
-                  className="w-full bg-[#0A0A0A] border border-white/10 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#FACC15]/30 transition-all text-white"
-                />
-                <button 
-                  type="submit"
-                  disabled={loading || !query.trim()}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-[#FACC15] disabled:text-white/20 transition-colors"
-                >
-                  <Send size={16} />
-                </button>
-              </div>
-            </form>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-14 h-14 rounded-full bg-[#FACC15] flex items-center justify-center shadow-lg shadow-[#FACC15]/20 border border-white/20 relative"
-      >
-        {isOpen ? <X size={24} className="text-black" /> : <Bot size={24} className="text-black" />}
-        {!isOpen && (
-          <span className="absolute -top-1 -right-1 w-4 h-4 bg-white border-2 border-[#FACC15] rounded-full" />
-        )}
-      </motion.button>
-    </div>
-  );
-}
-
-// ─── SKY INTELLIGENCE LAYER ───────────────────────────────────────────────────
-function SkyIntelligence() {
-  const moon = getMoonPhase();
-  const visibilityScore = Math.max(0, 100 - (moon.illumination * 0.4)); 
-
-  return (
-    <div className="mb-16">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-8 h-8 rounded-xl bg-[#FACC15]/10 border border-[#FACC15]/20 flex items-center justify-center">
-          <Cpu size={16} className="text-[#FACC15]" />
-        </div>
-        <h2 className="text-xl font-black font-space uppercase tracking-tight text-white">Sky Intelligence <span className="text-[#FACC15]/30">/ Engine</span></h2>
-      </div>
-      
-      <div className="technical-panel p-10 rounded-[40px] relative overflow-hidden group border-white/5">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#FACC15]/5 blur-[120px] pointer-events-none" />
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative z-10">
-          <div className="space-y-6">
-            <div>
-              <p className="section-label mb-3">Visibility Index</p>
-              <div className="flex items-end gap-3">
-                <span className="text-6xl font-black font-space tracking-tighter text-white">{Math.round(visibilityScore)}</span>
-                <div className="mb-2">
-                   <p className="text-[10px] text-white/30 uppercase font-black tracking-widest leading-none">Score</p>
-                   <p className="text-[10px] text-[#FACC15] font-black uppercase tracking-widest leading-none mt-1">Optimal</p>
-                </div>
-              </div>
-            </div>
-            <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
-              <motion.div 
-                initial={{ width: 0 }}
-                animate={{ width: `${visibilityScore}%` }}
-                transition={{ duration: 1, ease: 'circOut' }}
-                className="h-full bg-gradient-to-r from-[#FACC15] to-[#EAB308]"
-              />
-            </div>
-          </div>
-
-          <div className="md:border-x border-white/5 px-0 md:px-12 space-y-4">
-            <div>
-              <p className="section-label mb-2">Synthesis Recommendation</p>
-              <h3 className="text-lg font-black text-white leading-tight">
-                {visibilityScore > 70 ? "Optimal Deep Sky Observation" : visibilityScore > 40 ? "Lunar & Planetary Focus" : "Poor Visibility - Radio Tracking Only"}
-              </h3>
-            </div>
-            <p className="text-xs text-white/50 leading-relaxed font-medium">
-              Real-time atmospheric synthesis based on {moon.phase} data. {visibilityScore > 70 ? "Perfect conditions for observing faint meteor trails and distant nebulae." : "Enhanced contrast for bright orbital objects and the ISS."}
-            </p>
-          </div>
-
-          <div className="flex flex-col justify-center gap-3">
-            {[
-              { label: 'Sky Density', val: 'Normal', color: 'text-blue-400' },
-              { label: 'Signal Quality', val: '98.2%', color: 'text-[#FACC15]' },
-              { label: 'Event Prob.', val: 'High', color: 'text-orange-400' }
-            ].map(row => (
-              <div key={row.label} className="flex items-center justify-between">
-                <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">{row.label}</span>
-                <span className={`text-[11px] font-black font-mono ${row.color}`}>{row.val}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, [pathname]);
@@ -2221,7 +1977,6 @@ export default function App() {
         <Navbar watched={watched} notifications={notifications} />
         <NotificationToasts notifications={notifications} dismiss={dismissNotification} />
         <SalePopup />
-        <StargazeAI />
 
         <AnimatedRoutes watched={watched} addNotification={addNotification} toggleWatch={toggleWatch} />
 
