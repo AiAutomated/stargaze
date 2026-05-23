@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Stargaze — Live Meteor Shower Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
+body{background:#05051a;color:rgba(255,255,255,.9);font-family:'Space Grotesk',system-ui,sans-serif;overflow-x:hidden;min-height:100vh;position:relative}
+:root{--acc:#6d9bff;--acc2:#a78bfa;--acc3:#22d3ee}
+/* Nebula background — global */
+body::before{content:'';position:fixed;inset:0;background:
+  radial-gradient(ellipse 1200px 800px at 15% 10%,rgba(109,155,255,.22),transparent 60%),
+  radial-gradient(ellipse 900px 700px at 85% 30%,rgba(167,139,250,.18),transparent 60%),
+  radial-gradient(ellipse 1000px 600px at 50% 95%,rgba(34,211,238,.12),transparent 60%),
+  radial-gradient(ellipse 700px 500px at 90% 90%,rgba(244,114,182,.10),transparent 60%),
+  #05051a;z-index:-2;pointer-events:none}
+body::after{content:'';position:fixed;inset:0;background-image:radial-gradient(rgba(255,255,255,.4) 1px,transparent 1px);background-size:3px 3px;opacity:.018;z-index:-1;pointer-events:none}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:linear-gradient(rgba(109,155,255,.3),rgba(167,139,250,.3));border-radius:3px}
+/* Type */
+.d{font-family:'Space Grotesk',sans-serif;letter-spacing:-0.03em}
+.s{font-family:'Instrument Serif',serif;font-style:italic;letter-spacing:-0.01em}
+.m{font-family:'JetBrains Mono',monospace}
+.grad{background:linear-gradient(135deg,#dfe8ff 0%,#b8c5ff 25%,#a78bfa 60%,#22d3ee 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
+.gradg{background:linear-gradient(90deg,rgba(255,255,255,.9),rgba(255,255,255,.45));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+/* Glass card */
+.g{background:linear-gradient(145deg,rgba(255,255,255,.05),rgba(255,255,255,.015));border:1px solid rgba(255,255,255,.08);border-radius:20px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);position:relative;overflow:hidden;transition:transform .4s cubic-bezier(.2,.8,.2,1),border-color .3s,background .3s}
+.g::before{content:'';position:absolute;inset:0;background:linear-gradient(145deg,rgba(255,255,255,.08),transparent 40%);opacity:.6;pointer-events:none;border-radius:inherit}
+.g:hover{border-color:rgba(109,155,255,.35);transform:translateY(-4px)}
+.g:hover::after{content:'';position:absolute;inset:-1px;background:linear-gradient(135deg,rgba(109,155,255,.4),rgba(167,139,250,.3),transparent);border-radius:inherit;z-index:-1;filter:blur(12px);opacity:.5}
+.glow{box-shadow:0 0 40px rgba(109,155,255,.25),0 0 80px rgba(167,139,250,.15),inset 0 1px 0 rgba(255,255,255,.1)}
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:8px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;padding:14px 26px;border-radius:999px;cursor:pointer;transition:all .3s cubic-bezier(.2,.8,.2,1);text-decoration:none;border:none;white-space:nowrap;position:relative;overflow:hidden}
+.btnp{background:linear-gradient(135deg,#6d9bff,#a78bfa);color:white;box-shadow:0 4px 30px rgba(109,155,255,.4),inset 0 1px 0 rgba(255,255,255,.25)}
+.btnp:hover{transform:translateY(-2px);box-shadow:0 8px 40px rgba(109,155,255,.6),inset 0 1px 0 rgba(255,255,255,.3)}
+.btng{background:rgba(255,255,255,.04);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(8px)}
+.btng:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.25);transform:translateY(-2px)}
+/* Live dot with glow */
+.ldot{width:8px;height:8px;border-radius:50%;background:#4ade80;box-shadow:0 0 12px #4ade80,0 0 4px white;animation:pulse 2s ease-in-out infinite;display:inline-block;flex-shrink:0}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:.7}}
+@keyframes fup{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fin{from{opacity:0}to{opacity:1}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes shine{0%{transform:translateX(-100%)}100%{transform:translateX(200%)}}
+@keyframes shimmer{0%{background-position:-200% center}100%{background-position:200% center}}
+@keyframes spin-s{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+.fup{animation:fup .8s cubic-bezier(.2,.8,.2,1) forwards;opacity:0}
+.fup-d1{animation-delay:.1s}.fup-d2{animation-delay:.2s}.fup-d3{animation-delay:.35s}.fup-d4{animation-delay:.5s}.fup-d5{animation-delay:.65s}
+.fin{animation:fin 1s ease forwards}
+.shimmer{background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent);background-size:200% 100%;animation:shimmer 3s ease-in-out infinite}
+/* Badges */
+.badge{display:inline-flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;padding:4px 10px;border-radius:999px;backdrop-filter:blur(8px)}
+.ba{background:rgba(74,222,128,.12);color:#4ade80;border:1px solid rgba(74,222,128,.3);box-shadow:0 0 20px rgba(74,222,128,.15)}
+.bu{background:rgba(109,155,255,.12);color:#a3bfff;border:1px solid rgba(109,155,255,.3)}
+.bp{background:rgba(255,255,255,.04);color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.08)}
+.ml{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:.22em;text-transform:uppercase;color:rgba(255,255,255,.4)}
+/* Nav link */
+.nl{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.5);padding:8px 16px;border-radius:999px;cursor:pointer;background:none;border:none;transition:all .2s;position:relative}
+.nl:hover{color:rgba(255,255,255,.9)}
+.nla{color:white!important;background:rgba(255,255,255,.08)!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1),0 0 20px rgba(109,155,255,.2)}
+/* Input */
+.inp{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;color:white;padding:10px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;transition:all .2s;width:100%;backdrop-filter:blur(8px)}
+.inp:focus{border-color:rgba(109,155,255,.5);background:rgba(109,155,255,.06);box-shadow:0 0 0 3px rgba(109,155,255,.12)}
+.inp option{background:#0a0826}
+/* Tweaks */
+#tw{position:fixed;bottom:24px;right:24px;z-index:1000;width:240px;background:rgba(10,8,38,.95);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:20px;flex-direction:column;gap:16px;backdrop-filter:blur(24px);box-shadow:0 20px 80px rgba(0,0,0,.6),0 0 40px rgba(109,155,255,.2)}
+.twl{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:8px}
+.two{display:flex;gap:6px;flex-wrap:wrap}
+.twob{padding:6px 12px;border-radius:999px;font-family:'JetBrains Mono',monospace;font-size:10px;cursor:pointer;border:1px solid rgba(255,255,255,.12);background:transparent;color:rgba(255,255,255,.55);transition:all .15s}
+.twob.s,.twob:hover{border-color:var(--acc);color:white;background:rgba(109,155,255,.15)}
+@media(max-width:900px){.bento{grid-template-columns:1fr!important;grid-auto-rows:auto!important}.bento>*{grid-column:auto!important;grid-row:auto!important}.twocol{grid-template-columns:1fr!important}.statsbar{grid-template-columns:repeat(2,1fr)!important}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback,useMemo}=React;
+
+// Data
+const SHOWERS=[
+{id:'quadrantids',name:'Quadrantids',peak:'2026-01-04T06:00:00Z',start:'2025-12-28',end:'2026-01-12',zhr:120,speed:41,parent:'Asteroid 2003 EH1',constellation:'Boötes',description:'One of the strongest annual showers — up to 120 meteors per hour at peak. Narrow 6–12 hour window. Known for bright, long-duration fireballs.',orbitalPeriod:'5.52 years',viewingTips:'Face northeast after midnight. Allow 20–30 minutes for dark adaptation.'},
+{id:'lyrids',name:'Lyrids',peak:'2026-04-22T22:00:00Z',start:'2026-04-14',end:'2026-04-30',zhr:18,speed:49,parent:'Comet Thatcher',constellation:'Lyra',description:'One of the oldest known showers — observed for over 2,700 years. Swift, bright meteors with persistent trains.',orbitalPeriod:'415 years',historicalStorms:'Major outbursts in 1803 (700 ZHR), 1922, 1945, 1982.',viewingTips:'Look toward Vega in Lyra. Best between midnight and dawn.'},
+{id:'eta-aquariids',name:'Eta Aquariids',peak:'2026-05-06T08:00:00Z',start:'2026-04-19',end:'2026-05-28',zhr:50,speed:66,parent:"Comet 1P/Halley",constellation:'Aquarius',description:"Debris from Halley's Comet. Very fast meteors with long glowing trains. Favored in the Southern Hemisphere.",orbitalPeriod:'75 years',viewingTips:'Best from Southern Hemisphere. Look east before dawn.'},
+{id:'perseids',name:'Perseids',peak:'2026-08-12T08:00:00Z',start:'2026-07-17',end:'2026-08-24',zhr:100,speed:59,parent:'Comet Swift-Tuttle',constellation:'Perseus',description:'The most popular shower of the year. Reliable 50–100 meteors per hour with frequent fireballs.',historicalStorms:'Observed for over 2,000 years.',viewingTips:'Face northeast after midnight. No equipment needed.'},
+{id:'orionids',name:'Orionids',peak:'2026-10-21T10:00:00Z',start:'2026-10-02',end:'2026-11-07',zhr:20,speed:66,parent:"Comet 1P/Halley",constellation:'Orion',description:"A second gift from Halley's Comet. Fast meteors with persistent trains near Betelgeuse.",viewingTips:'Look toward Orion after midnight.'},
+{id:'leonids',name:'Leonids',peak:'2026-11-17T20:00:00Z',start:'2026-11-06',end:'2026-11-30',zhr:15,speed:71,parent:'Comet Tempel-Tuttle',constellation:'Leo',description:'The fastest meteor shower at 71 km/s. Historic storms of 1833 and 1966 reached 100,000+/hr.',historicalStorms:'1833: 100,000 meteors/hr. 1966: 150,000/hr.',viewingTips:'Best after midnight when Leo rises.'},
+{id:'geminids',name:'Geminids',peak:'2026-12-14T02:00:00Z',start:'2026-12-04',end:'2026-12-20',zhr:150,speed:35,parent:'Asteroid 3200 Phaethon',constellation:'Gemini',description:'The strongest shower of the year — 150 ZHR. Uniquely sourced from an asteroid. Vivid yellow, blue, and white streaks.',orbitalPeriod:'1.43 years',viewingTips:'Visible from 9 PM. Peak rates after midnight.'},
+{id:'ursids',name:'Ursids',peak:'2026-12-22T10:00:00Z',start:'2026-12-17',end:'2026-12-26',zhr:10,speed:33,parent:'Comet 8P/Tuttle',constellation:'Ursa Minor',description:'A modest shower peaking near the winter solstice. Occasional outbursts above 50 ZHR.',viewingTips:'Circumpolar — visible all night. Look near Polaris.'},
+];
+const EVENTS=[
+{id:'e1',title:'Quadrantids Peak',date:'2026-01-04',type:'Meteor Shower',visibility:'Excellent',description:'Up to 120 meteors/hr.'},
+{id:'e2',title:'Full Moon',date:'2026-01-14',type:'Moon Phase',visibility:'Excellent',description:'Wolf Moon at 09:11 UTC.'},
+{id:'e3',title:'Total Lunar Eclipse',date:'2026-03-03',type:'Eclipse',visibility:'Excellent',description:'Visible from Americas, Europe, Africa.'},
+{id:'e4',title:'Lyrids Peak',date:'2026-04-22',type:'Meteor Shower',visibility:'Good',description:'Radiant near Vega.'},
+{id:'e5',title:'Eta Aquariids Peak',date:'2026-05-06',type:'Meteor Shower',visibility:'Excellent',description:"Halley's Comet debris."},
+{id:'e6',title:'Mercury Greatest Elongation',date:'2026-05-28',type:'Planetary',visibility:'Good',description:'Mercury on the western horizon.'},
+{id:'e7',title:'Total Solar Eclipse',date:'2026-08-12',type:'Eclipse',visibility:'Excellent',description:'Path across Greenland, Iceland, Spain.'},
+{id:'e8',title:'Perseids Peak',date:'2026-08-12',type:'Meteor Shower',visibility:'Excellent',description:'Up to 100 ZHR.'},
+{id:'e9',title:'Jupiter at Opposition',date:'2026-09-21',type:'Planetary',visibility:'Excellent',description:'Closest approach of 2026.'},
+{id:'e10',title:'Orionids Peak',date:'2026-10-21',type:'Meteor Shower',visibility:'Good',description:"Fast meteors near Betelgeuse."},
+{id:'e11',title:'Partial Lunar Eclipse',date:'2026-10-29',type:'Eclipse',visibility:'Good',description:'~90% in umbra.'},
+{id:'e12',title:'Leonids Peak',date:'2026-11-17',type:'Meteor Shower',visibility:'Fair',description:'Fastest shower at 71 km/s.'},
+{id:'e13',title:'Geminids Peak',date:'2026-12-14',type:'Meteor Shower',visibility:'Excellent',description:'Strongest shower — 150 ZHR.'},
+{id:'e14',title:'Winter Solstice',date:'2026-12-21',type:'Seasonal',visibility:'N/A',description:'Longest night of the year.'},
+{id:'e15',title:'Ursids Peak',date:'2026-12-22',type:'Meteor Shower',visibility:'Fair',description:'Modest shower near Polaris.'},
+];
+const ECOLORS={'Meteor Shower':'#6d9bff','Eclipse':'#f59e0b','Moon Phase':'#a78bfa','Planetary':'#22d3ee','Seasonal':'#4ade80'};
+const getStatus=s=>{const n=new Date(),a=new Date(s.start),e=new Date(s.end);return n>=a&&n<=e?'active':n<a?'upcoming':'past';};
+const daysUntil=d=>Math.ceil((new Date(d)-Date.now())/86400000);
+const nextShower=()=>{const n=new Date();return SHOWERS.filter(s=>new Date(s.peak)>n).sort((a,b)=>new Date(a.peak)-new Date(b.peak))[0]||SHOWERS[SHOWERS.length-1];};
+const fmtDate=(d,o)=>new Date(d).toLocaleDateString('en-US',o||{month:'short',day:'numeric',year:'numeric'});
+const fmtShort=d=>new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+const fmtCD=ms=>{if(ms<=0)return{days:'00',hours:'00',mins:'00',secs:'00'};const s=Math.floor(ms/1000);return{days:String(Math.floor(s/86400)).padStart(2,'0'),hours:String(Math.floor((s%86400)/3600)).padStart(2,'0'),mins:String(Math.floor((s%3600)/60)).padStart(2,'0'),secs:String(s%60).padStart(2,'0')};};
+const moonPhase=()=>{const k=new Date('2000-01-06T18:14:00Z'),d=(Date.now()-k)/86400000,c=29.53,p=((d%c)+c)%c,il=Math.round((1-Math.abs(p-c/2)/(c/2))*100),ph=[[1.85,'New Moon','●'],[7.38,'Waxing Crescent','◑'],[9.22,'First Quarter','◑'],[14.77,'Waxing Gibbous','◕'],[16.61,'Full Moon','○'],[22.15,'Waning Gibbous','◔'],[23.99,'Last Quarter','◔'],[Infinity,'Waning Crescent','◑']];const[,phase,sym]=ph.find(([l])=>p<l);return{phase,illumination:il,sym};};
+const zhrColor=z=>z>=100?'#6d9bff':z>=50?'#a78bfa':z>=20?'#22d3ee':'rgba(255,255,255,.5)';
+
+function useRoute(){
+  const[page,setPage]=useState(()=>window.location.hash.replace('#','')||'/');
+  useEffect(()=>{const h=()=>setPage(window.location.hash.replace('#','')||'/');window.addEventListener('hashchange',h);return()=>window.removeEventListener('hashchange',h);},[]);
+  return{page,nav:to=>{window.location.hash=to;window.scrollTo({top:0});}};
+}
+
+// ─── METEOR SHOWER CANVAS (hero) ─────────────────────────────────────────────
+function MeteorSky(){
+  const ref=useRef(null);
+  useEffect(()=>{
+    const c=ref.current;if(!c)return;
+    const ctx=c.getContext('2d');let id;
+    const resize=()=>{c.width=c.offsetWidth*devicePixelRatio;c.height=c.offsetHeight*devicePixelRatio;ctx.scale(devicePixelRatio,devicePixelRatio);};
+    resize();const ro=new ResizeObserver(()=>{c.width=c.offsetWidth*devicePixelRatio;c.height=c.offsetHeight*devicePixelRatio;});ro.observe(c);
+    let seed=31337;const rand=()=>{seed=(seed*9301+49297)%233280;return seed/233280;};
+    const W=()=>c.width/devicePixelRatio,H=()=>c.height/devicePixelRatio;
+    const stars=Array.from({length:220},()=>({x:rand(),y:rand(),r:rand()*1.4+.3,a:rand()*.7+.15,ph:rand()*Math.PI*2,sp:rand()*.02+.006,col:rand()<.15?'214,220,255':rand()<.3?'255,230,200':'255,255,255'}));
+    const meteors=[];
+    let t=0;
+    const draw=()=>{
+      t+=.016;ctx.clearRect(0,0,W(),H());
+      // stars
+      stars.forEach(s=>{
+        const a=s.a+Math.sin(t*s.sp*60+s.ph)*.25;
+        ctx.beginPath();ctx.arc(s.x*W(),s.y*H(),s.r,0,Math.PI*2);
+        ctx.fillStyle=`rgba(${s.col},${Math.max(.05,a)})`;ctx.fill();
+        if(s.r>1.2){const g=ctx.createRadialGradient(s.x*W(),s.y*H(),0,s.x*W(),s.y*H(),s.r*5);g.addColorStop(0,`rgba(${s.col},${a*.35})`);g.addColorStop(1,'transparent');ctx.beginPath();ctx.arc(s.x*W(),s.y*H(),s.r*5,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();}
+      });
+      // spawn meteors
+      if(Math.random()<.025&&meteors.length<6){
+        const sx=Math.random()*W()*1.2-W()*.1,sy=-40;
+        meteors.push({x:sx,y:sy,vx:2.5+Math.random()*2,vy:4+Math.random()*3,life:0,max:110+Math.random()*60,size:1+Math.random()*1.2});
+      }
+      for(let i=meteors.length-1;i>=0;i--){
+        const m=meteors[i];const a=Math.min(1,m.life/15)*(1-m.life/m.max);
+        // tail
+        const tx=m.x-m.vx*18,ty=m.y-m.vy*18;
+        const g=ctx.createLinearGradient(m.x,m.y,tx,ty);
+        g.addColorStop(0,`rgba(220,230,255,${a})`);g.addColorStop(.3,`rgba(167,139,250,${a*.7})`);g.addColorStop(1,'transparent');
+        ctx.beginPath();ctx.moveTo(m.x,m.y);ctx.lineTo(tx,ty);ctx.strokeStyle=g;ctx.lineWidth=m.size;ctx.lineCap='round';ctx.stroke();
+        // head glow
+        const hg=ctx.createRadialGradient(m.x,m.y,0,m.x,m.y,12);hg.addColorStop(0,`rgba(255,255,255,${a})`);hg.addColorStop(1,'transparent');
+        ctx.beginPath();ctx.arc(m.x,m.y,12,0,Math.PI*2);ctx.fillStyle=hg;ctx.fill();
+        m.x+=m.vx;m.y+=m.vy;m.life++;
+        if(m.life>=m.max||m.x>W()+40||m.y>H()+40)meteors.splice(i,1);
+      }
+      id=requestAnimationFrame(draw);
+    };draw();
+    return()=>{cancelAnimationFrame(id);ro.disconnect();};
+  },[]);
+  return <canvas ref={ref} style={{position:'absolute',inset:0,width:'100%',height:'100%',display:'block'}}/>;
+}
+
+// Orbit ring (decorative)
+function Orbit({size=260,delay=0,reverse,color='rgba(109,155,255,.5)'}){
+  return <div style={{position:'absolute',width:size,height:size,borderRadius:'50%',border:`1px solid ${color}`,top:'50%',left:'50%',transform:'translate(-50%,-50%)',animation:`spin-s ${40+delay*5}s linear ${reverse?'reverse':''} infinite`,pointerEvents:'none'}}>
+    <div style={{position:'absolute',top:-4,left:'50%',width:8,height:8,borderRadius:'50%',background:color,boxShadow:`0 0 12px ${color}`,transform:'translateX(-50%)'}}/>
+  </div>;
+}
+
+// Shared components
+const ML=({children,style})=><span className="ml" style={style}>{children}</span>;
+
+function Countdown({targetDate,size='md'}){
+  const[cd,setCd]=useState(()=>fmtCD(new Date(targetDate)-Date.now()));
+  useEffect(()=>{const id=setInterval(()=>setCd(fmtCD(new Date(targetDate)-Date.now())),1000);return()=>clearInterval(id);},[targetDate]);
+  const fs=size==='lg'?'clamp(2rem,5vw,3.4rem)':'clamp(1.4rem,3.5vw,2.2rem)';
+  return <div style={{display:'flex',gap:8}}>
+    {[['Days',cd.days],['Hrs',cd.hours],['Min',cd.mins],['Sec',cd.secs]].map(([l,v])=>(
+      <div key={l} className="g glow" style={{textAlign:'center',padding:'14px 10px',minWidth:64,borderRadius:14}}>
+        <div className="d grad" style={{fontSize:fs,fontWeight:700,lineHeight:1,letterSpacing:'-0.03em'}}>{v}</div>
+        <div className="m" style={{fontSize:9,letterSpacing:'0.18em',color:'rgba(255,255,255,.4)',marginTop:6,textTransform:'uppercase'}}>{l}</div>
+      </div>
+    ))}
+  </div>;
+}
+
+function ISSWidget(){
+  const[iss,setIss]=useState(null),[err,setErr]=useState(false);
+  const load=useCallback(async()=>{try{const r=await fetch('https://api.wheretheiss.at/v1/satellites/25544'),d=await r.json();setIss({lat:+d.latitude.toFixed(2),lng:+d.longitude.toFixed(2),alt:Math.round(d.altitude),vel:Math.round(d.velocity)});setErr(false);}catch{setErr(true);}},[]);
+  useEffect(()=>{load();const id=setInterval(load,5000);return()=>clearInterval(id);},[load]);
+  return <div className="g" style={{padding:24}}>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:18}}>
+      <ML>ISS · Orbital Position</ML>
+      <div style={{display:'flex',alignItems:'center',gap:8}}><span className="ldot"/><span className="m" style={{fontSize:9,color:'#4ade80',letterSpacing:'0.18em',fontWeight:700}}>TRACKING</span></div>
+    </div>
+    {err?<p style={{fontSize:12,color:'rgba(255,255,255,.35)'}}>Telemetry unavailable</p>:iss?
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+        {[['Latitude',`${iss.lat}°`,'#6d9bff'],['Longitude',`${iss.lng}°`,'#a78bfa'],['Altitude',`${iss.alt}`,'#22d3ee','km'],['Velocity',`${iss.vel.toLocaleString()}`,'#4ade80','km/h']].map(([k,v,col,u])=>(
+          <div key={k}><div className="m" style={{fontSize:9,color:'rgba(255,255,255,.35)',marginBottom:4,letterSpacing:'0.12em'}}>{k.toUpperCase()}</div>
+          <div className="m d" style={{fontSize:20,fontWeight:700,color:col,letterSpacing:'-0.02em'}}>{v}{u&&<span style={{fontSize:10,color:'rgba(255,255,255,.4)',marginLeft:4,fontWeight:500}}>{u}</span>}</div></div>
+        ))}
+      </div>:<p style={{fontSize:12,color:'rgba(255,255,255,.35)'}}>Establishing link…</p>}
+  </div>;
+}
+
+function MoonWidget(){
+  const{phase,illumination,sym}=moonPhase();
+  return <div className="g" style={{padding:24}}>
+    <ML style={{display:'block',marginBottom:18}}>Moon · Current Phase</ML>
+    <div style={{display:'flex',alignItems:'center',gap:20}}>
+      <div style={{position:'relative',width:70,height:70,display:'flex',alignItems:'center',justifyContent:'center'}}>
+        <div style={{position:'absolute',inset:-8,borderRadius:'50%',background:'radial-gradient(circle,rgba(255,255,255,.2),transparent 60%)',animation:'float 4s ease-in-out infinite'}}/>
+        <div style={{fontSize:56,lineHeight:1,color:'rgba(255,255,255,.95)',fontFamily:'serif'}}>{sym}</div>
+      </div>
+      <div style={{flex:1}}>
+        <div className="d" style={{fontSize:19,fontWeight:600,color:'white',marginBottom:10,letterSpacing:'-0.02em'}}>{phase}</div>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div style={{flex:1,height:4,background:'rgba(255,255,255,.08)',borderRadius:2,overflow:'hidden'}}>
+            <div style={{height:'100%',width:`${illumination}%`,background:'linear-gradient(90deg,#6d9bff,#a78bfa,#fff)',borderRadius:2,boxShadow:'0 0 12px rgba(167,139,250,.5)'}}/>
+          </div>
+          <span className="m" style={{fontSize:12,color:'white',fontWeight:600}}>{illumination}%</span>
+        </div>
+      </div>
+    </div>
+  </div>;
+}
+
+// ─── NAV ──────────────────────────────────────────────────────────────────────
+function Nav({page,nav}){
+  const[sc,setSc]=useState(false);
+  useEffect(()=>{const h=()=>setSc(window.scrollY>30);window.addEventListener('scroll',h,{passive:true});return()=>window.removeEventListener('scroll',h);},[]);
+  const links=[['/','Home'],['/calendar','Calendar'],['/live','Live'],['/globe','Globe'],['/about','About']];
+  return <nav style={{position:'fixed',top:0,left:0,right:0,zIndex:50,padding:sc?'12px 0':'22px 0',background:sc?'rgba(5,5,26,.7)':'transparent',backdropFilter:sc?'blur(16px)':'none',borderBottom:sc?'1px solid rgba(255,255,255,.06)':'none',transition:'all .35s cubic-bezier(.2,.8,.2,1)'}}>
+    <div style={{maxWidth:1280,margin:'0 auto',padding:'0 28px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+      <button onClick={()=>nav('/')} style={{display:'flex',alignItems:'center',gap:12,background:'none',border:'none',cursor:'pointer',padding:0}}>
+        <div style={{position:'relative',width:28,height:28}}>
+          <div style={{position:'absolute',inset:0,borderRadius:'50%',background:'radial-gradient(circle,#a78bfa,#6d9bff)',boxShadow:'0 0 20px rgba(167,139,250,.6)'}}/>
+          <div style={{position:'absolute',inset:6,borderRadius:'50%',background:'#05051a'}}/>
+          <div style={{position:'absolute',inset:9,borderRadius:'50%',background:'linear-gradient(135deg,#6d9bff,#a78bfa)'}}/>
+        </div>
+        <span className="d" style={{fontSize:17,fontWeight:700,color:'white',letterSpacing:'-0.02em'}}>Stargaze</span>
+      </button>
+      <div style={{display:'flex',gap:2,padding:4,background:'rgba(255,255,255,.03)',borderRadius:999,border:'1px solid rgba(255,255,255,.06)',backdropFilter:'blur(8px)'}}>
+        {links.map(([id,l])=><button key={id} className={`nl${page===id||(page.startsWith('/shower')&&id==='/')?' nla':''}`} onClick={()=>nav(id)}>{l}</button>)}
+      </div>
+    </div>
+  </nav>;
+}
+
+function Footer({nav}){
+  return <footer style={{borderTop:'1px solid rgba(255,255,255,.06)',marginTop:100,padding:'56px 0 36px',position:'relative'}}>
+    <div style={{maxWidth:1280,margin:'0 auto',padding:'0 28px'}}>
+      <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr',gap:40,marginBottom:48}} className="twocol">
+        <div>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}>
+            <div style={{width:22,height:22,borderRadius:'50%',background:'linear-gradient(135deg,#6d9bff,#a78bfa)',boxShadow:'0 0 14px rgba(167,139,250,.5)'}}/>
+            <span className="d" style={{fontSize:14,fontWeight:700}}>Stargaze</span>
+          </div>
+          <p style={{fontSize:13,color:'rgba(255,255,255,.45)',lineHeight:1.7,maxWidth:320}}>Free, real-time celestial event tracking. <span className="s" style={{color:'rgba(167,139,250,.9)'}}>For everyone who looks up.</span></p>
+        </div>
+        <div><ML style={{display:'block',marginBottom:14}}>Explore</ML>
+          {[['/','Home'],['/calendar','Calendar'],['/live','Live'],['/globe','Globe']].map(([id,l])=>(
+            <button key={id} onClick={()=>nav(id)} style={{display:'block',background:'none',border:'none',color:'rgba(255,255,255,.5)',fontSize:12,cursor:'pointer',marginBottom:10,textAlign:'left',padding:0,fontFamily:'inherit'}}>{l}</button>
+          ))}
+        </div>
+        <div><ML style={{display:'block',marginBottom:14}}>Sources</ML>
+          {[['https://www.imo.net','IMO'],['https://api.nasa.gov','NASA'],['https://celestrak.org','CelesTrak']].map(([h,l])=>(
+            <a key={h} href={h} target="_blank" rel="noopener noreferrer" style={{display:'block',color:'rgba(255,255,255,.5)',fontSize:12,marginBottom:10,textDecoration:'none'}}>{l} ↗</a>
+          ))}
+        </div>
+        <div><ML style={{display:'block',marginBottom:14}}>Legal</ML>
+          <span style={{display:'block',color:'rgba(255,255,255,.5)',fontSize:12,marginBottom:10}}>Open source</span>
+          <span style={{display:'block',color:'rgba(255,255,255,.5)',fontSize:12,marginBottom:10}}>Privacy</span>
+        </div>
+      </div>
+      <div style={{height:1,background:'linear-gradient(90deg,transparent,rgba(109,155,255,.3),rgba(167,139,250,.3),transparent)'}}/>
+      <div style={{paddingTop:28,display:'flex',justifyContent:'space-between',flexWrap:'wrap',gap:12}}>
+        <ML>© {new Date().getFullYear()} Stargaze · Hobbyist project</ML>
+        <ML>Data · IMO · NASA · Open-Meteo · CelesTrak</ML>
+      </div>
+    </div>
+  </footer>;
+}
+
+// ─── HOME ─────────────────────────────────────────────────────────────────────
+function HomePage({nav}){
+  const nxt=nextShower();
+  const upcoming=SHOWERS.filter(s=>daysUntil(s.peak)>0).slice(0,4);
+  return <div>
+    {/* HERO */}
+    <section style={{position:'relative',minHeight:'100vh',overflow:'hidden',display:'flex',alignItems:'center',paddingTop:120,paddingBottom:80}}>
+      <MeteorSky/>
+      <div style={{position:'absolute',inset:0,background:'radial-gradient(ellipse at center,transparent 40%,rgba(5,5,26,.7) 85%)',pointerEvents:'none'}}/>
+      {/* Decorative orbits */}
+      <div style={{position:'absolute',right:-120,top:'20%',width:520,height:520,pointerEvents:'none',opacity:.55}}>
+        <Orbit size={520} color="rgba(109,155,255,.25)"/>
+        <Orbit size={360} delay={3} reverse color="rgba(167,139,250,.3)"/>
+        <Orbit size={200} delay={6} color="rgba(34,211,238,.35)"/>
+      </div>
+      <div style={{position:'relative',zIndex:2,maxWidth:1280,margin:'0 auto',padding:'0 28px',width:'100%'}}>
+        <div className="fup fup-d1" style={{display:'inline-flex',alignItems:'center',gap:10,padding:'8px 18px',borderRadius:999,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.1)',backdropFilter:'blur(8px)',marginBottom:32}}>
+          <span className="ldot"/>
+          <span className="m" style={{fontSize:10,letterSpacing:'0.18em',color:'rgba(255,255,255,.75)',fontWeight:600}}>LIVE TRACKING · 2026</span>
+        </div>
+        <h1 className="d fup fup-d2" style={{fontSize:'clamp(3.5rem,10vw,9rem)',fontWeight:700,lineHeight:.92,letterSpacing:'-0.045em',marginBottom:24,maxWidth:1100}}>
+          <span className="gradg">The night</span><br/>
+          <span className="grad">sky</span><span className="s" style={{fontSize:'.85em',background:'linear-gradient(135deg,#dfe8ff,#a78bfa)',WebkitBackgroundClip:'text',backgroundClip:'text',WebkitTextFillColor:'transparent'}}>, in motion.</span>
+        </h1>
+        <p className="fup fup-d3" style={{fontSize:'clamp(1rem,1.4vw,1.25rem)',color:'rgba(255,255,255,.55)',maxWidth:620,lineHeight:1.6,marginBottom:44}}>
+          Track meteor showers, eclipses, and celestial events in real time. Built for astronomers, hobbyists, and anyone who watches the stars.
+        </p>
+        <div className="fup fup-d4" style={{display:'flex',gap:14,flexWrap:'wrap',marginBottom:60}}>
+          <button className="btn btnp" onClick={()=>nav('/calendar')}>Explore 2026 Calendar →</button>
+          <button className="btn btng" onClick={()=>nav('/live')}>View Live Feed</button>
+        </div>
+        {/* Next event callout */}
+        {nxt&&<div className="fup fup-d5 g glow" style={{display:'inline-flex',flexWrap:'wrap',alignItems:'center',gap:28,padding:'24px 32px',borderRadius:20,maxWidth:'100%'}}>
+          <div>
+            <ML style={{display:'block',marginBottom:6}}>Next peak · {nxt.name}</ML>
+            <div className="d" style={{fontSize:13,color:'rgba(255,255,255,.5)'}}>{fmtDate(nxt.peak)} · {nxt.constellation}</div>
+          </div>
+          <div style={{height:36,width:1,background:'rgba(255,255,255,.1)'}}/>
+          <Countdown targetDate={nxt.peak}/>
+        </div>}
+      </div>
+    </section>
+
+    {/* STATS STRIP */}
+    <section>
+      <div className="statsbar" style={{maxWidth:1280,margin:'0 auto',padding:'0 28px',display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:20}}>
+        {[
+          ['08','Meteor showers','in 2026','#6d9bff'],
+          ['03','Total eclipses','lunar & solar','#f59e0b'],
+          ['150','Peak ZHR','Geminids · Dec 14','#a78bfa'],
+          ['24/7','Live telemetry','ISS & sky data','#4ade80'],
+        ].map(([v,l,s,col],i)=>(
+          <div key={i} className="g" style={{padding:'28px 24px',position:'relative',overflow:'hidden'}}>
+            <div style={{position:'absolute',top:-30,right:-30,width:120,height:120,borderRadius:'50%',background:`radial-gradient(circle,${col}22,transparent 70%)`,pointerEvents:'none'}}/>
+            <div className="d" style={{fontSize:'clamp(2rem,4vw,3.2rem)',fontWeight:700,letterSpacing:'-0.04em',color:col,lineHeight:1,marginBottom:10,textShadow:`0 0 30px ${col}66`}}>{v}</div>
+            <div className="d" style={{fontSize:13,fontWeight:600,color:'rgba(255,255,255,.85)',marginBottom:3}}>{l}</div>
+            <div className="m" style={{fontSize:10,color:'rgba(255,255,255,.4)',letterSpacing:'0.08em'}}>{s}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    {/* BENTO: UPCOMING SHOWERS */}
+    <section style={{maxWidth:1280,margin:'0 auto',padding:'120px 28px 80px'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end',marginBottom:48,flexWrap:'wrap',gap:20}}>
+        <div>
+          <ML style={{display:'block',marginBottom:14}}>— 01 / Meteor Showers</ML>
+          <h2 className="d" style={{fontSize:'clamp(2.2rem,5vw,3.8rem)',fontWeight:700,letterSpacing:'-0.035em',lineHeight:1}}>
+            <span className="gradg">Upcoming</span> <span className="s" style={{color:'#a78bfa'}}>peaks</span>
+          </h2>
+        </div>
+        <button className="btn btng" onClick={()=>nav('/calendar')}>All 15 events →</button>
+      </div>
+
+      {/* Bento grid: first card is feature (2 cols), rest are standard */}
+      <div className="bento" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gridAutoRows:'minmax(200px,auto)',gap:18}}>
+        {upcoming.map((s,i)=>{
+          const st=getStatus(s),days=daysUntil(s.peak),isFeat=i===0;
+          const col=zhrColor(s.zhr);
+          return <div key={s.id} className="g" style={{padding:isFeat?34:24,cursor:'pointer',gridColumn:isFeat?'span 2':'span 2',gridRow:isFeat?'span 2':'span 1',display:'flex',flexDirection:'column',justifyContent:'space-between',position:'relative',overflow:'hidden'}} onClick={()=>nav(`/shower/${s.id}`)}>
+            {isFeat&&<div style={{position:'absolute',top:-80,right:-80,width:300,height:300,borderRadius:'50%',background:`radial-gradient(circle,${col}33,transparent 70%)`,pointerEvents:'none'}}/>}
+            <div>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:isFeat?28:16,flexWrap:'wrap',gap:8}}>
+                <span className={`badge b${st[0]}`}>{st==='active'&&<span className="ldot" style={{width:6,height:6}}/>}{st}</span>
+                <ML>{fmtShort(s.peak)}</ML>
+              </div>
+              <h3 className="d" style={{fontSize:isFeat?'clamp(2rem,3.5vw,3rem)':22,fontWeight:700,letterSpacing:'-0.03em',color:'white',marginBottom:6,lineHeight:1}}>{s.name}</h3>
+              <p className="m" style={{fontSize:10,color:'rgba(255,255,255,.4)',letterSpacing:'0.15em',textTransform:'uppercase',marginBottom:isFeat?20:12}}>in {s.constellation}</p>
+              {isFeat&&<p style={{fontSize:14,color:'rgba(255,255,255,.55)',lineHeight:1.65,marginBottom:24,maxWidth:420}}>{s.description}</p>}
+            </div>
+            <div style={{display:'flex',alignItems:'flex-end',gap:isFeat?28:16,flexWrap:'wrap'}}>
+              <div>
+                <div className="m" style={{fontSize:9,color:'rgba(255,255,255,.35)',letterSpacing:'0.15em',marginBottom:4}}>ZHR</div>
+                <div className="d" style={{fontSize:isFeat?38:26,fontWeight:700,color:col,letterSpacing:'-0.03em',textShadow:`0 0 20px ${col}55`}}>{s.zhr}</div>
+              </div>
+              <div>
+                <div className="m" style={{fontSize:9,color:'rgba(255,255,255,.35)',letterSpacing:'0.15em',marginBottom:4}}>SPEED</div>
+                <div className="d" style={{fontSize:isFeat?24:18,fontWeight:600,color:'rgba(255,255,255,.85)'}}>{s.speed}<span style={{fontSize:'.5em',color:'rgba(255,255,255,.4)',marginLeft:4}}>km/s</span></div>
+              </div>
+              {days>0&&<div style={{marginLeft:'auto'}}>
+                <div className="m" style={{fontSize:9,color:'rgba(255,255,255,.35)',letterSpacing:'0.15em',marginBottom:4}}>DAYS</div>
+                <div className="d" style={{fontSize:isFeat?24:18,fontWeight:600,color:'rgba(255,255,255,.6)'}}>{days}</div>
+              </div>}
+            </div>
+            {/* intensity bar */}
+            <div style={{marginTop:16,height:2,background:'rgba(255,255,255,.05)',borderRadius:1,overflow:'hidden'}}>
+              <div style={{height:'100%',width:`${Math.min(100,(s.zhr/150)*100)}%`,background:`linear-gradient(90deg,transparent,${col})`,boxShadow:`0 0 10px ${col}`}}/>
+            </div>
+          </div>;
+        })}
+
+        {/* extra: Moon widget in grid */}
+        <div className="g" style={{gridColumn:'span 2',padding:24}}>
+          <MoonWidget/>
+        </div>
+        <div className="g" style={{gridColumn:'span 2',padding:24}}>
+          <ISSWidget/>
+        </div>
+      </div>
+    </section>
+
+    {/* FEATURED NEXT EVENT */}
+    {nxt&&<section style={{position:'relative',padding:'100px 0',overflow:'hidden'}}>
+      <div style={{position:'absolute',inset:0,background:'linear-gradient(180deg,transparent,rgba(109,155,255,.04),transparent)',pointerEvents:'none'}}/>
+      <div className="twocol" style={{maxWidth:1280,margin:'0 auto',padding:'0 28px',display:'grid',gridTemplateColumns:'1fr 1fr',gap:60,alignItems:'center',position:'relative'}}>
+        <div>
+          <ML style={{display:'block',marginBottom:14}}>— 02 / Spotlight</ML>
+          <div style={{display:'flex',alignItems:'baseline',gap:12,marginBottom:12,flexWrap:'wrap'}}>
+            <span className="badge ba">Next up</span>
+            <ML>{fmtDate(nxt.peak)}</ML>
+          </div>
+          <h2 className="d" style={{fontSize:'clamp(3rem,6vw,5.5rem)',fontWeight:700,letterSpacing:'-0.045em',lineHeight:.95,marginBottom:20}}>
+            <span className="grad">{nxt.name}</span>
+          </h2>
+          <p className="s" style={{fontSize:'clamp(1.1rem,1.6vw,1.4rem)',color:'rgba(255,255,255,.7)',lineHeight:1.5,marginBottom:24}}>Radiant in {nxt.constellation}.</p>
+          <p style={{fontSize:15,color:'rgba(255,255,255,.55)',lineHeight:1.75,marginBottom:36,maxWidth:520}}>{nxt.description}</p>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:20,marginBottom:40}}>
+            {[['ZHR',nxt.zhr,zhrColor(nxt.zhr)],['SPEED',`${nxt.speed}`,'rgba(255,255,255,.9)','km/s'],['PARENT',nxt.parent,'rgba(167,139,250,.9)']].map(([k,v,c,u],i)=>(
+              <div key={k} className="g" style={{padding:'18px 20px'}}>
+                <div className="m" style={{fontSize:9,color:'rgba(255,255,255,.35)',letterSpacing:'0.15em',marginBottom:6}}>{k}</div>
+                <div className="d" style={{fontSize:i===2?13:24,fontWeight:700,color:c,letterSpacing:'-0.02em',lineHeight:1.2}}>{v}{u&&<span style={{fontSize:'.5em',color:'rgba(255,255,255,.4)',marginLeft:4}}>{u}</span>}</div>
+              </div>
+            ))}
+          </div>
+          <button className="btn btnp" onClick={()=>nav(`/shower/${nxt.id}`)}>Full details →</button>
+        </div>
+        <div style={{textAlign:'center',position:'relative'}}>
+          <div style={{position:'absolute',inset:-60,background:'radial-gradient(circle,rgba(167,139,250,.12),transparent 60%)',pointerEvents:'none'}}/>
+          <ML style={{display:'block',marginBottom:28}}>Peak in</ML>
+          <div style={{display:'flex',justifyContent:'center'}}>
+            <Countdown targetDate={nxt.peak} size="lg"/>
+          </div>
+          <div style={{marginTop:28,display:'inline-flex',alignItems:'center',gap:10,padding:'10px 18px',borderRadius:999,background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.08)',backdropFilter:'blur(8px)'}}>
+            <span style={{width:6,height:6,borderRadius:'50%',background:'#a78bfa',boxShadow:'0 0 8px #a78bfa'}}/>
+            <span className="m" style={{fontSize:10,letterSpacing:'0.15em',color:'rgba(255,255,255,.7)',fontWeight:600}}>{fmtDate(nxt.peak,{weekday:'long',month:'long',day:'numeric'})}</span>
+          </div>
+        </div>
+      </div>
+    </section>}
+  </div>;
+}
+
+// ─── CALENDAR ─────────────────────────────────────────────────────────────────
+function CalendarPage({nav}){
+  const[filter,setFilter]=useState('All'),[search,setSearch]=useState('');
+  const types=['All','Meteor Shower','Eclipse','Planetary','Moon Phase','Seasonal'];
+  const filtered=useMemo(()=>EVENTS.filter(e=>(filter==='All'||e.type===filter)&&(!search||e.title.toLowerCase().includes(search.toLowerCase()))),[filter,search]);
+  const grouped=useMemo(()=>{const g={};filtered.forEach(e=>{const m=new Date(e.date).toLocaleDateString('en-US',{month:'long',year:'numeric'});if(!g[m])g[m]=[];g[m].push(e);});return g;},[filtered]);
+  const vc={'Excellent':'#4ade80','Good':'#6d9bff','Fair':'#f59e0b','N/A':'rgba(255,255,255,.3)'};
+  return <div style={{maxWidth:1280,margin:'0 auto',padding:'140px 28px 80px'}}>
+    <div className="fup fup-d1"><ML style={{display:'block',marginBottom:14}}>— Celestial Calendar</ML></div>
+    <h1 className="d fup fup-d2" style={{fontSize:'clamp(3rem,8vw,6rem)',fontWeight:700,letterSpacing:'-0.045em',marginBottom:24,lineHeight:.95}}>
+      <span className="gradg">Every</span> <span className="grad">event</span>, <span className="s" style={{color:'#a78bfa'}}>one sky</span>.
+    </h1>
+    <p className="fup fup-d3" style={{fontSize:16,color:'rgba(255,255,255,.55)',maxWidth:620,marginBottom:48,lineHeight:1.6}}>All 15 major celestial events for 2026, from meteor peaks to solar eclipses.</p>
+
+    <div className="fup fup-d4 g" style={{padding:'18px 24px',display:'flex',gap:14,marginBottom:40,flexWrap:'wrap',alignItems:'center',borderRadius:999}}>
+      <input className="inp" placeholder="Search events…" value={search} onChange={e=>setSearch(e.target.value)} style={{flex:'1 1 200px',maxWidth:260,border:'none',background:'transparent'}}/>
+      <div style={{height:24,width:1,background:'rgba(255,255,255,.1)'}}/>
+      <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+        {types.map(t=><button key={t} onClick={()=>setFilter(t)} style={{background:filter===t?'linear-gradient(135deg,#6d9bff,#a78bfa)':'transparent',color:filter===t?'white':'rgba(255,255,255,.55)',border:filter===t?'none':'1px solid rgba(255,255,255,.1)',padding:'7px 14px',fontSize:10,fontFamily:'JetBrains Mono,monospace',letterSpacing:'0.12em',textTransform:'uppercase',borderRadius:999,cursor:'pointer',fontWeight:600,boxShadow:filter===t?'0 4px 20px rgba(109,155,255,.4)':'none',transition:'all .2s'}}>{t}</button>)}
+      </div>
+    </div>
+
+    {Object.entries(grouped).map(([month,evts],mi)=>(
+      <div key={month} style={{marginBottom:56}} className="fin">
+        <div style={{display:'flex',alignItems:'center',gap:20,marginBottom:24}}>
+          <h2 className="d" style={{fontSize:22,fontWeight:700,letterSpacing:'-0.02em',color:'white'}}>{month}</h2>
+          <div style={{flex:1,height:1,background:'linear-gradient(90deg,rgba(109,155,255,.3),transparent)'}}/>
+          <ML>{evts.length} event{evts.length!==1?'s':''}</ML>
+        </div>
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          {evts.map(e=>{
+            const tc=ECOLORS[e.type]||'rgba(255,255,255,.4)',sh=SHOWERS.find(s=>s.name===e.title.replace(' Peak',''));
+            return <div key={e.id} className="g" style={{padding:'22px 26px',display:'grid',gridTemplateColumns:'70px 1fr auto',gap:24,alignItems:'center',cursor:sh?'pointer':'default'}} onClick={()=>sh&&nav(`/shower/${sh.id}`)}>
+              <div style={{textAlign:'center'}}>
+                <div className="d" style={{fontSize:26,fontWeight:700,color:'white',lineHeight:1,letterSpacing:'-0.03em'}}>{new Date(e.date).getDate()}</div>
+                <div className="m" style={{fontSize:9,color:'rgba(255,255,255,.4)',letterSpacing:'0.15em',marginTop:4}}>{new Date(e.date).toLocaleDateString('en-US',{weekday:'short'}).toUpperCase()}</div>
+              </div>
+              <div>
+                <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:6,flexWrap:'wrap'}}>
+                  <div style={{width:8,height:8,borderRadius:'50%',background:tc,boxShadow:`0 0 10px ${tc}`,flexShrink:0}}/>
+                  <span className="d" style={{fontSize:15,fontWeight:600,color:'white'}}>{e.title}</span>
+                  <span className="m" style={{fontSize:9,color:tc,letterSpacing:'0.12em',textTransform:'uppercase',fontWeight:700}}>{e.type}</span>
+                </div>
+                <p style={{fontSize:13,color:'rgba(255,255,255,.45)',lineHeight:1.5}}>{e.description}</p>
+              </div>
+              <div style={{textAlign:'right'}}>
+                <div className="m" style={{fontSize:9,color:'rgba(255,255,255,.3)',letterSpacing:'0.15em',marginBottom:4}}>VISIBILITY</div>
+                <div className="d" style={{fontSize:14,fontWeight:700,color:vc[e.visibility]||'rgba(255,255,255,.4)',textShadow:`0 0 10px ${vc[e.visibility]||'transparent'}66`}}>{e.visibility}</div>
+              </div>
+            </div>;
+          })}
+        </div>
+      </div>
+    ))}
+  </div>;
+}
+
+// ─── LIVE ─────────────────────────────────────────────────────────────────────
+function LivePage(){
+  const[reports,setReports]=useState([]),[form,setForm]=useState({location:'',type:'meteor',magnitude:'',duration:''}),[ok,setOk]=useState(false);
+  const submit=()=>{
+    if(!form.location)return;
+    setReports(p=>[{id:Date.now().toString(),time:new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}),location:form.location,magnitude:form.magnitude||'—',duration:form.duration||'—',type:form.type},...p]);
+    setForm({location:'',type:'meteor',magnitude:'',duration:''});setOk(true);setTimeout(()=>setOk(false),2500);
+  };
+  return <div style={{maxWidth:1280,margin:'0 auto',padding:'140px 28px 80px'}}>
+    <div className="fup fup-d1"><ML style={{display:'block',marginBottom:14}}>— Live Feed</ML></div>
+    <h1 className="d fup fup-d2" style={{fontSize:'clamp(3rem,8vw,6rem)',fontWeight:700,letterSpacing:'-0.045em',marginBottom:24,lineHeight:.95}}>
+      <span className="gradg">Tonight's</span> <span className="grad">sky</span>, <span className="s" style={{color:'#22d3ee'}}>right now</span>.
+    </h1>
+    <p className="fup fup-d3" style={{fontSize:16,color:'rgba(255,255,255,.55)',maxWidth:620,marginBottom:48,lineHeight:1.6}}>Live orbital telemetry, lunar phase data, and community sighting reports.</p>
+
+    <div className="twocol fup fup-d4" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,marginBottom:56}}>
+      <ISSWidget/><MoonWidget/>
+    </div>
+
+    <div className="twocol" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:24}}>
+      <div>
+        <ML style={{display:'block',marginBottom:16}}>Submit a Sighting</ML>
+        <div className="g" style={{padding:28,display:'flex',flexDirection:'column',gap:14}}>
+          <input className="inp" placeholder="Your location (city or coords)" value={form.location} onChange={e=>setForm(f=>({...f,location:e.target.value}))}/>
+          <select className="inp" value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))}><option value="meteor">Meteor</option><option value="fireball">Fireball</option><option value="bolide">Bolide</option></select>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+            <input className="inp" placeholder="Magnitude (e.g. −2)" value={form.magnitude} onChange={e=>setForm(f=>({...f,magnitude:e.target.value}))}/>
+            <input className="inp" placeholder="Duration (e.g. 2s)" value={form.duration} onChange={e=>setForm(f=>({...f,duration:e.target.value}))}/>
+          </div>
+          <button className="btn btnp" onClick={submit} style={{marginTop:8,justifyContent:'center'}}>{ok?'✓ Submitted':'Submit Report'}</button>
+        </div>
+      </div>
+      <div>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+          <ML>Community Reports</ML>
+          {reports.length>0&&<div style={{display:'flex',alignItems:'center',gap:8}}><span className="ldot"/><span className="m" style={{fontSize:9,color:'#4ade80',letterSpacing:'0.15em',fontWeight:700}}>{reports.length} TONIGHT</span></div>}
+        </div>
+        {reports.length===0?
+          <div className="g" style={{padding:40,textAlign:'center'}}>
+            <div style={{fontSize:38,marginBottom:10,opacity:.3}}>✦</div>
+            <p style={{color:'rgba(255,255,255,.4)',fontSize:13,fontFamily:'JetBrains Mono,monospace',marginBottom:6}}>No reports yet tonight</p>
+            <p className="s" style={{color:'rgba(255,255,255,.3)',fontSize:14}}>Be the first to see one.</p>
+          </div>:
+          <div style={{display:'flex',flexDirection:'column',gap:10,maxHeight:360,overflowY:'auto'}}>
+            {reports.map(r=><div key={r.id} className="g" style={{padding:'16px 20px',display:'grid',gridTemplateColumns:'60px 1fr auto',gap:16,alignItems:'center'}}>
+              <div className="m d" style={{fontSize:13,fontWeight:600,color:'white'}}>{r.time}</div>
+              <div><div className="d" style={{fontSize:13,fontWeight:600,color:'white',marginBottom:3}}>{r.location}</div><div className="m" style={{fontSize:10,color:'rgba(255,255,255,.4)'}}>mag {r.magnitude} · {r.duration}</div></div>
+              <span className="badge bu">{r.type}</span>
+            </div>)}
+          </div>}
+      </div>
+    </div>
+  </div>;
+}
+
+// ─── SHOWER DETAIL ────────────────────────────────────────────────────────────
+function ShowerPage({id,nav}){
+  const s=SHOWERS.find(sh=>sh.id===id);
+  const cref=useRef(null);
+  useEffect(()=>{
+    if(!s||!cref.current)return;
+    const c=cref.current,ctx=c.getContext('2d');c.width=c.offsetWidth*devicePixelRatio;c.height=c.offsetHeight*devicePixelRatio;ctx.scale(devicePixelRatio,devicePixelRatio);
+    const ms=[];const stars=Array.from({length:40},()=>({x:Math.random(),y:Math.random(),r:Math.random()*1+.3,a:Math.random()*.5+.2}));
+    let aid;const W=()=>c.width/devicePixelRatio,H=()=>c.height/devicePixelRatio;
+    const draw=()=>{
+      ctx.clearRect(0,0,W(),H());
+      stars.forEach(st=>{ctx.beginPath();ctx.arc(st.x*W(),st.y*H(),st.r,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,255,${st.a})`;ctx.fill();});
+      if(Math.random()<.12)ms.push({x:Math.random()*W(),y:-10,vx:2.5+Math.random()*2,vy:3+Math.random()*3,life:0,max:60+Math.random()*30,sz:1+Math.random()});
+      for(let i=ms.length-1;i>=0;i--){
+        const m=ms[i],a=1-m.life/m.max,tx=m.x-m.vx*12,ty=m.y-m.vy*12;
+        const g=ctx.createLinearGradient(m.x,m.y,tx,ty);g.addColorStop(0,`rgba(220,230,255,${a})`);g.addColorStop(1,'transparent');
+        ctx.beginPath();ctx.moveTo(m.x,m.y);ctx.lineTo(tx,ty);ctx.strokeStyle=g;ctx.lineWidth=m.sz;ctx.lineCap='round';ctx.stroke();
+        m.x+=m.vx;m.y+=m.vy;m.life++;if(m.life>=m.max)ms.splice(i,1);
+      }
+      aid=requestAnimationFrame(draw);
+    };draw();return()=>cancelAnimationFrame(aid);
+  },[s]);
+  if(!s)return <div style={{padding:'160px 28px',textAlign:'center'}}><ML>Shower not found</ML></div>;
+  const st=getStatus(s),days=daysUntil(s.peak),col=zhrColor(s.zhr);
+  return <div style={{maxWidth:1280,margin:'0 auto',padding:'140px 28px 80px'}}>
+    <button onClick={()=>nav('/')} className="btn btng" style={{marginBottom:36,fontSize:10,padding:'10px 18px'}}>← Back</button>
+    <div className="twocol" style={{display:'grid',gridTemplateColumns:'1.1fr 1fr',gap:56,alignItems:'start'}}>
+      <div className="fup fup-d1">
+        <div style={{display:'flex',gap:10,marginBottom:20,flexWrap:'wrap'}}>
+          <span className={`badge b${st[0]}`}>{st==='active'&&<span className="ldot" style={{width:6,height:6}}/>}{st}</span>
+          <span className="badge bp">in {s.constellation}</span>
+        </div>
+        <h1 className="d" style={{fontSize:'clamp(3.5rem,8vw,6.5rem)',fontWeight:700,letterSpacing:'-0.045em',lineHeight:.9,marginBottom:16}}>
+          <span className="grad">{s.name}</span>
+        </h1>
+        <p className="s" style={{fontSize:'clamp(1.2rem,1.8vw,1.6rem)',color:'rgba(255,255,255,.7)',lineHeight:1.4,marginBottom:32}}>{s.orbitalPeriod?`Orbital period ${s.orbitalPeriod}.`:'Annual shower from cometary debris.'}</p>
+        <p style={{fontSize:16,color:'rgba(255,255,255,.6)',lineHeight:1.75,marginBottom:36,maxWidth:560}}>{s.description}</p>
+        {s.viewingTips&&<div className="g" style={{padding:24,marginBottom:24,position:'relative',overflow:'hidden'}}>
+          <div style={{position:'absolute',top:-40,right:-40,width:140,height:140,borderRadius:'50%',background:'radial-gradient(circle,rgba(34,211,238,.15),transparent 70%)',pointerEvents:'none'}}/>
+          <ML style={{display:'block',marginBottom:12,color:'rgba(34,211,238,.9)'}}>◐ Viewing Tips</ML>
+          <p style={{fontSize:14,color:'rgba(255,255,255,.65)',lineHeight:1.7}}>{s.viewingTips}</p>
+        </div>}
+        {s.historicalStorms&&<div className="g" style={{padding:24}}>
+          <ML style={{display:'block',marginBottom:12,color:'rgba(167,139,250,.9)'}}>✦ Historical Record</ML>
+          <p style={{fontSize:14,color:'rgba(255,255,255,.6)',lineHeight:1.7}}>{s.historicalStorms}</p>
+        </div>}
+      </div>
+
+      <div className="fup fup-d2" style={{display:'flex',flexDirection:'column',gap:20}}>
+        {/* ZHR hero */}
+        <div className="g glow" style={{position:'relative',height:220,borderRadius:24,overflow:'hidden'}}>
+          <canvas ref={cref} style={{width:'100%',height:'100%',display:'block',opacity:.7}}/>
+          <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:`radial-gradient(ellipse at center,${col}18,transparent 70%)`}}>
+            <div className="m" style={{fontSize:10,letterSpacing:'0.2em',color:'rgba(255,255,255,.5)',marginBottom:8}}>PEAK ZHR</div>
+            <div className="d" style={{fontSize:'clamp(3rem,7vw,5rem)',fontWeight:700,color:col,letterSpacing:'-0.05em',lineHeight:1,textShadow:`0 0 40px ${col}`}}>{s.zhr}</div>
+            <div className="m" style={{fontSize:10,color:'rgba(255,255,255,.4)',marginTop:6}}>meteors / hour</div>
+          </div>
+        </div>
+
+        {/* Stats grid */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+          {[
+            ['Peak Date',fmtDate(s.peak),'#6d9bff'],
+            ['Speed',`${s.speed}`,'#22d3ee','km/s'],
+            ['Active',`${fmtShort(s.start)} – ${fmtShort(s.end)}`,'#a78bfa'],
+            ['Parent',s.parent,'rgba(255,255,255,.85)'],
+          ].map(([k,v,c,u])=>(
+            <div key={k} className="g" style={{padding:'18px 20px'}}>
+              <div className="m" style={{fontSize:9,color:'rgba(255,255,255,.35)',letterSpacing:'0.15em',marginBottom:6}}>{k.toUpperCase()}</div>
+              <div className="d" style={{fontSize:14,fontWeight:600,color:c,letterSpacing:'-0.01em',lineHeight:1.3}}>{v}{u&&<span style={{fontSize:'.7em',color:'rgba(255,255,255,.4)',marginLeft:4}}>{u}</span>}</div>
+            </div>
+          ))}
+        </div>
+
+        {days>0&&<div className="g" style={{padding:24}}>
+          <ML style={{display:'block',marginBottom:14}}>Peak Countdown</ML>
+          <Countdown targetDate={s.peak}/>
+        </div>}
+      </div>
+    </div>
+  </div>;
+}
+
+// ─── GLOBE ────────────────────────────────────────────────────────────────────
+function GlobePage(){
+  return <div style={{maxWidth:1280,margin:'0 auto',padding:'140px 28px 80px'}}>
+    <div className="fup fup-d1"><ML style={{display:'block',marginBottom:14}}>— 3D Visualization</ML></div>
+    <h1 className="d fup fup-d2" style={{fontSize:'clamp(3rem,8vw,6rem)',fontWeight:700,letterSpacing:'-0.045em',marginBottom:48,lineHeight:.95}}>
+      <span className="gradg">Interactive</span> <span className="grad">globe</span>.
+    </h1>
+    <div className="twocol" style={{display:'grid',gridTemplateColumns:'1.2fr 1fr',gap:24,alignItems:'start'}}>
+      <div className="g glow fup fup-d3" style={{position:'relative',aspectRatio:'1',borderRadius:24,overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',background:'radial-gradient(circle at 30% 30%,rgba(109,155,255,.12),transparent 60%),rgba(255,255,255,.02)'}}>
+        <Orbit size={'80%'} color="rgba(109,155,255,.4)"/>
+        <Orbit size={'60%'} delay={3} reverse color="rgba(167,139,250,.45)"/>
+        <Orbit size={'40%'} delay={6} color="rgba(34,211,238,.5)"/>
+        <div style={{position:'relative',width:'45%',aspectRatio:'1',borderRadius:'50%',background:'radial-gradient(circle at 35% 35%,#6d9bff,#1a2a55 70%,#0a1430)',boxShadow:'0 0 80px rgba(109,155,255,.5),inset -30px -30px 60px rgba(0,0,0,.5)'}}>
+          <div style={{position:'absolute',inset:0,borderRadius:'50%',background:'radial-gradient(circle at 65% 60%,transparent 50%,rgba(0,0,0,.6))'}}/>
+        </div>
+        <div style={{position:'absolute',bottom:20,left:0,right:0,textAlign:'center'}}><ML>3D Globe · Cesium.js (preview)</ML></div>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:16}} className="fup fup-d4">
+        <div className="g" style={{padding:28}}>
+          <ML style={{display:'block',marginBottom:14}}>About</ML>
+          <p style={{fontSize:14,color:'rgba(255,255,255,.6)',lineHeight:1.75,marginBottom:24}}>Real-time ISS orbital tracks, meteor shower radiants, and eclipse paths on a photorealistic Earth powered by Cesium.js and NASA's Blue Marble imagery.</p>
+          <ul style={{display:'flex',flexDirection:'column',gap:12,listStyle:'none'}}>
+            {[['Real-time ISS orbital track','#4ade80'],['Meteor shower radiants','#6d9bff'],['Eclipse path visualization','#f59e0b'],['Day/night terminator','#a78bfa'],['Constellation overlays','#22d3ee']].map(([t,c])=>(
+              <li key={t} style={{display:'flex',gap:12,alignItems:'center',fontSize:13,color:'rgba(255,255,255,.7)'}}>
+                <div style={{width:6,height:6,borderRadius:'50%',background:c,boxShadow:`0 0 8px ${c}`,flexShrink:0}}/>{t}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <ISSWidget/>
+      </div>
+    </div>
+  </div>;
+}
+
+// ─── ABOUT ────────────────────────────────────────────────────────────────────
+function AboutPage(){
+  return <div style={{maxWidth:960,margin:'0 auto',padding:'140px 28px 80px'}}>
+    <div className="fup fup-d1"><ML style={{display:'block',marginBottom:14}}>— About</ML></div>
+    <h1 className="d fup fup-d2" style={{fontSize:'clamp(3rem,9vw,7rem)',fontWeight:700,letterSpacing:'-0.045em',lineHeight:.9,marginBottom:48}}>
+      <span className="gradg">Built for</span><br/><span className="grad">stargazers</span><span className="s" style={{color:'#a78bfa',fontSize:'.7em'}}>, freely.</span>
+    </h1>
+    <div style={{height:1,background:'linear-gradient(90deg,rgba(109,155,255,.4),transparent)',marginBottom:48}}/>
+    <div className="twocol fup fup-d3" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:56,marginBottom:72}}>
+      <div>
+        <p style={{fontSize:17,color:'rgba(255,255,255,.7)',lineHeight:1.85,marginBottom:24}}>Stargaze is a <span className="s" style={{color:'#a78bfa'}}>free, open hobbyist portal</span> for tracking meteor showers, eclipses, and celestial events. No accounts. No paywalls. Just the sky.</p>
+        <p style={{fontSize:14,color:'rgba(255,255,255,.45)',lineHeight:1.85}}>Data sourced from IMO, NASA's public APIs, Open-Meteo, CelesTrak, and WhereTheISS. Updates stream in real time.</p>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:12}}>
+        {[['IMO','Meteor shower data & ZHR','https://www.imo.net','#6d9bff'],['NASA APIs','Astronomical event data','https://api.nasa.gov','#f59e0b'],['CelesTrak','Satellite orbital elements','https://celestrak.org','#4ade80'],['Open-Meteo','Atmospheric data','https://open-meteo.com','#22d3ee']].map(([n,d,h,c])=>(
+          <a key={n} href={h} target="_blank" rel="noopener noreferrer" className="g" style={{padding:'18px 22px',textDecoration:'none',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <div style={{display:'flex',alignItems:'center',gap:14}}>
+              <div style={{width:8,height:8,borderRadius:'50%',background:c,boxShadow:`0 0 10px ${c}`}}/>
+              <div><div className="d" style={{fontSize:14,fontWeight:600,color:'white',marginBottom:2}}>{n}</div><div style={{fontSize:12,color:'rgba(255,255,255,.45)'}}>{d}</div></div>
+            </div>
+            <svg width="13" height="13" viewBox="0 0 12 12" fill="none" style={{opacity:.4,flexShrink:0}}><path d="M2 10L10 2M10 2H4M10 2V8" stroke="white" strokeWidth="1.5" strokeLinecap="round"/></svg>
+          </a>
+        ))}
+      </div>
+    </div>
+    <div style={{height:1,background:'linear-gradient(90deg,rgba(167,139,250,.25),transparent)',marginBottom:32}}/>
+    <ML style={{display:'block',marginBottom:14}}>Disclaimer</ML>
+    <p style={{fontSize:13,color:'rgba(255,255,255,.4)',lineHeight:1.8,maxWidth:600}}>Stargaze is a hobbyist project. All data is for educational and recreational purposes. Verify critical observations with professional astronomical sources.</p>
+  </div>;
+}
+
+// TWEAKS
+const TWEAK_DEFAULTS=/*EDITMODE-BEGIN*/{"accent":"#6d9bff","accent2":"#a78bfa"}/*EDITMODE-END*/;
+function TweaksPanel({tweaks,set}){
+  const P=[{l:'Cosmic',v:'#6d9bff',v2:'#a78bfa'},{l:'Nebula',v:'#f472b6',v2:'#a78bfa'},{l:'Aurora',v:'#4ade80',v2:'#22d3ee'},{l:'Solar',v:'#f59e0b',v2:'#ef4444'}];
+  return <div id="tw" style={{display:'flex'}}>
+    <span className="m" style={{fontSize:10,letterSpacing:'0.18em',color:'rgba(255,255,255,.6)',fontWeight:700}}>⚙ TWEAKS</span>
+    <div><div className="twl">Palette</div><div className="two">{P.map(a=><button key={a.v} className={`twob${tweaks.accent===a.v?' s':''}`} onClick={()=>set({accent:a.v,accent2:a.v2})}>{a.l}</button>)}</div></div>
+  </div>;
+}
+
+function App(){
+  const{page,nav}=useRoute();
+  const[tweaks,setTweaks]=useState(()=>{try{return{...TWEAK_DEFAULTS,...JSON.parse(localStorage.getItem('sg_tw')||'{}')};}catch{return TWEAK_DEFAULTS;}});
+  const[twOpen,setTwOpen]=useState(false);
+  useEffect(()=>{localStorage.setItem('sg_tw',JSON.stringify(tweaks));document.documentElement.style.setProperty('--acc',tweaks.accent);document.documentElement.style.setProperty('--acc2',tweaks.accent2||'#a78bfa');},[tweaks]);
+  useEffect(()=>{
+    const h=e=>{if(e.data?.type==='__activate_edit_mode')setTwOpen(true);if(e.data?.type==='__deactivate_edit_mode')setTwOpen(false);if(e.data?.type==='__edit_mode_set_keys'&&e.data.edits)setTweaks(t=>({...t,...e.data.edits}));};
+    window.addEventListener('message',h);window.parent.postMessage({type:'__edit_mode_available'},'*');
+    return()=>window.removeEventListener('message',h);
+  },[]);
+  const persist=e=>{setTweaks(t=>({...t,...e}));window.parent.postMessage({type:'__edit_mode_set_keys',edits:e},'*');};
+  const sm=page.match(/^\/shower\/(.+)$/);
+  const render=()=>{
+    if(sm)return <ShowerPage id={sm[1]} nav={nav}/>;
+    if(page==='/calendar')return <CalendarPage nav={nav}/>;
+    if(page==='/live')return <LivePage/>;
+    if(page==='/globe')return <GlobePage/>;
+    if(page==='/about')return <AboutPage/>;
+    return <HomePage nav={nav}/>;
+  };
+  return <div data-screen-label={sm?`Shower: ${sm[1]}`:page}><Nav page={page} nav={nav}/><main>{render()}</main><Footer nav={nav}/>{twOpen&&<TweaksPanel tweaks={tweaks} set={persist}/>}</div>;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

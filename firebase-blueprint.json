@@ -1,0 +1,115 @@
+{
+  "entities": {
+    "events": {
+      "title": "Astronomy Event",
+      "description": "A celestial event like a meteor shower or eclipse.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "type": { "type": "string" },
+        "location": { "type": "string" },
+        "description": { "type": "string" },
+        "visibility": { "type": "string" },
+        "imageUrl": { "type": "string" }
+      },
+      "required": ["title", "date", "type"]
+    },
+    "forum_categories": {
+      "title": "Forum Category",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "icon": { "type": "string" }
+      }
+    },
+    "forum_threads": {
+      "title": "Forum Thread",
+      "type": "object",
+      "properties": {
+        "categoryId": { "type": "string" },
+        "title": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "forum_posts": {
+      "title": "Forum Post",
+      "type": "object",
+      "properties": {
+        "threadId": { "type": "string" },
+        "content": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "user_profiles": {
+      "title": "User Profile",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "favorites": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "observation_logs": {
+      "title": "Observation Log",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "location": { "type": "string" },
+        "bortle": { "type": "number" },
+        "equipment": { "type": "string" },
+        "notes": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "contacts": {
+      "title": "Contact Message",
+      "description": "Messages sent from the about page contact form.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "message": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "email", "message"]
+    }
+  },
+  "firestore": {
+    "/events": {
+      "schema": "events",
+      "description": "Public astronomy events"
+    },
+    "/forum_categories": {
+      "schema": "forum_categories",
+      "description": "Forum categories"
+    },
+    "/forum_threads": {
+      "schema": "forum_threads",
+      "description": "Forum threads"
+    },
+    "/forum_posts": {
+      "schema": "forum_posts",
+      "description": "Forum posts"
+    },
+    "/users": {
+      "schema": "user_profiles",
+      "description": "User profiles and favorites"
+    },
+    "/observation_logs": {
+      "schema": "observation_logs",
+      "description": "User observation logs"
+    },
+    "/contacts": {
+      "schema": "contacts",
+      "description": "User contact messages"
+    }
+  }
+}

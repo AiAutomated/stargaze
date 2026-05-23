@@ -1,0 +1,10 @@
+{
+  "name": "Stargaze - Meteor Shower Tracker",
+  "description": "Track meteor showers, watch the ISS, and get stargazing forecasts. Stargaze provides real-time data for the best cosmic viewing windows in your location.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

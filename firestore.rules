@@ -1,0 +1,68 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (request.auth.token.email == "blackshotsgeneralstore@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Events: Publicly readable, admin only write
+    match /events/{eventId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Forum Categories: Publicly readable, admin only write
+    match /forum_categories/{catId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Forum Threads: Publicly readable, authenticated write
+    match /forum_threads/{threadId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && request.auth.uid == resource.data.authorId;
+    }
+
+    // Forum Posts: Publicly readable, authenticated write
+    match /forum_posts/{postId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && request.auth.uid == resource.data.authorId;
+    }
+
+    // User Profiles: Owner only read/write
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Observation Logs: Owner only read/write
+    match /observation_logs/{logId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Contacts: Publicly writable, only admin can read
+    match /contacts/{contactId} {
+      allow create: if request.resource.data.keys().hasAll(['name', 'email', 'message']) &&
+                     request.resource.data.name is string &&
+                     isValidEmail(request.resource.data.email) &&
+                     request.resource.data.message is string;
+      allow read, update, delete: if false; // Admin only
+    }
+  }
+}

@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Allow: /calendar
+Allow: /live
+Allow: /globe
+Allow: /shower/
+
+Sitemap: https://stargaze.pro/sitemap.xml

@@ -1,0 +1,32 @@
+[
+  {
+    "name": "General Discussion",
+    "description": "Talk about anything related to astronomy and the night sky.",
+    "icon": "MessageSquare"
+  },
+  {
+    "name": "Equipment & Gear",
+    "description": "Discuss telescopes, binoculars, cameras, and other stargazing tools.",
+    "icon": "Settings"
+  },
+  {
+    "name": "Astrophotography",
+    "description": "Share your photos and learn techniques for capturing the cosmos.",
+    "icon": "Camera"
+  },
+  {
+    "name": "Events & Meetups",
+    "description": "Coordinate local stargazing events and discuss upcoming celestial phenomena.",
+    "icon": "Calendar"
+  },
+  {
+    "name": "Deep Sky Objects",
+    "description": "Discuss galaxies, nebulae, and star clusters.",
+    "icon": "Star"
+  },
+  {
+    "name": "Solar System",
+    "description": "Talk about planets, the Moon, and the Sun.",
+    "icon": "Sun"
+  }
+]
