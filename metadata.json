@@ -1,0 +1,7 @@
+{
+  "name": "Stargaze - Know Exactly When to Look Up",
+  "description": "The ultimate meteor shower tracker by Stargaze. Get real-time viewing windows, countdowns to peaks, and visibility conditions for your location.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

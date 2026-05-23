@@ -1,0 +1,335 @@
+[
+  {
+    "id": "event_2026_01_03_quadrantids",
+    "title": "Quadrantids Meteor Shower",
+    "date": "2026-01-03",
+    "description": "The Quadrantids are an above average shower, with up to 40 meteors per hour at their peak.",
+    "location": "Global (Northern Hemisphere preferred)",
+    "type": "Meteor Shower",
+    "visibility": "Excellent"
+  },
+  {
+    "id": "event_2026_01_14_full_moon",
+    "title": "Full Moon",
+    "date": "2026-01-14",
+    "description": "The Moon will be fully illuminated by the Sun. This phase occurs at 09:11 UTC.",
+    "location": "Global",
+    "type": "Moon Phase",
+    "visibility": "Excellent"
+  },
+  {
+    "id": "event_2026_01_29_new_moon",
+    "title": "New Moon",
+    "date": "2026-01-29",
+    "description": "The Moon will be between the Earth and the Sun, and will not be visible in the night sky.",
+    "location": "Global",
+    "type": "Moon Phase",
+    "visibility": "N/A"
+  },
+  {
+    "id": "event_2026_02_12_full_moon",
+    "title": "Full Moon",
+    "date": "2026-02-12",
+    "description": "The Moon will be fully illuminated by the Sun. This phase occurs at 22:53 UTC.",
+    "location": "Global",
+    "type": "Moon Phase",
+    "visibility": "Excellent"
+  },
+  {
+    "id": "event_2026_02_27_new_moon",
+    "title": "New Moon",
+    "date": "2026-02-27",
+    "description": "The Moon will be between the Earth and the Sun, and will not be visible in the night sky.",
+    "location": "Global",
+    "type": "Moon Phase",
+    "visibility": "N/A"
+  },
+  {
+    "id": "event_2026_03_03_total_lunar_eclipse",
+    "title": "Total Lunar Eclipse",
+    "date": "2026-03-03",
+    "description": "A total lunar eclipse occurs when the Moon passes completely through the Earth's dark shadow, or umbra.",
+    "location": "Americas, Europe, Africa",
+    "type": "Eclipse",
+    "visibility": "High"
+  },
+  {
+    "id": "event_2026_03_14_full_moon",
+    "title": "Full Moon",
+    "date": "2026-03-14",
+    "description": "The Moon will be fully illuminated by the Sun. This phase occurs at 10:58 UTC.",
+    "location": "Global",
+    "type": "Moon Phase",
+    "visibility": "Excellent"
+  },
+  {
+    "id": "event_2026_03_29_new_moon",
+    "title": "New Moon",
+    "date": "2026-03-29",
+    "description": "The Moon will be between the Earth and the Sun, and will not be visible in the night sky.",
+    "location": "Global",
+    "type": "Moon Phase",
+    "visibility": "N/A"
+  },
+  {
+    "id": "event_2026_04_12_full_moon",
+    "title": "Full Moon",
+    "date": "2026-04-12",
+    "description": "The Moon will be fully illuminated by the Sun. This phase occurs at 21:22 UTC.",
+    "location": "Global",
+    "type": "Moon Phase",
+    "visibility": "Excellent"
+  },
+  {
+    "id": "event_2026_04_22_lyrids",
+    "title": "Lyrids Meteor Shower",
+    "date": "2026-04-22",
+    "description": "The Lyrids are an average shower, usually producing about 20 meteors per hour at their peak.",
+    "location": "Global",
+    "type": "Meteor Shower",
+    "visibility": "Moderate"
+  },
+  {
+    "id": "event_2026_04_28_new_moon",
+    "title": "New Moon",
+    "date": "2026-04-28",
+    "description": "The Moon will be between the Earth and the Sun, and will not be visible in the night sky.",
+    "location": "Global",
+    "type": "Moon Phase",
+    "visibility": "N/A"
+  },
+  {
+    "id": "event_2026_05_06_eta_aquarids",
+    "title": "Eta Aquarids Meteor Shower",
+    "date": "2026-05-06",
+    "description": "The Eta Aquarids is an above average shower, capable of producing up to 60 meteors per hour.",
+    "location": "Global (Southern Hemisphere preferred)",
+    "type": "Meteor Shower",
+    "visibility": "High"
+  },
+  {
+    "id": "event_2026_05_12_full_moon",
+    "title": "Full Moon",
+    "date": "2026-05-12",
+    "description": "The Moon will be fully illuminated by the Sun. This phase occurs at 06:47 UTC.",
+    "location": "Global",
+    "type": "Moon Phase",
+    "visibility": "Excellent"
+  },
+  {
+    "id": "event_2026_05_27_new_moon",
+    "title": "New Moon",
+    "date": "2026-05-27",
+    "description": "The Moon will be between the Earth and the Sun, and will not be visible in the night sky.",
+    "location": "Global",
+    "type": "Moon Phase",
+    "visibility": "N/A"
+  },
+  {
+    "id": "event_2026_06_11_full_moon",
+    "title": "Full Moon",
+    "date": "2026-06-11",
+    "description": "The Moon will be fully illuminated by the Sun. This phase occurs at 15:43 UTC.",
+    "location": "Global",
+    "type": "Moon Phase",
+    "visibility": "Excellent"
+  },
+  {
+    "id": "event_2026_06_26_new_moon",
+    "title": "New Moon",
+    "date": "2026-06-26",
+    "description": "The Moon will be between the Earth and the Sun, and will not be visible in the night sky.",
+    "location": "Global",
+    "type": "Moon Phase",
+    "visibility": "N/A"
+  },
+  {
+    "id": "event_2026_07_10_full_moon",
+    "title": "Full Moon",
+    "date": "2026-07-10",
+    "description": "The Moon will be fully illuminated by the Sun. This phase occurs at 00:51 UTC.",
+    "location": "Global",
+    "type": "Moon Phase",
+    "visibility": "Excellent"
+  },
+  {
+    "id": "event_2026_07_25_new_moon",
+    "title": "New Moon",
+    "date": "2026-07-25",
+    "description": "The Moon will be between the Earth and the Sun, and will not be visible in the night sky.",
+    "location": "Global",
+    "type": "Moon Phase",
+    "visibility": "N/A"
+  },
+  {
+    "id": "event_2026_07_28_delta_aquarids",
+    "title": "Delta Aquarids Meteor Shower",
+    "date": "2026-07-28",
+    "description": "The Delta Aquarids is an average shower that can produce up to 20 meteors per hour at its peak.",
+    "location": "Global",
+    "type": "Meteor Shower",
+    "visibility": "Moderate"
+  },
+  {
+    "id": "event_2026_08_09_full_moon",
+    "title": "Full Moon",
+    "date": "2026-08-09",
+    "description": "The Moon will be fully illuminated by the Sun. This phase occurs at 10:45 UTC.",
+    "location": "Global",
+    "type": "Moon Phase",
+    "visibility": "Excellent"
+  },
+  {
+    "id": "event_2026_08_12_perseids",
+    "title": "Perseids Meteor Shower",
+    "date": "2026-08-12",
+    "description": "The Perseids is one of the best meteor showers to observe, producing up to 60 brilliant meteors per hour.",
+    "location": "Global",
+    "type": "Meteor Shower",
+    "visibility": "Excellent"
+  },
+  {
+    "id": "event_2026_08_12_total_solar_eclipse",
+    "title": "Total Solar Eclipse",
+    "date": "2026-08-12",
+    "description": "A total solar eclipse will be visible from the Arctic Ocean, Greenland, Iceland, Atlantic Ocean, and Spain.",
+    "location": "Greenland, Iceland, Spain",
+    "type": "Eclipse",
+    "visibility": "High (Path of Totality)"
+  },
+  {
+    "id": "event_2026_08_23_new_moon",
+    "title": "New Moon",
+    "date": "2026-08-23",
+    "description": "The Moon will be between the Earth and the Sun, and will not be visible in the night sky.",
+    "location": "Global",
+    "type": "Moon Phase",
+    "visibility": "N/A"
+  },
+  {
+    "id": "event_2026_09_07_full_moon",
+    "title": "Full Moon",
+    "date": "2026-09-07",
+    "description": "The Moon will be fully illuminated by the Sun. This phase occurs at 21:52 UTC.",
+    "location": "Global",
+    "type": "Moon Phase",
+    "visibility": "Excellent"
+  },
+  {
+    "id": "event_2026_09_21_saturn_opposition",
+    "title": "Saturn at Opposition",
+    "date": "2026-09-21",
+    "description": "The ringed planet will be at its closest approach to Earth and its face will be fully illuminated by the Sun.",
+    "location": "Global",
+    "type": "Planetary Conjunction",
+    "visibility": "Excellent"
+  },
+  {
+    "id": "event_2026_09_22_new_moon",
+    "title": "New Moon",
+    "date": "2026-09-22",
+    "description": "The Moon will be between the Earth and the Sun, and will not be visible in the night sky.",
+    "location": "Global",
+    "type": "Moon Phase",
+    "visibility": "N/A"
+  },
+  {
+    "id": "event_2026_10_07_draconids",
+    "title": "Draconids Meteor Shower",
+    "date": "2026-10-07",
+    "description": "The Draconids is a minor meteor shower producing only about 10 meteors per hour.",
+    "location": "Northern Hemisphere",
+    "type": "Meteor Shower",
+    "visibility": "Low"
+  },
+  {
+    "id": "event_2026_10_07_full_moon",
+    "title": "Full Moon",
+    "date": "2026-10-07",
+    "description": "The Moon will be fully illuminated by the Sun. This phase occurs at 10:11 UTC.",
+    "location": "Global",
+    "type": "Moon Phase",
+    "visibility": "Excellent"
+  },
+  {
+    "id": "event_2026_10_21_orionids",
+    "title": "Orionids Meteor Shower",
+    "date": "2026-10-21",
+    "description": "The Orionids is an average shower producing about 20 meteors per hour at its peak.",
+    "location": "Global",
+    "type": "Meteor Shower",
+    "visibility": "Moderate"
+  },
+  {
+    "id": "event_2026_10_22_new_moon",
+    "title": "New Moon",
+    "date": "2026-10-22",
+    "description": "The Moon will be between the Earth and the Sun, and will not be visible in the night sky.",
+    "location": "Global",
+    "type": "Moon Phase",
+    "visibility": "N/A"
+  },
+  {
+    "id": "event_2026_11_05_full_moon",
+    "title": "Full Moon",
+    "date": "2026-11-05",
+    "description": "The Moon will be fully illuminated by the Sun. This phase occurs at 23:19 UTC.",
+    "location": "Global",
+    "type": "Moon Phase",
+    "visibility": "Excellent"
+  },
+  {
+    "id": "event_2026_11_17_leonids",
+    "title": "Leonids Meteor Shower",
+    "date": "2026-11-17",
+    "description": "The Leonids is an average shower, producing up to 15 meteors per hour at its peak.",
+    "location": "Global",
+    "type": "Meteor Shower",
+    "visibility": "Moderate"
+  },
+  {
+    "id": "event_2026_11_20_new_moon",
+    "title": "New Moon",
+    "date": "2026-11-20",
+    "description": "The Moon will be between the Earth and the Sun, and will not be visible in the night sky.",
+    "location": "Global",
+    "type": "Moon Phase",
+    "visibility": "N/A"
+  },
+  {
+    "id": "event_2026_12_05_full_moon",
+    "title": "Full Moon",
+    "date": "2026-12-05",
+    "description": "The Moon will be fully illuminated by the Sun. This phase occurs at 12:48 UTC.",
+    "location": "Global",
+    "type": "Moon Phase",
+    "visibility": "Excellent"
+  },
+  {
+    "id": "event_2026_12_13_geminids",
+    "title": "Geminids Meteor Shower",
+    "date": "2026-12-13",
+    "description": "The Geminids is the king of the meteor showers. It is considered by many to be the best shower in the heavens.",
+    "location": "Global",
+    "type": "Meteor Shower",
+    "visibility": "High"
+  },
+  {
+    "id": "event_2026_12_20_new_moon",
+    "title": "New Moon",
+    "date": "2026-12-20",
+    "description": "The Moon will be between the Earth and the Sun, and will not be visible in the night sky.",
+    "location": "Global",
+    "type": "Moon Phase",
+    "visibility": "N/A"
+  },
+  {
+    "id": "event_2026_12_21_ursids",
+    "title": "Ursids Meteor Shower",
+    "date": "2026-12-21",
+    "description": "The Ursids is a minor meteor shower producing about 5-10 meteors per hour.",
+    "location": "Northern Hemisphere",
+    "type": "Meteor Shower",
+    "visibility": "Low"
+  }
+]
