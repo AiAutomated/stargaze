@@ -1,13 +1,40 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-TG7HPSXMW8"></script>
+    <!-- Google Consent Mode v2 Default Settings -->
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
+      try {
+        const savedConsent = localStorage.getItem('cookie_consent');
+        if (savedConsent === 'granted') {
+          gtag('consent', 'default', {
+            'ad_storage': 'granted',
+            'ad_user_data': 'granted',
+            'ad_personalization': 'granted',
+            'analytics_storage': 'granted'
+          });
+        } else {
+          gtag('consent', 'default', {
+            'ad_storage': 'denied',
+            'ad_user_data': 'denied',
+            'ad_personalization': 'denied',
+            'analytics_storage': 'denied'
+          });
+        }
+      } catch (e) {
+        gtag('consent', 'default', {
+          'ad_storage': 'denied',
+          'ad_user_data': 'denied',
+          'ad_personalization': 'denied',
+          'analytics_storage': 'denied'
+        });
+      }
+    </script>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-TG7HPSXMW8"></script>
+    <script>
       gtag('js', new Date());
-
       gtag('config', 'G-TG7HPSXMW8');
     </script>
     <meta charset="UTF-8" />

@@ -1580,6 +1580,187 @@ const Footer = () => (
   </footer>
 );
 
+function CookieConsentBanner() {
+  const [visible, setVisible] = useState(false);
+  const [showManage, setShowManage] = useState(false);
+  const [allowAnalytics, setAllowAnalytics] = useState(true);
+  const [allowMarketing, setAllowMarketing] = useState(false);
+
+  useEffect(() => {
+    const consent = localStorage.getItem('cookie_consent');
+    if (!consent) {
+      const timer = setTimeout(() => setVisible(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  const handleAcceptAll = () => {
+    localStorage.setItem('cookie_consent', 'granted');
+    localStorage.setItem('cookie_consent_analytics', 'granted');
+    localStorage.setItem('cookie_consent_marketing', 'granted');
+    
+    const gtag = (window as any).gtag;
+    if (gtag) {
+      gtag('consent', 'update', {
+        'ad_storage': 'granted',
+        'ad_user_data': 'granted',
+        'ad_personalization': 'granted',
+        'analytics_storage': 'granted'
+      });
+    }
+    setVisible(false);
+  };
+
+  const handleDeclineAll = () => {
+    localStorage.setItem('cookie_consent', 'denied');
+    localStorage.setItem('cookie_consent_analytics', 'denied');
+    localStorage.setItem('cookie_consent_marketing', 'denied');
+    
+    const gtag = (window as any).gtag;
+    if (gtag) {
+      gtag('consent', 'update', {
+        'ad_storage': 'denied',
+        'ad_user_data': 'denied',
+        'ad_personalization': 'denied',
+        'analytics_storage': 'denied'
+      });
+    }
+    setVisible(false);
+  };
+
+  const handleSavePreferences = () => {
+    localStorage.setItem('cookie_consent', 'custom');
+    localStorage.setItem('cookie_consent_analytics', allowAnalytics ? 'granted' : 'denied');
+    localStorage.setItem('cookie_consent_marketing', allowMarketing ? 'granted' : 'denied');
+    
+    const gtag = (window as any).gtag;
+    if (gtag) {
+      gtag('consent', 'update', {
+        'ad_storage': allowMarketing ? 'granted' : 'denied',
+        'ad_user_data': allowMarketing ? 'granted' : 'denied',
+        'ad_personalization': allowMarketing ? 'granted' : 'denied',
+        'analytics_storage': allowAnalytics ? 'granted' : 'denied'
+      });
+    }
+    setVisible(false);
+  };
+
+  if (!visible) return null;
+
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          initial={{ y: 100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 100, opacity: 0 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+          className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:max-w-md z-50 p-5 rounded-2xl border border-white/10 bg-black/90 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] flex flex-col gap-4 text-white"
+        >
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 flex-shrink-0">
+              <ShieldCheck size={18} />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold tracking-wide mb-1 font-space">Cookie Preferences</h4>
+              <p className="text-xs text-white/60 leading-relaxed">
+                Stargaze uses cookies to analyze traffic, enhance navigation, and support our celestial guiding systems. Choose your preferences below. See our <Link to="/privacy" className="text-orange-400 hover:underline">Privacy Policy</Link> for details.
+              </p>
+            </div>
+          </div>
+
+          {showManage ? (
+            <div className="flex flex-col gap-3 py-2 border-t border-b border-white/5 my-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[11px] font-bold text-white/90">Essential Cookies</p>
+                  <p className="text-[9px] text-white/40">Required for core site features and UI preferences.</p>
+                </div>
+                <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded border border-emerald-400/20">Always Active</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[11px] font-bold text-white/90">Analytics Cookies</p>
+                  <p className="text-[9px] text-white/40">Used to measure site usage and performance via Google Analytics.</p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={allowAnalytics}
+                  onChange={(e) => setAllowAnalytics(e.target.checked)}
+                  className="w-4.5 h-4.5 rounded border-white/10 accent-orange-500 cursor-pointer"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[11px] font-bold text-white/90">Marketing Cookies</p>
+                  <p className="text-[9px] text-white/40">Supports personalised advertising and remarketing capabilities.</p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={allowMarketing}
+                  onChange={(e) => setAllowMarketing(e.target.checked)}
+                  className="w-4.5 h-4.5 rounded border-white/10 accent-orange-500 cursor-pointer"
+                />
+              </div>
+            </div>
+          ) : null}
+
+          <div className="flex items-center justify-between gap-3 mt-1">
+            {showManage ? (
+              <>
+                <button
+                  onClick={() => setShowManage(false)}
+                  className="text-[10px] font-bold uppercase tracking-wider text-white/40 hover:text-white transition-colors"
+                >
+                  Back
+                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleSavePreferences}
+                    className="px-3 py-2 rounded-xl border border-white/10 text-[10px] font-bold uppercase tracking-wider hover:bg-white/5 transition-colors"
+                  >
+                    Save Preferences
+                  </button>
+                  <button
+                    onClick={handleAcceptAll}
+                    className="px-4 py-2 rounded-xl bg-orange-500 text-black text-[10px] font-black uppercase tracking-wider hover:bg-orange-600 transition-colors"
+                  >
+                    Accept All
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => setShowManage(true)}
+                  className="text-[10px] font-bold uppercase tracking-wider text-white/40 hover:text-white transition-colors underline decoration-dotted"
+                >
+                  Manage Preferences
+                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleDeclineAll}
+                    className="px-3 py-2 rounded-xl border border-white/10 text-[10px] font-bold uppercase tracking-wider hover:bg-white/5 transition-colors"
+                  >
+                    Decline
+                  </button>
+                  <button
+                    onClick={handleAcceptAll}
+                    className="px-4 py-2 rounded-xl bg-orange-500 text-black text-[10px] font-black uppercase tracking-wider hover:bg-orange-600 transition-colors"
+                  >
+                    Accept All
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+
 const AppContent = () => {
   const location = useLocation();
   const isSolarSystem = location.pathname === '/solar-system';
@@ -1635,6 +1816,7 @@ const AppContent = () => {
         </Routes>
       </AnimatePresence>
       {!isSolarSystem && <Footer />}
+      <CookieConsentBanner />
     </div>
   );
 };
