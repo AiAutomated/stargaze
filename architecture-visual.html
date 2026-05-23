@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stargaze Architecture Visualization</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.10.0/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            animation: fadeIn 0.8s ease-in;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            color: #b0b0b0;
+            margin-bottom: 20px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .tab-button {
+            padding: 12px 24px;
+            border: 2px solid #667eea;
+            background: transparent;
+            color: #667eea;
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            font-size: 0.95em;
+        }
+
+        .tab-button.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .tab-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .diagram-container {
+            background: rgba(30, 30, 40, 0.9);
+            border: 2px solid #667eea;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            overflow-x: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .mermaid {
+            display: flex;
+            justify-content: center;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: rgba(50, 50, 70, 0.8);
+            border-left: 4px solid #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2);
+        }
+
+        .card h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .card p {
+            color: #b0b0b0;
+            line-height: 1.6;
+            font-size: 0.95em;
+        }
+
+        .card code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #90ee90;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .tech-stack {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .tech-item {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid #667eea;
+            border-radius: 6px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .tech-item strong {
+            color: #667eea;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .tech-item span {
+            font-size: 0.9em;
+            color: #b0b0b0;
+        }
+
+        .data-flow {
+            background: rgba(50, 50, 70, 0.6);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .data-flow h4 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+
+        .flow-step {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+        }
+
+        .flow-number {
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+
+        .flow-text {
+            color: #b0b0b0;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .tabs {
+                flex-direction: column;
+            }
+
+            .tab-button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌌 Stargaze Architecture</h1>
+            <p>Technical Blueprint: 4D Interactive Solar System Explorer</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-button active" onclick="switchTab('system')">System Architecture</button>
+            <button class="tab-button" onclick="switchTab('components')">Component Hierarchy</button>
+            <button class="tab-button" onclick="switchTab('data-flow')">Data Flow</button>
+            <button class="tab-button" onclick="switchTab('tech-stack')">Tech Stack</button>
+            <button class="tab-button" onclick="switchTab('physics')">Physics Engine</button>
+        </div>
+
+        <!-- System Architecture Tab -->
+        <div id="system" class="tab-content active">
+            <div class="diagram-container">
+                <div class="mermaid">
+graph TB
+    subgraph "Frontend Layer"
+        React["React Application<br/>(React 18 + TypeScript)"]
+        R3F["React Three Fiber<br/>(Declarative 3D)"]
+        UI["UI Components<br/>(Tailwind + Shadcn)"]
+    end
+
+    subgraph "State Management"
+        Zustand["Zustand<br/>(Simulation State)"]
+        Jotai["Jotai<br/>(Data Atoms)"]
+        RTK["React Query<br/>(API Cache)"]
+    end
+
+    subgraph "Graphics Engine"
+        Three["Three.js Core"]
+        WebGL["WebGL 2.0"]
+        Shaders["Custom Shaders<br/>(GLSL)"]
+    end
+
+    subgraph "Physics & Simulation"
+        Skyfield["Skyfield<br/>(Ephemeris)"]
+        Kepler["Kepler Solver<br/>(Orbital Mechanics)"]
+        Collision["Intersection Tests<br/>(Earth-Stream)"]
+    end
+
+    subgraph "Data Layer"
+        API["NASA APIs<br/>(Horizons, JPL)"]
+        TLE["Space-Track TLEs<br/>(ISS Data)"]
+        Cache["IndexedDB<br/>(Local Cache)"]
+    end
+
+    React --> R3F
+    React --> UI
+    React --> Zustand
+    Zustand --> Jotai
+    RTK --> Cache
+    R3F --> Three
+    Three --> WebGL
+    Three --> Shaders
+    Zustand --> Kepler
+    Kepler --> Skyfield
+    Skyfield --> Collision
+    RTK --> API
+    RTK --> TLE
+    Collision --> Three
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <h3>🎨 Frontend Rendering</h3>
+                    <p>React Three Fiber provides a declarative interface to Three.js, enabling component-based 3D scene management with hot-reload support during development.</p>
+                </div>
+
+                <div class="card">
+                    <h3>⚙️ Physics Simulation</h3>
+                    <p>Skyfield handles accurate ephemeris calculations. Kepler solver propagates orbital positions. Collision detection tests Earth-meteoroid stream intersections.</p>
+                </div>
+
+                <div class="card">
+                    <h3>🔄 State Management</h3>
+                    <p>Zustand manages simulation time, mode selection, and UI state. Jotai atoms handle derived data (Earth position, ISS location). React Query caches API responses.</p>
+                </div>
+
+                <div class="card">
+                    <h3>📡 Data Pipeline</h3>
+                    <p>NASA APIs provide ephemeris data. Space-Track supplies live TLE data. Local IndexedDB caches static catalogs (meteor showers, comet orbits).</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Component Hierarchy Tab -->
+        <div id="components" class="tab-content">
+            <div class="diagram-container">
+                <div class="mermaid">
+graph TD
+    App["App.tsx<br/>(Root)"]
+    Layout["Layout Router<br/>(Desktop/Tablet/Mobile)"]
+
+    Layout --> Canvas["Canvas"]
+    Layout --> Sidebar["Sidebar"]
+    Layout --> Controls["Controls"]
+
+    Canvas --> Scene["Scene.tsx"]
+    Canvas --> Camera["Camera.tsx"]
+
+    Scene --> Earth["Earth.tsx"]
+    Scene --> Sun["Sun.tsx"]
+    Scene --> Planets["Planets.tsx"]
+    Scene --> ISS["ISS.tsx"]
+    Scene --> Orbits["OrbitalPaths.tsx"]
+    Scene --> Meteor["MeteorStream.tsx<br/>(Volumetric)"]
+    Scene --> Annotations["Annotations.tsx"]
+
+    Camera --> OrbitalCtrl["OrbitalControls"]
+    Camera --> LockedCtrl["LockedCamera"]
+
+    Sidebar --> TimeScrub["TimeScrubber.tsx"]
+    Sidebar --> Telemetry["TelemetryPanel.tsx"]
+    Sidebar --> Legend["Legend.tsx"]
+
+    Controls --> ModeTab["ModeSelector.tsx"]
+    Controls --> Settings["SettingsPanel.tsx"]
+
+    Meteor --> ParticleSystem["InstancedBufferGeometry"]
+    ParticleSystem --> Shader["Custom Shader<br/>(Vertex + Fragment)"]
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <h3>Scene Components</h3>
+                    <p><code>Earth.tsx</code> - Rotating blue marble with atmosphere shader<br/>
+                    <code>MeteorStream.tsx</code> - 500K+ instanced particles as debris field<br/>
+                    <code>ISS.tsx</code> - Loaded 3D model with live TLE orbit<br/>
+                    <code>Annotations.tsx</code> - Hover labels and info tooltips</p>
+                </div>
+
+                <div class="card">
+                    <h3>UI Components</h3>
+                    <p><code>TimeScrubber.tsx</code> - Time slider with playback controls<br/>
+                    <code>TelemetryPanel.tsx</code> - Real-time data display<br/>
+                    <code>ModeSelector.tsx</code> - Tab switching (Explore, Meteors, ISS, etc.)<br/>
+                    <code>Legend.tsx</code> - Symbol reference</p>
+                </div>
+
+                <div class="card">
+                    <h3>Camera Control</h3>
+                    <p><code>OrbitalControls</code> - Free-roaming 360° navigation<br/>
+                    <code>LockedCamera</code> - Fixed on Earth, ISS, or debris field<br/>
+                    Mouse drag + scroll, touch gestures on mobile</p>
+                </div>
+
+                <div class="card">
+                    <h3>Custom Hooks</h3>
+                    <p><code>useOrbitalTime</code> - Time state + playback<br/>
+                    <code>useEarthPosition</code> - Real-time coordinates<br/>
+                    <code>useMeteorShower</code> - Active shower data<br/>
+                    <code>useISSTelemetry</code> - Live ISS tracking</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Flow Tab -->
+        <div id="data-flow" class="tab-content">
+            <div class="diagram-container">
+                <div class="mermaid">
+sequenceDiagram
+    participant User
+    participant UI as UI Layer
+    participant Store as State Store<br/>Zustand
+    participant Calc as Physics<br/>Calculator
+    participant Render as Three.js<br/>Renderer
+
+    User->>UI: Drag time scrubber
+    UI->>Store: setTime(newDate)
+    Store->>Calc: computeEarthPosition(time)
+    Calc->>Calc: keplerSolve(GMST, tilt)
+    Calc->>Store: return position + rotation
+    Store->>Render: Update Earth mesh transform
+    Render->>Render: Check meteoroid intersection
+    Render->>Render: Update shader uniforms
+    Render->>User: Render frame
+                </div>
+            </div>
+
+            <div class="data-flow">
+                <h4>Meteor Shower "Why Simulator" Flow</h4>
+
+                <div class="flow-step">
+                    <div class="flow-number">1</div>
+                    <div class="flow-text"><strong>User Input:</strong> Time scrubber changes to August 11</div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">2</div>
+                    <div class="flow-text"><strong>State Update:</strong> <code>useOrbitalTime</code> hook updates Zustand store</div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">3</div>
+                    <div class="flow-text"><strong>Physics Calculation:</strong> <code>useEarthPosition</code> recomputes Earth's position/rotation for new date</div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">4</div>
+                    <div class="flow-text"><strong>Collision Test:</strong> Check if Earth is within meteoroid stream radius (simple distance test)</div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">5</div>
+                    <div class="flow-text"><strong>Shader Update:</strong> Set uniform <code>isActive = true</code> if intersecting, adjust particle glow</div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">6</div>
+                    <div class="flow-text"><strong>Telemetry Update:</strong> Sidebar shows "Earth is intersecting: YES" + relative velocity</div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">7</div>
+                    <div class="flow-text"><strong>Render:</strong> WebGL draws updated scene with highlighted particles</div>
+                </div>
+            </div>
+
+            <div class="data-flow">
+                <h4>ISS Real-Time Tracker Flow</h4>
+
+                <div class="flow-step">
+                    <div class="flow-number">1</div>
+                    <div class="flow-text"><strong>App Mount:</strong> React Query fetches latest ISS TLE from Space-Track API</div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">2</div>
+                    <div class="flow-text"><strong>Parse TLE:</strong> Extract orbital elements (inclination, RAAN, eccentricity, etc.)</div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">3</div>
+                    <div class="flow-text"><strong>Every Frame:</strong> SGP4 propagator computes ISS position at current time</div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">4</div>
+                    <div class="flow-text"><strong>Ground Track:</strong> Project ISS position onto Earth surface, show in telemetry</div>
+                </div>
+
+                <div class="flow-step">
+                    <div class="flow-number">5</div>
+                    <div class="flow-text"><strong>Next Pass:** Calculate when ISS will be visible from user's location</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tech Stack Tab -->
+        <div id="tech-stack" class="tab-content">
+            <div class="tech-stack">
+                <div class="tech-item">
+                    <strong>React 18</strong>
+                    <span>Component framework & hooks</span>
+                </div>
+                <div class="tech-item">
+                    <strong>Three.js</strong>
+                    <span>3D rendering engine</span>
+                </div>
+                <div class="tech-item">
+                    <strong>React Three Fiber</strong>
+                    <span>Declarative 3D components</span>
+                </div>
+                <div class="tech-item">
+                    <strong>Zustand</strong>
+                    <span>Lightweight state management</span>
+                </div>
+                <div class="tech-item">
+                    <strong>React Query</strong>
+                    <span>Data fetching & caching</span>
+                </div>
+                <div class="tech-item">
+                    <strong>Skyfield</strong>
+                    <span>Astronomical calculations</span>
+                </div>
+                <div class="tech-item">
+                    <strong>Tailwind CSS</strong>
+                    <span>Responsive UI styling</span>
+                </div>
+                <div class="tech-item">
+                    <strong>Shadcn/ui</strong>
+                    <span>Accessible components</span>
+                </div>
+                <div class="tech-item">
+                    <strong>WebGL 2.0</strong>
+                    <span>GPU-accelerated graphics</span>
+                </div>
+                <div class="tech-item">
+                    <strong>GLSL</strong>
+                    <span>Custom vertex/fragment shaders</span>
+                </div>
+                <div class="tech-item">
+                    <strong>Vite</strong>
+                    <span>Lightning-fast build tool</span>
+                </div>
+                <div class="tech-item">
+                    <strong>Vercel</strong>
+                    <span>Deployment & edge caching</span>
+                </div>
+            </div>
+
+            <div class="grid-2" style="margin-top: 30px;">
+                <div class="card">
+                    <h3>Why This Stack?</h3>
+                    <p><strong>Performance:</strong> Instanced rendering + Web Workers allow smooth 500K+ particle updates<br/>
+                    <strong>Accuracy:</strong> Skyfield provides peer-reviewed astronomical calculations<br/>
+                    <strong>Developer Experience:</strong> React Three Fiber + hot-reload makes iteration fast<br/>
+                    <strong>Bundle Size:</strong> Vite tree-shaking keeps gzipped bundle under 12MB</p>
+                </div>
+
+                <div class="card">
+                    <h3>Alternatives Considered</h3>
+                    <p><strong>Babylon.js</strong> - Equally capable, slightly heavier<br/>
+                    <strong>Cesium.js</strong> - Great for maps, overkill for solar system<br/>
+                    <strong>Redux</strong> - Too heavy for our state patterns<br/>
+                    <strong>Python (Flask/FastAPI)</strong> - Could host physics on backend, but would add latency</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Physics Tab -->
+        <div id="physics" class="tab-content">
+            <div class="diagram-container">
+                <div class="mermaid">
+graph LR
+    A["Keplerian Elements<br/>a,e,i,Ω,ω,M"]
+    B["Solve for<br/>Eccentric Anomaly E"]
+    C["Compute<br/>True Anomaly ν"]
+    D["Calculate<br/>Orbital Distance r"]
+    E["Transform to<br/>Cartesian x,y,z"]
+    F["Apply Rotation<br/>Matrices"]
+    G["Result: Position<br/>+ Velocity"]
+
+    A -->|Newton-Raphson| B
+    B -->|tan half-angle| C
+    B -->|r = a(1-e·cos E)| D
+    C -->|orbital frame| E
+    E -->|Ω,i,ω| F
+    F -->|Heliocentric coords| G
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <h3>Kepler Solver (6-DOF Propagator)</h3>
+                    <p><strong>Input:</strong> Six orbital elements + Julian Date<br/>
+                    <strong>Process:</strong> Newton-Raphson iteration to solve Kepler's equation<br/>
+                    <strong>Output:</strong> 3D position (x,y,z) + velocity vector<br/>
+                    <strong>Accuracy:</strong> ±1 km for 2-year propagation</p>
+                </div>
+
+                <div class="card">
+                    <h3>Earth Rotation (GMST + Axial Tilt)</h3>
+                    <p><strong>GMST:</strong> Greenwich Mean Sidereal Time rotates inertial frame to fixed frame<br/>
+                    <strong>Axial Tilt:</strong> 23.44° inclination causes seasons<br/>
+                    <strong>Precession:</strong> Slow drift of rotation axis over 26,000 years<br/>
+                    <strong>Effect:</strong> Changes radiant point altitude by latitude/date</p>
+                </div>
+
+                <div class="card">
+                    <h3>Meteoroid Stream Intersection</h3>
+                    <p><strong>Stream Model:</strong> Orbital tube following comet's path<br/>
+                    <strong>Test:</strong> Sphere-point distance: is Earth within stream radius?<br/>
+                    <strong>Visual Feedback:</strong> Shader glow when intersecting<br/>
+                    <strong>Insight:</strong> Shows <em>exactly</em> when Earth crosses debris field</p>
+                </div>
+
+                <div class="card">
+                    <h3>Two-Line Element (TLE) Propagation</h3>
+                    <p><strong>Format:</strong> Compact orbital definition for LEO satellites<br/>
+                    <strong>Algorithm:</strong> SGP4/SDP4 (analytic perturbation model)<br/>
+                    <strong>ISS Updates:</strong> New TLE daily from Space-Track<br/>
+                    <strong>Use:</strong> Calculate ISS position for next pass predictions</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabName) {
+            // Hide all tabs
+            const tabs = document.querySelectorAll('.tab-content');
+            tabs.forEach(tab => tab.classList.remove('active'));
+
+            // Remove active class from all buttons
+            const buttons = document.querySelectorAll('.tab-button');
+            buttons.forEach(btn => btn.classList.remove('active'));
+
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+
+            // Add active class to clicked button
+            event.target.classList.add('active');
+
+            // Reinitialize Mermaid diagrams
+            mermaid.initialize({ startOnLoad: true, securityLevel: 'strict' });
+            mermaid.contentLoaded();
+        }
+
+        // Initialize Mermaid on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            mermaid.initialize({ startOnLoad: true, securityLevel: 'strict' });
+        });
+    </script>
+</body>
+</html>

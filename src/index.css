@@ -1,0 +1,456 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Global Reset & Base ──────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: #030014;
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* ─── Custom Scrollbar ─────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #030014; }
+::-webkit-scrollbar-thumb { background: rgba(79, 142, 247, 0.4); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(79, 142, 247, 0.7); }
+
+/* ─── Space Background ─────────────────────────────────────────── */
+.space-bg {
+  background:
+    radial-gradient(ellipse at 20% 20%, rgba(79, 142, 247, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(3, 0, 20, 0.9) 0%, #030014 100%);
+  min-height: 100vh;
+}
+
+/* ─── Starfield ────────────────────────────────────────────────── */
+.stars-container {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.star {
+  position: absolute;
+  border-radius: 50%;
+  animation: twinkle var(--duration, 3s) ease-in-out infinite var(--delay, 0s);
+}
+
+.star-white { background: rgba(255, 255, 255, 0.8); }
+.star-blue  { background: rgba(147, 197, 253, 0.8); }
+.star-purple{ background: rgba(196, 181, 253, 0.8); }
+.star-yellow{ background: rgba(253, 224, 71, 0.8); }
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50%       { opacity: 1;   transform: scale(1.4); }
+}
+
+/* ─── Meteor Trails ────────────────────────────────────────────── */
+.meteor-trail {
+  position: absolute;
+  width: 2px;
+  height: 80px;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.6), transparent);
+  border-radius: 50%;
+  animation: meteor-fall var(--duration, 8s) linear infinite var(--delay, 0s);
+  transform: rotate(215deg);
+  opacity: 0;
+}
+
+@keyframes meteor-fall {
+  0%   { opacity: 0;   transform: rotate(215deg) translateX(0); }
+  5%   { opacity: 0.8; }
+  70%  { opacity: 0.4; }
+  100% { opacity: 0;   transform: rotate(215deg) translateX(-600px); }
+}
+
+/* ─── Glassmorphism ─────────────────────────────────────────────── */
+.glass {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-hover:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.14);
+  transition: all 0.3s ease;
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(79, 142, 247, 0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(79, 142, 247, 0.1);
+}
+
+/* ─── Typography ────────────────────────────────────────────────── */
+.font-space { font-family: 'Space Grotesk', sans-serif; }
+.font-mono-custom { font-family: 'JetBrains Mono', monospace; }
+
+.text-glow {
+  text-shadow: 0 0 20px rgba(79, 142, 247, 0.6), 0 0 40px rgba(79, 142, 247, 0.3);
+}
+
+.text-glow-purple {
+  text-shadow: 0 0 20px rgba(139, 92, 246, 0.6), 0 0 40px rgba(139, 92, 246, 0.3);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #ffffff 0%, #a8c7fa 50%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-orange {
+  background: linear-gradient(135deg, #fbbf24 0%, #f97316 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Buttons ───────────────────────────────────────────────────── */
+.btn-primary {
+  background: linear-gradient(135deg, #4f8ef7 0%, #8b5cf6 100%);
+  color: white;
+  padding: 12px 28px;
+  border-radius: 8px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 25px rgba(79, 142, 247, 0.4);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: white;
+  padding: 11px 28px;
+  border-radius: 8px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+  border-color: rgba(79, 142, 247, 0.6);
+  background: rgba(79, 142, 247, 0.1);
+  transform: translateY(-1px);
+}
+
+/* ─── Bento Grid ────────────────────────────────────────────────── */
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1024px) {
+  .bento-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .bento-grid { grid-template-columns: 1fr; }
+}
+
+/* ─── Countdown Timer ───────────────────────────────────────────── */
+.countdown-digit {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(2rem, 6vw, 4rem);
+  font-weight: 700;
+  color: white;
+  text-align: center;
+  line-height: 1;
+  text-shadow: 0 0 30px rgba(79, 142, 247, 0.5);
+}
+
+.countdown-label {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: center;
+}
+
+/* ─── Live Pulse ────────────────────────────────────────────────── */
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+  animation: pulse-live 2s ease-in-out infinite;
+}
+
+@keyframes pulse-live {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%       { transform: scale(1.4); opacity: 0.7; }
+}
+
+/* ─── ZHR Intensity Bar ─────────────────────────────────────────── */
+.intensity-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.1);
+  overflow: hidden;
+}
+
+.intensity-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #4f8ef7, #f97316);
+  transition: width 1s ease;
+}
+
+/* ─── Navbar Active Indicator ───────────────────────────────────── */
+.nav-pill {
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #4f8ef7, #8b5cf6);
+  border-radius: 2px;
+}
+
+/* ─── Constellation Map ─────────────────────────────────────────── */
+.constellation-canvas {
+  background: rgba(3, 0, 20, 0.6);
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+/* ─── Cesium Overrides ──────────────────────────────────────────── */
+.cesium-widget,
+.cesium-widget canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.cesium-widget-credits {
+  display: none !important;
+}
+
+/* ─── Form Inputs ───────────────────────────────────────────────── */
+.input-field {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: white;
+  padding: 10px 14px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  width: 100%;
+  transition: all 0.2s;
+  outline: none;
+}
+
+.input-field:focus {
+  border-color: rgba(79, 142, 247, 0.6);
+  background: rgba(79, 142, 247, 0.06);
+  box-shadow: 0 0 0 3px rgba(79, 142, 247, 0.1);
+}
+
+.input-field::placeholder {
+  color: rgba(255,255,255,0.3);
+}
+
+/* ─── Section Labels ────────────────────────────────────────────── */
+.section-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+/* ─── Notification Toast ────────────────────────────────────────── */
+.toast {
+  background: rgba(10, 10, 35, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 14px 18px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  animation: toast-in 0.3s ease;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(100%); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ─── Mobile Responsive ─────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .countdown-digit { font-size: 2rem; }
+  .hero-title      { font-size: clamp(2.5rem, 10vw, 4rem); }
+}
+
+/* ─── Page Transitions ──────────────────────────────────────────── */
+.page-enter {
+  animation: page-in 0.4s ease forwards;
+}
+
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Status Badge ──────────────────────────────────────────────── */
+.badge-active   { background: rgba(34,197,94,0.15);  color: #4ade80;  border: 1px solid rgba(34,197,94,0.3); }
+.badge-upcoming { background: rgba(79,142,247,0.15); color: #93c5fd;  border: 1px solid rgba(79,142,247,0.3); }
+.badge-past     { background: rgba(255,255,255,0.05);color: rgba(255,255,255,0.4); border: 1px solid rgba(255,255,255,0.1); }
+
+/* ─── Hero ──────────────────────────────────────────────────────── */
+.hero-gradient-text {
+  background: linear-gradient(135deg, #ffffff 0%, #93c5fd 40%, #a78bfa 70%, #fbbf24 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Three.js Canvas & 3D Rendering ────────────────────────────── */
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.three-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  background: #030014;
+}
+
+/* ─── UI Panel Styles ───────────────────────────────────────────── */
+.sidebar {
+  background: rgba(3, 0, 20, 0.95);
+  backdrop-filter: blur(20px);
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  overflow-y: auto;
+  min-height: 100vh;
+}
+
+.telemetry-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  color: #4f8ef7;
+  text-size: 12px;
+}
+
+/* ─── Time Control Styles ───────────────────────────────────────── */
+input[type="range"] {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, #4f8ef7 0%, #8b5cf6 100%);
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #4f8ef7;
+  cursor: pointer;
+  box-shadow: 0 0 12px rgba(79, 142, 247, 0.6);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #4f8ef7;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 12px rgba(79, 142, 247, 0.6);
+}
+
+/* ─── Mode Selector ─────────────────────────────────────────────── */
+.mode-button {
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.mode-button.active {
+  background: #4f8ef7;
+  color: white;
+  border-color: #3b7ae8;
+}
+
+.mode-button:not(.active) {
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.mode-button:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
