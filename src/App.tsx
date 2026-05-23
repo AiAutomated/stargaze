@@ -1608,7 +1608,8 @@ const AppContent = () => {
         </div>
       )}
 
-      <Navbar />
+      {!isSolarSystem && <Navbar />}
+
       <AnimatePresence mode="wait">
         <Routes>
           <Route path="/" element={<Home />} />
