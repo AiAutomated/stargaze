@@ -60,6 +60,12 @@ const CesiumGlobe: React.FC = () => {
   const issTrailEntityRef = useRef<Cesium.Entity | null>(null);
   const issGroundTrailRef = useRef<Cesium.Entity | null>(null);
   const trailEntityRef = useRef<Cesium.Entity | null>(null);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 1024);
@@ -80,12 +86,14 @@ const CesiumGlobe: React.FC = () => {
   // --- CORE CESIUM INIT ---
   useEffect(() => {
     if (!containerRef.current) return;
+    let viewer: Cesium.Viewer | null = null;
+    let handler: Cesium.ScreenSpaceEventHandler | null = null;
 
     const initCesium = async () => {
       const ionToken = (import.meta as any).env.VITE_CESIUM_ION_TOKEN || '';
       Cesium.Ion.defaultAccessToken = ionToken;
 
-      const viewer = new Cesium.Viewer(containerRef.current!, {
+      viewer = new Cesium.Viewer(containerRef.current!, {
         terrainProvider: undefined,
         baseLayerPicker: false,
         geocoder: false,
@@ -104,18 +112,21 @@ const CesiumGlobe: React.FC = () => {
         orderIndependentTranslucency: true,
       });
 
-      if (!viewer || !viewer.scene) return;
+      if (!isMounted.current || !viewer || !viewer.scene) {
+        viewer?.destroy();
+        return;
+      }
 
       (viewer.cesiumWidget.creditContainer as HTMLElement).style.display = 'none';
       viewer.scene.backgroundColor = Cesium.Color.BLACK;
       viewerRef.current = viewer;
 
-      const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+      handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
       handlerRef.current = handler;
 
       // Interaction Handler
       handler.setInputAction((movement: any) => {
-        if (viewer.isDestroyed()) return;
+        if (!viewer || viewer.isDestroyed()) return;
         const pickedObject = viewer.scene.pick(movement.position);
         if (Cesium.defined(pickedObject) && pickedObject.id instanceof Cesium.Entity) {
           const entity = pickedObject.id;
@@ -144,17 +155,16 @@ const CesiumGlobe: React.FC = () => {
           viewer.trackedEntity = undefined;
         }
       }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
-      return () => {
-        handler.destroy();
-        viewer.destroy();
-        viewerRef.current = null;
-        handlerRef.current = null;
-      };
     };
 
-    const cleanup = initCesium();
-    return () => { cleanup.then(c => c?.()); };
+    initCesium();
+
+    return () => {
+      if (handler) handler.destroy();
+      if (viewer && !viewer.isDestroyed()) viewer.destroy();
+      viewerRef.current = null;
+      handlerRef.current = null;
+    };
   }, []);
 
   // --- ENGINE UPDATES (Layers, Settings, Telemetry) ---
@@ -162,13 +172,17 @@ const CesiumGlobe: React.FC = () => {
     if (!viewerRef.current || viewerRef.current.isDestroyed()) return;
     const viewer = viewerRef.current;
     
-    if (viewer.scene.skyAtmosphere) viewer.scene.skyAtmosphere.show = visualSettings.atmosphere;
-    if (viewer.scene.skyBox) (viewer.scene.skyBox as any).show = visualSettings.stars;
+    if (viewer.scene && !viewer.isDestroyed()) {
+      if (viewer.scene.skyAtmosphere) viewer.scene.skyAtmosphere.show = visualSettings.atmosphere;
+      if (viewer.scene.skyBox) (viewer.scene.skyBox as any).show = visualSettings.stars;
+    }
 
     const updateTerrain = async () => {
-      if (viewer.isDestroyed()) return;
+      if (!viewer || viewer.isDestroyed()) return;
       if (visualSettings.terrain) {
-        viewer.terrainProvider = await Cesium.CesiumTerrainProvider.fromUrl(Cesium.IonResource.fromAssetId(1), { requestVertexNormals: true });
+        try {
+          viewer.terrainProvider = await Cesium.CesiumTerrainProvider.fromUrl(Cesium.IonResource.fromAssetId(1), { requestVertexNormals: true });
+        } catch (e) {}
       } else {
         viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider();
       }
@@ -215,7 +229,14 @@ const CesiumGlobe: React.FC = () => {
       } catch (e) {}
     }, 1000);
 
-    return () => { clearInterval(interval); viewer.entities.remove(issEntity); };
+    return () => { 
+      clearInterval(interval); 
+      if (viewer && !viewer.isDestroyed()) {
+        try {
+          viewer.entities.remove(issEntity); 
+        } catch (e) {}
+      }
+    };
   }, [issData, isTrackingIss]);
 
   // --- SEARCH HANDLER ---
@@ -251,7 +272,10 @@ const CesiumGlobe: React.FC = () => {
       if (currentLayer === 'street') provider = await Cesium.ArcGisMapServerImageryProvider.fromUrl('https://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer');
       else if (currentLayer === 'dark') provider = await Cesium.ArcGisMapServerImageryProvider.fromUrl('https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer');
       else provider = await Cesium.ArcGisMapServerImageryProvider.fromUrl('https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer');
-      viewer.imageryLayers.addImageryProvider(provider);
+      
+      if (!viewer.isDestroyed()) {
+        viewer.imageryLayers.addImageryProvider(provider);
+      }
     };
     updateLayer();
   }, [currentLayer]);

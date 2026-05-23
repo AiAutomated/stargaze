@@ -64,17 +64,15 @@ async function startServer() {
 
     const baseUrls = [
       "https://celestrak.org/NORAD/elements/gp.php",
-      "https://raw.githubusercontent.com/Ivan-Vanish/TLE-Mirror/main/active.txt",
+      "https://celestrak.org/NORAD/elements/active.txt", 
       "https://db.satnogs.org/api/tles/",
-      "https://tle.mountainway.space/gp.php",
-      "https://amsat.org.ar/keps.txt",
-      "https://www.amsat.org/amsat/ftp/keps/nodisplay/nasabare.txt"
+      "https://live.ariss.org/tle/"
     ];
 
     // Map common groups to fallback static text files
     const groupMap: Record<string, string> = {
       'active': 'active.txt',
-      'debris': 'debris.txt',
+      'debris': '1999-025.txt', 
       'visual': 'visual.txt',
       'stations': 'stations.txt',
       'starlink': 'starlink.txt',
@@ -148,7 +146,9 @@ async function startServer() {
             'User-Agent': randomUA,
             'Accept': isSatNogs ? 'application/json' : 'text/plain, */*',
             'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
+            'Pragma': 'no-cache',
+            'Referer': 'https://celestrak.org/',
+            'Origin': 'https://celestrak.org'
           }
         });
 
