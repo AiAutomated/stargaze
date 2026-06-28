@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+  <!-- Homepage / App Shell -->
+  <url>
+    <loc>https://stargaze.io/</loc>
+    <lastmod>2026-06-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- Calendar view -->
+  <url>
+    <loc>https://stargaze.io/calendar</loc>
+    <lastmod>2026-06-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Live satellite tracker -->
+  <url>
+    <loc>https://stargaze.io/live</loc>
+    <lastmod>2026-06-22</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- 3D Globe view -->
+  <url>
+    <loc>https://stargaze.io/globe</loc>
+    <lastmod>2026-06-22</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Meteor Shower detail pages -->
+  <url>
+    <loc>https://stargaze.io/shower/quadrantids-2026</loc>
+    <lastmod>2026-06-22</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://stargaze.io/shower/lyrids-2026</loc>
+    <lastmod>2026-06-22</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://stargaze.io/shower/eta-aquariids-2026</loc>
+    <lastmod>2026-06-22</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://stargaze.io/shower/delta-aquariids-2026</loc>
+    <lastmod>2026-06-22</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://stargaze.io/shower/perseids-2026</loc>
+    <lastmod>2026-06-22</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <url>
+    <loc>https://stargaze.io/shower/orionids-2026</loc>
+    <lastmod>2026-06-22</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://stargaze.io/shower/leonids-2026</loc>
+    <lastmod>2026-06-22</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://stargaze.io/shower/geminids-2026</loc>
+    <lastmod>2026-06-22</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <url>
+    <loc>https://stargaze.io/shower/ursids-2026</loc>
+    <lastmod>2026-06-22</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+</urlset>

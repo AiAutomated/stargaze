@@ -25,8 +25,8 @@ export function Sun({ scale = 1 }: SunProps) {
   const material = useMemo(() => {
     return new THREE.MeshBasicMaterial({
       color: 0xfdb813,
-      emissive: 0xfdb813,
-      emissiveIntensity: 1.0,
+      // MeshBasicMaterial is unaffected by lights, making it perfect for self-illuminating Sun
+      // The PointLight below provides illumination to other objects
     })
   }, [])
 
@@ -42,7 +42,7 @@ export function Sun({ scale = 1 }: SunProps) {
       {/* Sun mesh */}
       <mesh ref={meshRef} geometry={geometry} material={material} position={[0, 0, 0]}>
         {/* Add glow effect */}
-        <sunGlowLayer scale={scale} />
+        <SunGlowLayer scale={scale} />
       </mesh>
 
       {/* Point light at Sun position */}
@@ -54,7 +54,7 @@ export function Sun({ scale = 1 }: SunProps) {
 /**
  * Glow effect around the Sun using billboard geometry
  */
-function sunGlowLayer({ scale }: { scale: number }) {
+function SunGlowLayer({ scale }: { scale: number }) {
   const glowGeometry = useMemo(() => {
     return new THREE.SphereGeometry(696000 * scale * 1.5, 16, 16)
   }, [scale])

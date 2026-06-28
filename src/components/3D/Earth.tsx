@@ -30,16 +30,27 @@ export function Earth({ scale = 1, texturePath = '/textures/earth.jpg' }: EarthP
 
   const material = useMemo(() => {
     const mat = new THREE.MeshPhongMaterial({
-      emissive: 0x072534,
+      color: 0x2E5090,           // Ocean blue as base color
+      emissive: 0x072534,        // Dark blue glow
       shininess: 5,
+      wireframe: false,
     })
 
-    // Load texture asynchronously
+    // Load texture asynchronously with error handling
     const textureLoader = new THREE.TextureLoader()
-    textureLoader.load(texturePath, (texture) => {
-      mat.map = texture
-      mat.needsUpdate = true
-    })
+    textureLoader.load(
+      texturePath,
+      (texture) => {
+        // Success: texture loaded
+        mat.map = texture
+        mat.needsUpdate = true
+      },
+      undefined,
+      (error) => {
+        // Error: texture not found, but Earth is still visible with base color
+        console.warn('Earth texture not found, using fallback color')
+      }
+    )
 
     return mat
   }, [texturePath])
@@ -51,14 +62,14 @@ export function Earth({ scale = 1, texturePath = '/textures/earth.jpg' }: EarthP
       meshRef.current.position.set(0, 0, 0)
 
       // Apply Earth's rotation (axial tilt + GMST)
-      meshRef.current.rotation.setFromEuler(rotation)
+      meshRef.current.rotation.copy(rotation)
     }
   })
 
   return (
     <mesh ref={meshRef} geometry={geometry} material={material}>
       {/* Optional: Add atmosphere layer */}
-      <atmosphereLayer scale={scale} />
+      <AtmosphereLayer scale={scale} />
     </mesh>
   )
 }
@@ -66,7 +77,7 @@ export function Earth({ scale = 1, texturePath = '/textures/earth.jpg' }: EarthP
 /**
  * Simple atmosphere glow layer
  */
-function atmosphereLayer({ scale }: { scale: number }) {
+function AtmosphereLayer({ scale }: { scale: number }) {
   const atmosphereRef = useRef<THREE.Mesh>(null)
 
   const atmosphereGeometry = useMemo(() => {

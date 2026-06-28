@@ -5,4 +5,4 @@ Allow: /live
 Allow: /globe
 Allow: /shower/
 
-Sitemap: https://stargaze.pro/sitemap.xml
+Sitemap: https://stargaze.io/sitemap.xml
