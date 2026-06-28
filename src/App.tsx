@@ -608,6 +608,12 @@ function Home({ watched, addNotification, toggleWatch }: {
   const upcomingShowers = showers.filter(s => getShowerStatus(s) === 'upcoming').slice(0, 3);
 
   return (
+    <>
+      <title>Stargaze – Live Meteor Shower Tracker & Celestial Guide</title>
+      <meta name="description" content="Track live meteor showers, find dark sky spots, and get real-time celestial alerts. Your ultimate guide to the night sky." />
+      <meta property="og:title" content="Stargaze – Live Meteor Shower Tracker & Celestial Guide" />
+      <meta property="og:description" content="Track live meteor showers, find dark sky spots, and get real-time celestial alerts. Your ultimate guide to the night sky." />
+      <link rel="canonical" href="https://stargaze.io/" />
     <div className="relative z-10 max-w-7xl mx-auto px-4 pt-28 pb-16">
 
       {/* ── Hero ── */}
@@ -995,6 +1001,7 @@ function Home({ watched, addNotification, toggleWatch }: {
         <FaqSection />
       </div>
     </div>
+    </>
   );
 }
 
@@ -1021,6 +1028,12 @@ function MeteorCalendar({ watched, toggleWatch, addNotification }: {
       : b.zhr - a.zhr);
 
   return (
+    <>
+      <title>Meteor Shower Calendar 2026 | Stargaze</title>
+      <meta name="description" content="Complete 2026 meteor shower calendar with peak dates, ZHR rates, radiant constellations, and viewing tips for every major meteor shower." />
+      <meta property="og:title" content="Meteor Shower Calendar 2026 | Stargaze" />
+      <meta property="og:description" content="Complete 2026 meteor shower calendar with peak dates, ZHR rates, and viewing tips." />
+      <link rel="canonical" href="https://stargaze.io/calendar" />
     <div className="relative z-10 max-w-7xl mx-auto px-4 pt-28 pb-16">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <div className="mb-8">
@@ -1159,6 +1172,7 @@ function MeteorCalendar({ watched, toggleWatch, addNotification }: {
         )}
       </motion.div>
     </div>
+    </>
   );
 }
 
@@ -1185,6 +1199,12 @@ function ShowerDetail({ watched, toggleWatch }: { watched: WatchedShower[]; togg
   const daysUntil = getDaysUntilPeak(shower);
 
   return (
+    <>
+      <title>{shower.name} Meteor Shower {new Date(shower.peak).getFullYear()} | Stargaze</title>
+      <meta name="description" content={`${shower.name} peaks on ${formatDate(shower.peak)} with up to ${shower.zhr} meteors per hour. Radiant in ${shower.constellation}. Get viewing tips, peak times, and sky conditions.`} />
+      <meta property="og:title" content={`${shower.name} Meteor Shower | Stargaze`} />
+      <meta property="og:description" content={`${shower.name} peaks on ${formatDate(shower.peak)} with up to ${shower.zhr} meteors per hour.`} />
+      <link rel="canonical" href={`https://stargaze.io/shower/${shower.id}`} />
     <div className="relative z-10 max-w-5xl mx-auto px-4 pt-28 pb-16">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         {/* Back */}
@@ -1319,6 +1339,7 @@ function ShowerDetail({ watched, toggleWatch }: { watched: WatchedShower[]; togg
         )}
       </motion.div>
     </div>
+    </>
   );
 }
 
@@ -1363,6 +1384,12 @@ function LiveFeed({ addNotification }: { addNotification: (n: Omit<Notification,
   };
 
   return (
+    <>
+      <title>Live Meteor Sightings Feed | Stargaze</title>
+      <meta name="description" content="Real-time meteor and fireball sighting reports from observers worldwide. Submit your sightings and browse community-verified meteor reports." />
+      <meta property="og:title" content="Live Meteor Sightings Feed | Stargaze" />
+      <meta property="og:description" content="Real-time meteor and fireball sighting reports from observers worldwide." />
+      <link rel="canonical" href="https://stargaze.io/live" />
     <div className="relative z-10 max-w-7xl mx-auto px-4 pt-28 pb-16">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <div className="mb-8">
@@ -1502,17 +1529,25 @@ function LiveFeed({ addNotification }: { addNotification: (n: Omit<Notification,
         </div>
       </motion.div>
     </div>
+    </>
   );
 }
 
 // ─── GLOBE PAGE ───────────────────────────────────────────────────────────────
 function GlobePage() {
   return (
+    <>
+      <title>Interactive Night Sky Globe | Stargaze</title>
+      <meta name="description" content="Explore meteor shower radiants, live satellite positions, and space debris on an interactive 3D globe. Powered by CesiumJS with real-time orbital data." />
+      <meta property="og:title" content="Interactive Night Sky Globe | Stargaze" />
+      <meta property="og:description" content="Explore meteor shower radiants and live satellite positions on an interactive 3D globe." />
+      <link rel="canonical" href="https://stargaze.io/globe" />
     <div className="relative z-10 pt-16 h-screen flex flex-col">
       <div className="flex-1 relative">
         <CesiumGlobe />
       </div>
     </div>
+    </>
   );
 }
 
@@ -1536,6 +1571,12 @@ function About() {
   ];
 
   return (
+    <>
+      <title>About Stargaze – Celestial Tracking Platform</title>
+      <meta name="description" content="Stargaze is a free, open-source celestial tracking platform. We aggregate data from NASA, IMO, and CelesTrak so stargazers worldwide can track meteor showers and satellites." />
+      <meta property="og:title" content="About Stargaze – Celestial Tracking Platform" />
+      <meta property="og:description" content="Free, open-source celestial tracking platform aggregating data from NASA, IMO, and CelesTrak." />
+      <link rel="canonical" href="https://stargaze.io/about" />
     <div className="relative z-10 max-w-5xl mx-auto px-4 pt-28 pb-16">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <div className="mb-10">
@@ -1618,12 +1659,17 @@ function About() {
         </div>
       </motion.div>
     </div>
+    </>
   );
 }
 
 // ─── PRIVACY POLICY ───────────────────────────────────────────────────────────
 function PrivacyPolicy() {
   return (
+    <>
+      <title>Privacy Policy | Stargaze</title>
+      <meta name="description" content="Read the Stargaze privacy policy. We are committed to protecting your data and your privacy while you explore the night sky with us." />
+      <link rel="canonical" href="https://stargaze.io/privacy" />
     <div className="relative z-10 max-w-3xl mx-auto px-4 pt-28 pb-16">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex items-center gap-3 mb-6">
@@ -1649,12 +1695,17 @@ function PrivacyPolicy() {
         </div>
       </motion.div>
     </div>
+    </>
   );
 }
 
 // ─── TERMS OF SERVICE ─────────────────────────────────────────────────────────
 function TermsOfService() {
   return (
+    <>
+      <title>Terms of Service | Stargaze</title>
+      <meta name="description" content="Read the Stargaze terms of service. Learn about usage rights, accuracy disclaimers, and community guidelines for the Stargaze platform." />
+      <link rel="canonical" href="https://stargaze.io/terms" />
     <div className="relative z-10 max-w-3xl mx-auto px-4 pt-28 pb-16">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex items-center gap-3 mb-6">
@@ -1681,6 +1732,7 @@ function TermsOfService() {
         </div>
       </motion.div>
     </div>
+    </>
   );
 }
 
@@ -1688,6 +1740,10 @@ function TermsOfService() {
 function NotFound() {
   const navigate = useNavigate();
   return (
+    <>
+      <title>Page Not Found | Stargaze</title>
+      <meta name="description" content="The page you're looking for doesn't exist or has moved. Return to the Stargaze meteor shower tracker." />
+      <meta name="robots" content="noindex" />
     <div className="relative z-10 min-h-[75vh] flex flex-col items-center justify-center px-4 pt-20 text-center">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-md">
         <p className="text-7xl mb-4 select-none leading-none">🔭</p>
@@ -1706,6 +1762,7 @@ function NotFound() {
         </div>
       </motion.div>
     </div>
+    </>
   );
 }
 
