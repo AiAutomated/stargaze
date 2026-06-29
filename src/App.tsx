@@ -1769,8 +1769,16 @@ function NotFound() {
 
 // ─── SCROLL TO TOP ────────────────────────────────────────────────────────────
 // ─── GEAR PAGE ────────────────────────────────────────────────────────────────
-// ⚠️  Replace YOURTAG with your Amazon Associates tracking ID (e.g. stargaze-20)
-const AMAZON_TAG = 'YOURTAG-20';
+// Locale-aware affiliate links — UK visitors → amazon.co.uk, everyone else → amazon.com
+function getAmazonUrl(asin: string): string {
+  try {
+    const lang = navigator.language || '';
+    const tz   = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+    const isUK = lang.startsWith('en-GB') || tz.startsWith('Europe/');
+    if (isUK) return `https://www.amazon.co.uk/dp/${asin}?tag=space018-21`;
+  } catch { /* fallback to .com */ }
+  return `https://www.amazon.com/dp/${asin}?tag=stargazeio-20`;
+}
 
 interface GearItem {
   id: string; name: string; description: string;
@@ -1800,7 +1808,7 @@ const gearItems: GearItem[] = [
 
 function GearPage() {
   const categories = [...new Set(gearItems.map(i => i.category))];
-  const makeUrl = (asin: string) => `https://www.amazon.com/dp/${asin}?tag=${AMAZON_TAG}`;
+  const makeUrl = (asin: string) => getAmazonUrl(asin);
 
   return (
     <>
