@@ -13,6 +13,7 @@ import {
 import meteorShowers from './data/meteorShowers.json';
 import CesiumGlobe from './components/CesiumGlobe';
 import SolarSystemViewer from './components/SolarSystemViewer';
+import SkyView from './components/SkyView';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface MeteorShower {
@@ -216,6 +217,7 @@ function Navbar({ watched, notifications }: { watched: WatchedShower[]; notifica
     { to: '/calendar', label: 'Calendar', icon: Calendar },
     { to: '/live',     label: 'Live',     icon: Radio },
     { to: '/globe',    label: '3D Globe', icon: Globe },
+    { to: '/sky',      label: 'Night Sky', icon: Star },
     { to: '/gear',     label: 'Gear',     icon: ShoppingBag },
     { to: '/about',    label: 'About',    icon: Info },
   ];
@@ -654,6 +656,10 @@ function Home({ watched, addNotification, toggleWatch }: {
             <Globe size={14} />
             Open 3D Globe
           </Link>
+          <Link to="/sky" className="btn-secondary">
+            <Star size={14} />
+            Night Sky View
+          </Link>
         </div>
 
         {/* Stats strip */}
@@ -851,10 +857,15 @@ function Home({ watched, addNotification, toggleWatch }: {
         </div>
       )}
 
-      {/* ── Upcoming Showers ── */}
+      {/* ── Upcoming Showers — live countdown cards ── */}
       <div className="mb-10">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold font-space">Coming Up</h2>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-lg bg-purple-500/12 border border-purple-500/22 flex items-center justify-center">
+              <Clock size={12} className="text-purple-400" />
+            </div>
+            <h2 className="text-lg font-bold font-space">Next Up</h2>
+          </div>
           <Link to="/calendar" className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors">
             Full Calendar <ArrowRight size={11} />
           </Link>
@@ -862,25 +873,58 @@ function Home({ watched, addNotification, toggleWatch }: {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {upcomingShowers.map((s, i) => {
             const daysUntil = getDaysUntilPeak(s);
+            const isImminent = daysUntil <= 7;
+            const isVeryClose = daysUntil <= 2;
             return (
               <motion.div
                 key={s.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.1 }}
-                className="glass-card p-4 rounded-2xl group"
+                transition={{ delay: i * 0.12 }}
+                whileHover={{ y: -3 }}
+                className="glass-card p-4 rounded-2xl group relative overflow-hidden"
+                style={{ borderLeft: isImminent ? '2px solid rgba(168,85,247,0.45)' : undefined }}
               >
+                {/* Glow on imminent */}
+                {isImminent && (
+                  <div className="absolute inset-0 pointer-events-none"
+                    style={{ background: 'radial-gradient(ellipse at top left, rgba(168,85,247,0.06) 0%, transparent 70%)' }} />
+                )}
                 <div className="flex items-center justify-between mb-3">
-                  <span className="badge-upcoming text-[10px] px-2 py-0.5 rounded-full font-mono">
-                    {daysUntil > 0 ? `IN ${daysUntil}d` : 'SOON'}
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-semibold ${
+                    isVeryClose ? 'bg-purple-500/25 text-purple-300' : 'badge-upcoming'
+                  }`}>
+                    {isVeryClose ? '🌠 IMMINENT' : daysUntil > 0 ? `IN ${daysUntil}d` : 'PEAK SOON'}
                   </span>
-                  <Sparkles size={12} className="text-blue-400/45" />
-                </div>
-                <h3 className="text-sm font-bold mb-1 group-hover:text-blue-300 transition-colors">{s.name}</h3>
-                <p className="text-[10px] text-white/35 font-mono mb-2">Peak: {formatDate(s.peak)}</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-white/40">{s.constellation}</span>
                   <span className="text-[10px] font-mono text-orange-400 font-semibold">{s.zhr} ZHR</span>
+                </div>
+                <h3 className="text-sm font-bold mb-0.5 group-hover:text-purple-300 transition-colors">{s.name}</h3>
+                <p className="text-[10px] text-white/35 font-mono mb-3">
+                  {s.parent && <span className="text-white/25">↑ {s.parent.split('/')[0]} · </span>}
+                  Peak {formatDate(s.peak)}
+                </p>
+                {/* Mini countdown */}
+                <div className="flex items-center gap-1.5 mb-3">
+                  {[
+                    { val: String(daysUntil).padStart(2,'0'), label:'d' },
+                    { val: String(new Date(s.peak).getHours()).padStart(2,'0'), label:'h' },
+                  ].map(({ val, label }) => (
+                    <div key={label} className="flex items-center gap-0.5">
+                      <div className="px-2 py-1 rounded-lg text-sm font-bold font-space text-white"
+                        style={{ background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.25)' }}>
+                        {val}
+                      </div>
+                      <span className="text-[9px] text-white/30 font-mono">{label}</span>
+                    </div>
+                  ))}
+                  <span className="text-white/20 text-xs mx-0.5">·</span>
+                  <span className="text-[10px] text-white/35 font-mono">{s.speed} km/s</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-white/35">{s.constellation}</span>
+                  <Link to={`/shower/${s.id}`} className="text-[10px] text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-colors">
+                    Details <ChevronRight size={10} />
+                  </Link>
                 </div>
               </motion.div>
             );
@@ -1588,6 +1632,22 @@ function GlobePage() {
   );
 }
 
+// ─── SKY PAGE ─────────────────────────────────────────────────────────────────
+function SkyPage() {
+  return (
+    <>
+      <title>Night Sky View | Stargaze</title>
+      <meta name="description" content="First-person night sky view from your location. See meteor shower radiant points, bright stars, and real-time celestial positions." />
+      <link rel="canonical" href="https://stargaze.io/sky" />
+    <div className="relative z-10 pt-16 h-screen flex flex-col">
+      <div className="flex-1 relative overflow-hidden">
+        <SkyView />
+      </div>
+    </div>
+    </>
+  );
+}
+
 // ─── ABOUT PAGE ───────────────────────────────────────────────────────────────
 function About() {
   const [formState, setFormState] = useState({ name: '', email: '', message: '' });
@@ -2036,6 +2096,7 @@ function AnimatedRoutes({ watched, addNotification, toggleWatch }: {
         <Route path="/shower/:id" element={<ShowerDetail watched={watched} toggleWatch={toggleWatch} />} />
         <Route path="/live"       element={<LiveFeed addNotification={addNotification} />} />
         <Route path="/globe"      element={<GlobePage />} />
+        <Route path="/sky"        element={<SkyPage />} />
         <Route path="/gear"       element={<GearPage />} />
         <Route path="/about"      element={<About />} />
         <Route path="/privacy"    element={<PrivacyPolicy />} />
