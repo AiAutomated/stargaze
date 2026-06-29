@@ -36,9 +36,6 @@
     "vite": "^6.2.0",
     "vite-plugin-cesium": "^1.2.23"
   },
-  "overrides": {
-    "esbuild": ">=0.28.1"
-  },
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
