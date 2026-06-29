@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as Cesium from 'cesium';
 import * as satellite from 'satellite.js';
 import { motion, AnimatePresence } from 'motion/react';
-import { Satellite, Trash2, Sparkles, Loader2, Info, Globe, Eye, X as CloseIcon, ExternalLink, RefreshCw, AlertCircle } from 'lucide-react';
+import { Satellite, Trash2, Sparkles, Loader2, Info, Globe, Eye, X as CloseIcon, ExternalLink, RefreshCw, AlertCircle, MapPin, PlusCircle, Layers, Moon } from 'lucide-react';
 import meteorShowersData from '../data/meteorShowers.json';
 
 interface SatelliteData {
@@ -18,7 +18,7 @@ const CesiumGlobe: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Cesium.Viewer | null>(null);
   const handlerRef = useRef<Cesium.ScreenSpaceEventHandler | null>(null);
-  const [activeTab, setActiveTab] = useState<'satellites' | 'debris' | 'meteors' | 'ufo'>('satellites');
+  const [activeTab, setActiveTab] = useState<'satellites' | 'debris' | 'meteors' | 'ufo' | 'sightings'>('satellites');
   const [loading, setLoading] = useState(true);
   const [satellites, setSatellites] = useState<SatelliteData[]>([]);
   const [debris, setDebris] = useState<SatelliteData[]>([]);
@@ -30,6 +30,20 @@ const CesiumGlobe: React.FC = () => {
   const entitiesRef = useRef<Cesium.Entity[]>([]);
   const trailEntityRef = useRef<Cesium.Entity | null>(null);
   const isMounted = useRef(true);
+
+  // Community sightings
+  interface Sighting { id: string; lat: number; lon: number; note: string; shower: string; date: string; }
+  const [sightings, setSightings] = useState<Sighting[]>(() => {
+    try { return JSON.parse(localStorage.getItem('stargaze_sightings') || '[]'); } catch { return []; }
+  });
+  const [showAddSighting, setShowAddSighting] = useState(false);
+  const [newSighting, setNewSighting] = useState({ note: '', shower: '' });
+  const [pendingLatLon, setPendingLatLon] = useState<{ lat: number; lon: number } | null>(null);
+  const sightingEntitiesRef = useRef<Cesium.Entity[]>([]);
+
+  // Dark sky overlay
+  const [darkSkyOn, setDarkSkyOn] = useState(false);
+  const darkSkyLayerRef = useRef<Cesium.ImageryLayer | null>(null);
 
   useEffect(() => {
     isMounted.current = true;
@@ -298,8 +312,10 @@ const CesiumGlobe: React.FC = () => {
       renderMeteors();
     } else if (activeTab === 'ufo') {
       renderUFOs();
+    } else if (activeTab === 'sightings') {
+      renderSightings();
     }
-  }, [activeTab, satellites, debris]);
+  }, [activeTab, satellites, debris, sightings]);
 
   const calculateOrbitPath = (sat: SatelliteData, durationHours: number) => {
     const points: Cesium.Cartesian3[] = [];
@@ -677,10 +693,121 @@ const CesiumGlobe: React.FC = () => {
     }
   };
 
+  // Render community sightings
+  const renderSightings = useCallback(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    viewer.entities.suspendEvents();
+    try {
+      sightingEntitiesRef.current.forEach(e => { try { viewer.entities.remove(e); } catch (_) {} });
+      sightingEntitiesRef.current = [];
+      sightings.forEach(s => {
+        const entity = viewer.entities.add({
+          position: Cesium.Cartesian3.fromDegrees(s.lon, s.lat),
+          point: { pixelSize: 10, color: Cesium.Color.fromCssColorString('#f0abfc'), outlineColor: Cesium.Color.WHITE.withAlpha(0.6), outlineWidth: 2 },
+          label: {
+            text: `🌠 ${s.shower || 'Meteor'}`,
+            font: '11px monospace',
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            outlineWidth: 2,
+            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+            pixelOffset: new Cesium.Cartesian2(0, -14),
+            fillColor: Cesium.Color.WHITE,
+            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 8000000),
+          },
+          properties: { type: 'sighting', note: s.note, date: s.date, shower: s.shower } as any,
+        });
+        sightingEntitiesRef.current.push(entity);
+        entitiesRef.current.push(entity);
+      });
+    } finally {
+      viewer.entities.resumeEvents();
+    }
+  }, [sightings]);
+
+  // Dark sky overlay toggle
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    if (darkSkyOn) {
+      try {
+        const layer = viewer.imageryLayers.addImageryProvider(
+          new Cesium.TileMapServiceImageryProvider({
+            url: 'https://stargazeio.b-cdn.net/darksky-tiles/{z}/{x}/{y}.png',
+          })
+        );
+        layer.alpha = 0.55;
+        layer.brightness = 0.8;
+        darkSkyLayerRef.current = layer;
+      } catch (_) {
+        // Fallback: just dim the globe slightly
+        viewer.scene.globe.nightFadeOutDistance = 1e9;
+        viewer.scene.globe.enableLighting = true;
+      }
+    } else {
+      if (darkSkyLayerRef.current) {
+        try { viewer.imageryLayers.remove(darkSkyLayerRef.current); } catch (_) {}
+        darkSkyLayerRef.current = null;
+      }
+      viewer.scene.globe.enableLighting = false;
+    }
+  }, [darkSkyOn]);
+
+  // Persist sightings to localStorage
+  const saveSighting = useCallback(() => {
+    if (!pendingLatLon) return;
+    const s = {
+      id: Date.now().toString(),
+      lat: pendingLatLon.lat,
+      lon: pendingLatLon.lon,
+      note: newSighting.note,
+      shower: newSighting.shower,
+      date: new Date().toISOString(),
+    };
+    const updated = [...sightings, s];
+    setSightings(updated);
+    localStorage.setItem('stargaze_sightings', JSON.stringify(updated));
+    setShowAddSighting(false);
+    setPendingLatLon(null);
+    setNewSighting({ note: '', shower: '' });
+  }, [pendingLatLon, newSighting, sightings]);
+
+  const deleteSighting = useCallback((id: string) => {
+    const updated = sightings.filter(s => s.id !== id);
+    setSightings(updated);
+    localStorage.setItem('stargaze_sightings', JSON.stringify(updated));
+  }, [sightings]);
+
+  // Register globe click for sighting pin-drop
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    const handler = handlerRef.current;
+    if (!viewer || !handler || activeTab !== 'sightings') return;
+
+    const clickAction = (movement: any) => {
+      if (showAddSighting) return;
+      const cartesian = viewer.camera.pickEllipsoid(movement.position, viewer.scene.globe.ellipsoid);
+      if (!cartesian) return;
+      const carto = Cesium.Cartographic.fromCartesian(cartesian);
+      setPendingLatLon({
+        lat: Cesium.Math.toDegrees(carto.latitude),
+        lon: Cesium.Math.toDegrees(carto.longitude),
+      });
+      setShowAddSighting(true);
+    };
+
+    handler.setInputAction(clickAction, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+    return () => {
+      // Restore default click handler
+      handler.setInputAction((movement: any) => {}, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+    };
+  }, [activeTab, showAddSighting]);
+
   // Derived counts for legend
   const activeTabCount = activeTab === 'satellites' ? satellites.length
     : activeTab === 'debris' ? debris.length
     : activeTab === 'meteors' ? meteorShowersData.filter(s => new Date() < new Date(s.end)).length
+    : activeTab === 'sightings' ? sightings.length
     : 6;
 
   const legendItems = activeTab === 'satellites'
@@ -700,6 +827,11 @@ const CesiumGlobe: React.FC = () => {
         { color: '#f97316', label: 'Medium ZHR (>40)' },
         { color: '#22d3ee', label: 'Low ZHR (<40)' },
         { color: '#6b7280', label: 'Upcoming' },
+      ]
+    : activeTab === 'sightings'
+    ? [
+        { color: '#e879f9', label: 'Your sighting' },
+        { color: '#94a3b8', label: 'Saved locally' },
       ]
     : [
         { color: '#84cc16', label: 'Reported UFO sighting' },
@@ -760,12 +892,13 @@ const CesiumGlobe: React.FC = () => {
           className="backdrop-blur-xl rounded-xl sm:rounded-2xl p-1.5"
           style={{ background: 'rgba(3,0,20,0.88)', border: '1px solid rgba(255,255,255,0.10)' }}
         >
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1">
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-1">
             {[
-              { id: 'satellites', icon: Satellite, label: 'Sats',      labelFull: 'Satellites', color: 'text-cyan-400',   isLive: true  },
+              { id: 'satellites', icon: Satellite, label: 'Sats',      labelFull: 'Satellites', color: 'text-cyan-400',    isLive: true  },
               { id: 'debris',     icon: Trash2,    label: 'Debris',     labelFull: 'Debris',     color: 'text-red-400',    isLive: true  },
               { id: 'meteors',    icon: Sparkles,  label: 'Meteors',    labelFull: 'Meteors',    color: 'text-yellow-400', isLive: false },
               { id: 'ufo',        icon: Eye,       label: 'UFOs',       labelFull: 'UFOs',       color: 'text-lime-400',   isLive: false },
+              { id: 'sightings',  icon: MapPin,    label: 'Mine',       labelFull: 'Sightings',  color: 'text-fuchsia-400',isLive: false },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -1081,6 +1214,122 @@ const CesiumGlobe: React.FC = () => {
           )}
         </AnimatePresence>
       </div>
+
+      {/* ── Dark Sky Toggle (top-right) ── */}
+      <div className="absolute top-20 right-3 sm:right-5 z-10 flex flex-col gap-2">
+        <button
+          onClick={() => setDarkSkyOn(v => !v)}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all backdrop-blur-xl ${
+            darkSkyOn
+              ? 'bg-indigo-600/70 text-white border border-indigo-400/40'
+              : 'bg-black/60 text-white/50 hover:text-white border border-white/10'
+          }`}
+          title="Toggle light pollution overlay"
+        >
+          <Moon size={13} />
+          <span className="hidden sm:inline">Dark Sky</span>
+        </button>
+      </div>
+
+      {/* ── Add Sighting Dialog ── */}
+      <AnimatePresence>
+        {showAddSighting && pendingLatLon && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="absolute inset-0 z-30 flex items-center justify-center px-4"
+            style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }}
+          >
+            <div className="w-full max-w-sm p-5 rounded-2xl text-white"
+              style={{ background: 'rgba(10,0,30,0.95)', border: '1px solid rgba(232,121,249,0.35)' }}>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-bold font-space text-base">Log Sighting 🌠</h3>
+                  <p className="text-[10px] text-white/40 font-mono mt-0.5">
+                    {pendingLatLon.lat.toFixed(3)}°, {pendingLatLon.lon.toFixed(3)}°
+                  </p>
+                </div>
+                <button onClick={() => { setShowAddSighting(false); setPendingLatLon(null); }}
+                  className="text-white/30 hover:text-white transition-colors">
+                  <CloseIcon size={16} />
+                </button>
+              </div>
+              <div className="space-y-3 mb-4">
+                <div>
+                  <label className="text-[10px] text-white/45 uppercase tracking-widest font-mono block mb-1">Shower / Object</label>
+                  <input
+                    value={newSighting.shower}
+                    onChange={e => setNewSighting(s => ({ ...s, shower: e.target.value }))}
+                    placeholder="e.g. Perseids, fireball..."
+                    className="w-full bg-white/6 border border-white/12 rounded-xl px-3 py-2 text-sm text-white placeholder-white/25 outline-none focus:border-fuchsia-400/50 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-white/45 uppercase tracking-widest font-mono block mb-1">Notes (optional)</label>
+                  <textarea
+                    value={newSighting.note}
+                    onChange={e => setNewSighting(s => ({ ...s, note: e.target.value }))}
+                    placeholder="Describe what you saw..."
+                    rows={2}
+                    className="w-full bg-white/6 border border-white/12 rounded-xl px-3 py-2 text-sm text-white placeholder-white/25 outline-none focus:border-fuchsia-400/50 transition-colors resize-none"
+                  />
+                </div>
+              </div>
+              <button
+                onClick={saveSighting}
+                disabled={!newSighting.shower}
+                className="w-full py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ background: 'rgba(232,121,249,0.25)', border: '1px solid rgba(232,121,249,0.40)', color: '#e879f9' }}>
+                Save Sighting
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Sightings List Panel ── */}
+      <AnimatePresence>
+        {activeTab === 'sightings' && sightings.length > 0 && !showAddSighting && (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="absolute bottom-6 right-3 sm:right-5 z-10 w-64 max-h-72 overflow-y-auto rounded-2xl"
+            style={{ background: 'rgba(10,0,30,0.90)', border: '1px solid rgba(232,121,249,0.25)', backdropFilter: 'blur(16px)' }}
+          >
+            <div className="p-3">
+              <p className="text-[10px] text-white/40 uppercase tracking-widest font-mono mb-2">Your {sightings.length} Sighting{sightings.length !== 1 ? 's' : ''}</p>
+              {sightings.map(s => (
+                <div key={s.id} className="flex items-start justify-between gap-2 py-1.5 border-b border-white/6 last:border-0">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-fuchsia-300 truncate">{s.shower || 'Meteor'}</p>
+                    {s.note && <p className="text-[10px] text-white/40 truncate">{s.note}</p>}
+                    <p className="text-[9px] text-white/25 font-mono">{new Date(s.date).toLocaleDateString()}</p>
+                  </div>
+                  <button onClick={() => deleteSighting(s.id)} className="text-white/20 hover:text-red-400 transition-colors flex-shrink-0 mt-0.5">
+                    <CloseIcon size={11} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Sightings tap-hint */}
+      <AnimatePresence>
+        {activeTab === 'sightings' && !showAddSighting && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
+            <div className="px-4 py-2 rounded-full text-xs font-mono text-fuchsia-300"
+              style={{ background: 'rgba(232,121,249,0.15)', border: '1px solid rgba(232,121,249,0.30)' }}>
+              📍 Tap the globe to log a meteor sighting
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -574,10 +574,31 @@ export default function SolarSystemViewer() {
   const [simDate,    setSimDate]    = useState(new Date());
   const [showTimeUI, setShowTimeUI] = useState(false);
   const controlsRef = useRef<any>(null);
+  const [copied, setCopied] = useState(false);
 
   // Sync playing & speed to refs (read by TimeAdvancer inside Canvas)
   useEffect(() => { playingRef.current = playing; }, [playing]);
   useEffect(() => { speedRef.current = SPEED_PRESETS[speedIdx].days; }, [speedIdx]);
+
+  // Share / snapshot — encode selected object + cam dist into URL hash
+  const shareSnapshot = useCallback(() => {
+    const params: Record<string, string> = { z: cameraDist.toFixed(1) };
+    if (selected) {
+      params.type = selected.type;
+      params.name = selected.type === 'planet'
+        ? (selected.data as PlanetDef).name
+        : (selected.data as CometDef).name;
+    }
+    const hash = Object.entries(params).map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+    const url = `${window.location.origin}/globe?solar=1&${hash}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {
+      // fallback
+      window.prompt('Copy this link:', url);
+    });
+  }, [cameraDist, selected]);
 
   // Auto-enable deep space layers
   useEffect(() => {
@@ -667,6 +688,12 @@ export default function SolarSystemViewer() {
           <button onClick={() => { if (controlsRef.current) controlsRef.current.reset(); }}
             className="p-1.5 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-colors" title="Reset View">
             <RotateCcw size={14} />
+          </button>
+          <div className="w-full h-px bg-white/10" />
+          <button onClick={shareSnapshot}
+            className={`p-1.5 rounded-lg transition-colors ${copied ? 'text-green-400' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
+            title="Share this view">
+            <span className="text-[13px]">{copied ? '✓' : '🔗'}</span>
           </button>
         </div>
 
@@ -812,7 +839,16 @@ export default function SolarSystemViewer() {
                   </>
                 )}
               </div>
-              <button onClick={() => setSelected(null)} className="text-white/30 hover:text-white flex-shrink-0"><X size={15}/></button>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button onClick={shareSnapshot}
+                  className={`p-1.5 rounded-lg text-[10px] font-mono flex items-center gap-1 transition-all ${
+                    copied ? 'bg-green-500/20 text-green-400' : 'text-white/30 hover:text-white hover:bg-white/8'
+                  }`}
+                  title="Copy shareable link">
+                  {copied ? '✓ Copied' : '🔗'}
+                </button>
+                <button onClick={() => setSelected(null)} className="text-white/30 hover:text-white"><X size={15}/></button>
+              </div>
             </div>
 
             {selected.type === 'comet' && (() => {
