@@ -8,7 +8,7 @@ import {
   Eye, Zap, Activity, Bell, BellOff, Send, Shield, FileText,
   RefreshCw, AlertTriangle, CheckCircle, ExternalLink, Rocket, Moon,
   Cloud, Wind, BarChart2, Users, MessageSquare, Plus, Search,
-  Filter, TrendingUp, Navigation, Compass, Gauge
+  Filter, TrendingUp, Navigation, Compass, Gauge, ShoppingBag, BellRing
 } from 'lucide-react';
 import meteorShowers from './data/meteorShowers.json';
 import CesiumGlobe from './components/CesiumGlobe';
@@ -215,6 +215,7 @@ function Navbar({ watched, notifications }: { watched: WatchedShower[]; notifica
     { to: '/calendar', label: 'Calendar', icon: Calendar },
     { to: '/live',     label: 'Live',     icon: Radio },
     { to: '/globe',    label: '3D Globe', icon: Globe },
+    { to: '/gear',     label: 'Gear',     icon: ShoppingBag },
     { to: '/about',    label: 'About',    icon: Info },
   ];
 
@@ -321,7 +322,7 @@ function Footer() {
           </div>
           <div>
             <p className="text-xs font-semibold text-white/55 uppercase tracking-widest mb-3 font-space">Explore</p>
-            {[['/', 'Home'], ['/calendar', 'Calendar'], ['/live', 'Live Feed'], ['/globe', '3D Globe']].map(([to, label]) => (
+            {[['/', 'Home'], ['/calendar', 'Calendar'], ['/live', 'Live Feed'], ['/globe', '3D Globe'], ['/gear', 'Gear Guide']].map(([to, label]) => (
               <Link key={to} to={to} className="block text-xs text-white/35 hover:text-white/70 mb-2 transition-colors">{label}</Link>
             ))}
           </div>
@@ -1767,6 +1768,207 @@ function NotFound() {
 }
 
 // ─── SCROLL TO TOP ────────────────────────────────────────────────────────────
+// ─── GEAR PAGE ────────────────────────────────────────────────────────────────
+// ⚠️  Replace YOURTAG with your Amazon Associates tracking ID (e.g. stargaze-20)
+const AMAZON_TAG = 'YOURTAG-20';
+
+interface GearItem {
+  id: string; name: string; description: string;
+  priceRange: string; category: string; emoji: string;
+  asin: string; badge?: string;
+}
+
+const gearItems: GearItem[] = [
+  // Telescopes
+  { id: 'nexstar-5se', name: 'Celestron NexStar 5SE', description: 'Motorized GoTo mount finds any object automatically. Perfect entry into serious amateur astronomy.', priceRange: '$450–$550', category: 'Telescopes', emoji: '🔭', asin: 'B000HNBSBC', badge: 'Best All-Round' },
+  { id: 'heritage-130p', name: 'Sky-Watcher Heritage 130P', description: 'Collapsible Dobsonian — huge aperture for the price. No motor needed for meteor showers, just look up.', priceRange: '$150–$200', category: 'Telescopes', emoji: '🔭', asin: 'B004YIBVP8', badge: 'Best Value' },
+  { id: 'starsense', name: 'Celestron StarSense Explorer DX 130AZ', description: 'Uses your smartphone as a finder — point at the sky and it tells you what\'s there. Great for beginners.', priceRange: '$200–$280', category: 'Telescopes', emoji: '🔭', asin: 'B08D1QMZG1' },
+  // Binoculars
+  { id: 'skymaster', name: 'Celestron SkyMaster 15x70', description: 'Massive aperture astro binoculars. Better than a small telescope for meteor showers — wider field of view.', priceRange: '$55–$80', category: 'Binoculars', emoji: '👁️', asin: 'B000JZXWWO', badge: 'Most Popular' },
+  { id: 'opticron', name: 'Orion Mini Giant 10x50', description: 'Compact, bright, and fully waterproof. Great for daytime birding and night-time deep-sky sweeping.', priceRange: '$90–$130', category: 'Binoculars', emoji: '👁️', asin: 'B000C28HZS' },
+  // Accessories
+  { id: 'red-light', name: 'GearLight Red LED Torch', description: 'Red light preserves your night vision while reading star charts. White torches destroy dark adaptation instantly — this is essential.', priceRange: '$12–$18', category: 'Accessories', emoji: '🔦', asin: 'B07PD9KDZQ', badge: 'Essential' },
+  { id: 'recliner', name: 'Coleman Camping Recliner Chair', description: 'The single biggest comfort upgrade for meteor watching. Lie back, point your face at the radiant, and wait.', priceRange: '$45–$65', category: 'Accessories', emoji: '🪑', asin: 'B002KHHKQY', badge: 'Pro Tip' },
+  { id: 'red-filter', name: 'Baader Planetarium Red Light Headlamp', description: 'Hands-free red light for when you need to adjust equipment or make notes without killing your night vision.', priceRange: '$20–$30', category: 'Accessories', emoji: '🔦', asin: 'B001GVNB8C' },
+  // Books
+  { id: 'turn-left', name: 'Turn Left at Orion', description: 'The best beginner\'s guide to finding objects with a small telescope. Clear, practical, actually fun to read.', priceRange: '$20–$28', category: 'Books & Charts', emoji: '📚', asin: 'B004GKZFOI', badge: 'Classic' },
+  { id: 'planisphere', name: "Philip's Planisphere 51.5°N", description: 'Rotating star map — no battery, no signal. Hold it up and match any constellation in seconds.', priceRange: '$8–$14', category: 'Books & Charts', emoji: '📚', asin: '0540065641' },
+  // Astrophotography
+  { id: 'phone-adapter', name: 'Gosky Universal Smartphone Adapter', description: 'Clip your phone to any telescope or binoculars and photograph what you see. Best first step in astrophotography.', priceRange: '$18–$28', category: 'Astrophotography', emoji: '📷', asin: 'B07BS7XHWJ', badge: 'Beginner Pick' },
+  { id: 'star-tracker', name: 'Sky-Watcher Star Adventurer Mini', description: 'Motorized tracking mount for long-exposure shots without star trails. The gateway to serious astrophotography.', priceRange: '$180–$250', category: 'Astrophotography', emoji: '📷', asin: 'B07DSKNHQF' },
+];
+
+function GearPage() {
+  const categories = [...new Set(gearItems.map(i => i.category))];
+  const makeUrl = (asin: string) => `https://www.amazon.com/dp/${asin}?tag=${AMAZON_TAG}`;
+
+  return (
+    <>
+      <title>Astronomy Gear Guide 2026 | Stargaze</title>
+      <meta name="description" content="Best telescopes, binoculars, and stargazing accessories for every budget. Curated by the Stargaze team for meteor watchers and amateur astronomers." />
+      <meta property="og:title" content="Astronomy Gear Guide 2026 | Stargaze" />
+      <meta property="og:description" content="Best telescopes, binoculars, and accessories for meteor watching and stargazing. Every budget covered." />
+      <link rel="canonical" href="https://stargaze.io/gear" />
+
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -24 }}
+        transition={{ duration: 0.35 }}
+        className="relative z-10 max-w-7xl mx-auto px-4 pt-28 pb-16"
+      >
+        {/* Header */}
+        <div className="text-center mb-14">
+          <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-full px-4 py-1.5 mb-5">
+            <ShoppingBag size={12} className="text-amber-400" />
+            <span className="text-amber-400 text-xs font-semibold font-space uppercase tracking-widest">Gear Guide</span>
+          </div>
+          <h1 className="text-3xl sm:text-5xl font-space font-bold text-white mb-4">
+            The Right Gear Makes the Night
+          </h1>
+          <p className="text-white/50 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
+            Curated picks for every budget — from first-time stargazers to serious astrophotographers.
+            We earn a small commission on Amazon purchases at no extra cost to you.
+          </p>
+        </div>
+
+        {/* Category sections */}
+        {categories.map(cat => (
+          <div key={cat} className="mb-14">
+            <div className="flex items-center gap-3 mb-6">
+              <h2 className="text-lg font-space font-semibold text-white/90 whitespace-nowrap">{cat}</h2>
+              <div className="flex-1 h-px bg-white/8" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {gearItems.filter(i => i.category === cat).map(item => (
+                <a
+                  key={item.id}
+                  href={makeUrl(item.asin)}
+                  target="_blank"
+                  rel="noopener noreferrer sponsored"
+                  className="group relative bg-white/[0.03] hover:bg-white/[0.06] border border-white/8 hover:border-white/16 rounded-2xl p-5 transition-all duration-200 flex flex-col"
+                >
+                  {item.badge && (
+                    <span className="absolute top-4 right-4 text-[10px] font-semibold font-space uppercase tracking-wide text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded-full px-2.5 py-1">
+                      {item.badge}
+                    </span>
+                  )}
+                  <div className="text-3xl mb-3">{item.emoji}</div>
+                  <h3 className="text-sm font-semibold text-white mb-2 pr-20 leading-snug">{item.name}</h3>
+                  <p className="text-xs text-white/45 leading-relaxed mb-4 flex-1">{item.description}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-green-400">{item.priceRange}</span>
+                    <span className="flex items-center gap-1 text-xs text-amber-400 group-hover:text-amber-300 font-medium transition-colors">
+                      Amazon <ExternalLink size={10} />
+                    </span>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {/* Affiliate disclosure */}
+        <div className="p-4 rounded-xl bg-white/[0.02] border border-white/6 text-center">
+          <p className="text-xs text-white/28 leading-relaxed">
+            <span className="text-white/40 font-medium">Affiliate disclosure:</span> Stargaze participates in the Amazon Associates Programme.
+            Purchases via links on this page earn us a small commission at no extra cost to you.
+            Prices shown are approximate and may vary.
+          </p>
+        </div>
+      </motion.div>
+    </>
+  );
+}
+
+// ─── PUSH NOTIFICATION BANNER ─────────────────────────────────────────────────
+declare global { interface Window { OneSignalDeferred?: ((os: any) => void)[]; } }
+
+function PushNotificationBanner() {
+  const [visible, setVisible] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'loading' | 'subscribed' | 'denied'>('idle');
+
+  useEffect(() => {
+    // Show the banner 4 seconds after page load, only if not already dismissed
+    const dismissed = sessionStorage.getItem('push_dismissed');
+    if (dismissed) return;
+    const timer = setTimeout(() => setVisible(true), 4000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const dismiss = () => {
+    setVisible(false);
+    sessionStorage.setItem('push_dismissed', '1');
+  };
+
+  const subscribe = async () => {
+    setStatus('loading');
+    try {
+      const os = (window as any).OneSignal;
+      if (os) {
+        await os.Notifications.requestPermission();
+        const opted = os.User?.PushSubscription?.optedIn;
+        setStatus(opted ? 'subscribed' : 'denied');
+        if (opted) setTimeout(dismiss, 1500);
+      } else {
+        setStatus('denied');
+      }
+    } catch {
+      setStatus('denied');
+    }
+  };
+
+  if (!visible) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 24 }}
+      className="fixed bottom-5 right-5 left-5 sm:left-auto sm:w-80 z-50"
+    >
+      <div className="bg-[#0d1117] border border-blue-500/25 rounded-2xl p-4 shadow-2xl shadow-black/60 backdrop-blur-xl">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl bg-blue-500/15 border border-blue-500/25 flex items-center justify-center shrink-0 mt-0.5">
+            <BellRing size={16} className="text-blue-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2 mb-1">
+              <p className="text-xs font-semibold text-white">Get meteor shower alerts</p>
+              <button onClick={dismiss} className="text-white/25 hover:text-white/60 transition-colors shrink-0 -mt-0.5">
+                <X size={14} />
+              </button>
+            </div>
+            {status === 'subscribed' ? (
+              <p className="text-xs text-green-400 flex items-center gap-1.5 mt-2">
+                <CheckCircle size={12} /> You'll be notified before every peak!
+              </p>
+            ) : (
+              <>
+                <p className="text-xs text-white/40 leading-relaxed mb-3">
+                  We'll ping you before the next shower peaks. One click, no spam.
+                </p>
+                <button
+                  onClick={subscribe}
+                  disabled={status === 'loading'}
+                  className="w-full text-xs font-semibold bg-blue-500 hover:bg-blue-400 disabled:opacity-60 text-white rounded-xl py-2 transition-colors"
+                >
+                  {status === 'loading' ? 'Enabling…' : '🔔 Enable alerts'}
+                </button>
+                {status === 'denied' && (
+                  <p className="text-[10px] text-white/30 mt-2 leading-relaxed">
+                    Blocked — allow notifications in your browser settings and reload.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, [pathname]);
@@ -1790,6 +1992,7 @@ function AnimatedRoutes({ watched, addNotification, toggleWatch }: {
         <Route path="/shower/:id" element={<ShowerDetail watched={watched} toggleWatch={toggleWatch} />} />
         <Route path="/live"       element={<LiveFeed addNotification={addNotification} />} />
         <Route path="/globe"      element={<GlobePage />} />
+        <Route path="/gear"       element={<GearPage />} />
         <Route path="/about"      element={<About />} />
         <Route path="/privacy"    element={<PrivacyPolicy />} />
         <Route path="/terms"      element={<TermsOfService />} />
@@ -1872,6 +2075,7 @@ export default function App() {
         <AnimatedRoutes watched={watched} addNotification={addNotification} toggleWatch={toggleWatch} />
 
         <Footer />
+        <PushNotificationBanner />
       </div>
     </BrowserRouter>
   );
