@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import meteorShowers from './data/meteorShowers.json';
 import CesiumGlobe from './components/CesiumGlobe';
+import SolarSystemViewer from './components/SolarSystemViewer';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface MeteorShower {
@@ -1536,16 +1537,51 @@ function LiveFeed({ addNotification }: { addNotification: (n: Omit<Notification,
 
 // ─── GLOBE PAGE ───────────────────────────────────────────────────────────────
 function GlobePage() {
+  const [view, setView] = useState<'earth' | 'solar'>('earth');
+
   return (
     <>
-      <title>Interactive Night Sky Globe | Stargaze</title>
-      <meta name="description" content="Explore meteor shower radiants, live satellite positions, and space debris on an interactive 3D globe. Powered by CesiumJS with real-time orbital data." />
-      <meta property="og:title" content="Interactive Night Sky Globe | Stargaze" />
-      <meta property="og:description" content="Explore meteor shower radiants and live satellite positions on an interactive 3D globe." />
+      <title>Solar System & Globe Explorer | Stargaze</title>
+      <meta name="description" content="Explore the full solar system in 3D — real planetary positions, comet debris trails that create meteor showers, and live satellite tracking from Earth orbit to the Oort Cloud." />
+      <meta property="og:title" content="Solar System Explorer | Stargaze" />
+      <meta property="og:description" content="Zoom from Earth's surface all the way to the Oort Cloud. See how meteor showers form as Earth crosses comet debris trails." />
       <link rel="canonical" href="https://stargaze.io/globe" />
+
+    {/* View toggle — floats above both layers */}
+    <div className="fixed top-[4.5rem] left-1/2 -translate-x-1/2 z-30 flex gap-1 p-1 rounded-2xl"
+      style={{ background: 'rgba(5,5,15,0.82)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)' }}>
+      <button
+        onClick={() => setView('earth')}
+        className={`flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
+          view === 'earth'
+            ? 'bg-blue-600/80 text-white shadow-lg'
+            : 'text-white/45 hover:text-white/70'
+        }`}>
+        <Globe size={12} />
+        Earth Globe
+      </button>
+      <button
+        onClick={() => setView('solar')}
+        className={`flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
+          view === 'solar'
+            ? 'bg-purple-600/80 text-white shadow-lg'
+            : 'text-white/45 hover:text-white/70'
+        }`}>
+        <Sparkles size={12} />
+        Solar System
+      </button>
+    </div>
+
     <div className="relative z-10 pt-16 h-screen flex flex-col">
-      <div className="flex-1 relative">
-        <CesiumGlobe />
+      <div className="flex-1 relative overflow-hidden">
+        {/* Earth globe layer */}
+        <div className={`absolute inset-0 transition-opacity duration-500 ${view === 'earth' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+          <CesiumGlobe />
+        </div>
+        {/* Solar system layer */}
+        <div className={`absolute inset-0 transition-opacity duration-500 ${view === 'solar' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+          {view === 'solar' && <SolarSystemViewer />}
+        </div>
       </div>
     </div>
     </>
