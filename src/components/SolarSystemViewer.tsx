@@ -558,9 +558,15 @@ const SPEED_PRESETS = [
 ];
 
 // ─── MAIN EXPORT ──────────────────────────────────────────────────────────────
-export default function SolarSystemViewer() {
+interface SolarSystemViewerProps {
+  initZoom?: number | null;
+  initSelectName?: string;
+  initSelectType?: 'planet' | 'comet';
+}
+
+export default function SolarSystemViewer({ initZoom, initSelectName, initSelectType }: SolarSystemViewerProps = {}) {
   const baseT = useMemo(() => julianT(new Date()), []);
-  const [cameraDist, setCameraDist] = useState(18);
+  const [cameraDist, setCameraDist] = useState(initZoom ?? 18);
   const [selected,   setSelected]   = useState<Selected | null>(null);
   const [showDebris, setShowDebris] = useState(true);
   const [showOrbits, setShowOrbits] = useState(true);
@@ -575,6 +581,25 @@ export default function SolarSystemViewer() {
   const [showTimeUI, setShowTimeUI] = useState(false);
   const controlsRef = useRef<any>(null);
   const [copied, setCopied] = useState(false);
+
+  // Restore from shareable URL params
+  useEffect(() => {
+    if (initZoom && controlsRef.current) {
+      const cam = controlsRef.current.object as THREE.PerspectiveCamera;
+      if (cam) cam.position.copy(cam.position.clone().normalize().multiplyScalar(initZoom));
+      controlsRef.current.update?.();
+    }
+    if (initSelectName && initSelectType) {
+      if (initSelectType === 'planet') {
+        const p = PLANETS.find(pl => pl.name === initSelectName);
+        if (p) setSelected({ type:'planet', data:p });
+      } else {
+        const c = COMETS.find(cm => cm.name === initSelectName);
+        if (c) setSelected({ type:'comet', data:c });
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Sync playing & speed to refs (read by TimeAdvancer inside Canvas)
   useEffect(() => { playingRef.current = playing; }, [playing]);

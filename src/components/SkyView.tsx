@@ -167,14 +167,45 @@ function MilkyWay() {
   );
 }
 
-function SkyScene({ objects, onHover, onSelect }:
-  { objects: SkyObject[]; onHover: (o: SkyObject | null) => void; onSelect: (o: SkyObject) => void }) {
+function ConstellationLines({ lat, lst }: { lat: number; lst: number }) {
+  const lines = useMemo(() => {
+    return CONSTELLATIONS.map(con => {
+      const segs: { start: THREE.Vector3; end: THREE.Vector3 }[] = [];
+      con.lines.forEach(([ra1, dec1, ra2, dec2]) => {
+        const a1 = raDecToAltAz(ra1, dec1, lat, lst);
+        const a2 = raDecToAltAz(ra2, dec2, lat, lst);
+        if (a1.alt > -5 && a2.alt > -5) {
+          segs.push({ start: altAzToVec3(a1.alt, a1.az, 4.82), end: altAzToVec3(a2.alt, a2.az, 4.82) });
+        }
+      });
+      return { name: con.name, segs };
+    });
+  }, [lat, lst]);
+
+  return (
+    <>
+      {lines.map(con => con.segs.map((seg, i) => (
+        <line key={`${con.name}-${i}`}>
+          <bufferGeometry>
+            <bufferAttribute attach="attributes-position"
+              args={[new Float32Array([seg.start.x, seg.start.y, seg.start.z, seg.end.x, seg.end.y, seg.end.z]), 3]} />
+          </bufferGeometry>
+          <lineBasicMaterial color="#334466" transparent opacity={0.50} />
+        </line>
+      )))}
+    </>
+  );
+}
+
+function SkyScene({ objects, lat, lst, onHover, onSelect }:
+  { objects: SkyObject[]; lat: number; lst: number; onHover: (o: SkyObject | null) => void; onSelect: (o: SkyObject) => void }) {
 
   return (
     <>
       <Stars radius={5} depth={0.5} count={4000} factor={2} saturation={0.1} fade speed={0} />
       <MilkyWay />
       <HorizonRing />
+      <ConstellationLines lat={lat} lst={lst} />
       <ambientLight intensity={0.02} />
 
       {/* Bright stars */}
@@ -243,6 +274,35 @@ export default function SkyView() {
     return () => clearInterval(id);
   }, []);
 
+  // Seeing conditions from Open-Meteo (free, no key)
+  const [seeing, setSeeing] = useState<{ cloud: number; wind: number; humidity: number } | null>(null);
+  useEffect(() => {
+    if (!location) return;
+    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${location.lat}&longitude=${location.lon}&current=cloud_cover,wind_speed_10m,relative_humidity_2m&forecast_days=1`)
+      .then(r => r.json())
+      .then(d => {
+        const c = d.current;
+        if (c) setSeeing({ cloud: c.cloud_cover, wind: c.wind_speed_10m, humidity: c.relative_humidity_2m });
+      })
+      .catch(() => {});
+  }, [location]);
+
+  // Bortle scale estimate from cloud cover (rough heuristic)
+  const bortleEst = seeing
+    ? seeing.cloud < 10 ? 3
+      : seeing.cloud < 25 ? 4
+      : seeing.cloud < 50 ? 6
+      : seeing.cloud < 75 ? 7
+      : 9
+    : null;
+
+  const bortleLabel = bortleEst
+    ? bortleEst <= 3 ? 'Excellent' : bortleEst <= 5 ? 'Good' : bortleEst <= 7 ? 'Poor' : 'Overcast'
+    : null;
+  const bortleColor = bortleEst
+    ? bortleEst <= 3 ? '#4ade80' : bortleEst <= 5 ? '#fbbf24' : bortleEst <= 7 ? '#f97316' : '#ef4444'
+    : '#888888';
+
   const requestLocation = () => {
     setLocLoading(true);
     setLocError(null);
@@ -309,7 +369,7 @@ export default function SkyView() {
             enableZoom={false} rotateSpeed={-0.4}
             makeDefault
           />
-          <SkyScene objects={objects} onHover={setHovered} onSelect={setSelected} />
+          <SkyScene objects={objects} lat={loc.lat} lst={lst} onHover={setHovered} onSelect={setSelected} />
         </Suspense>
       </Canvas>
 
@@ -421,7 +481,31 @@ export default function SkyView() {
       </AnimatePresence>
 
       {/* ── Visible radiants count (bottom-right) ── */}
-      <div className="absolute bottom-4 right-3 z-20">
+      <div className="absolute bottom-4 right-3 z-20 flex flex-col gap-2 items-end">
+        {/* Seeing conditions card */}
+        {seeing && (
+          <div className="glass-card px-3 py-2 rounded-xl">
+            <p className="text-[10px] font-mono text-white/40 uppercase tracking-widest mb-1.5">Observing Conditions</p>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-2 h-2 rounded-full" style={{ background: bortleColor, boxShadow:`0 0 5px ${bortleColor}` }} />
+              <p className="text-xs font-bold" style={{ color: bortleColor }}>{bortleLabel}</p>
+              {bortleEst && <p className="text-[10px] text-white/30 font-mono">Bortle ~{bortleEst}</p>}
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label:'Cloud', val:`${seeing.cloud}%`, icon:'☁️' },
+                { label:'Wind',  val:`${seeing.wind}km/h`, icon:'💨' },
+                { label:'Humid', val:`${seeing.humidity}%`, icon:'💧' },
+              ].map(({ label, val, icon }) => (
+                <div key={label} className="text-center">
+                  <p className="text-[10px] font-bold text-white/70">{icon} {val}</p>
+                  <p className="text-[8px] text-white/30">{label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {/* Radiants count card */}
         <div className="glass-card px-3 py-2 rounded-xl">
           <p className="text-[10px] font-mono text-white/40 uppercase tracking-widest mb-1">Radiants Above Horizon</p>
           <p className="text-xl font-bold font-space text-white">{visibleRadiants.length}</p>

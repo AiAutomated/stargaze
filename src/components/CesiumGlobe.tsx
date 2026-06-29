@@ -19,6 +19,8 @@ const CesiumGlobe: React.FC = () => {
   const viewerRef = useRef<Cesium.Viewer | null>(null);
   const handlerRef = useRef<Cesium.ScreenSpaceEventHandler | null>(null);
   const [activeTab, setActiveTab] = useState<'satellites' | 'debris' | 'meteors' | 'ufo' | 'sightings'>('satellites');
+  // Keep ref in sync so Cesium click handler (set once) can read latest tab without re-init
+  const setActiveTabAndRef = (t: typeof activeTab) => { activeTabRef.current = t; setActiveTab(t); };
   const [loading, setLoading] = useState(true);
   const [satellites, setSatellites] = useState<SatelliteData[]>([]);
   const [debris, setDebris] = useState<SatelliteData[]>([]);
@@ -30,6 +32,7 @@ const CesiumGlobe: React.FC = () => {
   const entitiesRef = useRef<Cesium.Entity[]>([]);
   const trailEntityRef = useRef<Cesium.Entity | null>(null);
   const isMounted = useRef(true);
+  const activeTabRef = useRef<string>('satellites'); // keeps click handler in sync without re-init
 
   // Community sightings
   interface Sighting { id: string; lat: number; lon: number; note: string; shower: string; date: string; }
@@ -199,42 +202,56 @@ const CesiumGlobe: React.FC = () => {
         const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
         handlerRef.current = handler;
         handler.setInputAction((movement: any) => {
-        const pickedObject = viewer.scene.pick(movement.position);
-        if (Cesium.defined(pickedObject) && pickedObject.id instanceof Cesium.Entity) {
-          const entity = pickedObject.id;
-          const props = entity.properties?.getValue(Cesium.JulianDate.now());
-          
-          if (props && props.type === 'meteor') {
-            setSelectedMeteorShower(props.data);
-            setSelectedSatellite(null);
-            setSelectedUFO(null);
-            viewer.trackedEntity = undefined;
-            viewer.zoomTo(entity);
-          } else if (props && props.type === 'ufo') {
-            setSelectedUFO(props.data);
-            setSelectedSatellite(null);
-            setSelectedMeteorShower(null);
-            viewer.trackedEntity = undefined;
-            viewer.zoomTo(entity);
-          } else if (props && props.line1 && props.line2) {
-            setSelectedSatellite({
-              name: props.name,
-              line1: props.line1,
-              line2: props.line2,
-              inclination: props.inclination,
-              eccentricity: props.eccentricity
-            });
-            setSelectedMeteorShower(null);
-            setSelectedUFO(null);
-            viewer.trackedEntity = entity;
+          // Sightings mode — drop a pin on the globe surface
+          if (activeTabRef.current === 'sightings') {
+            const cartesian = viewer.camera.pickEllipsoid(movement.position, viewer.scene.globe.ellipsoid);
+            if (cartesian) {
+              const carto = Cesium.Cartographic.fromCartesian(cartesian);
+              setPendingLatLon({
+                lat: Cesium.Math.toDegrees(carto.latitude),
+                lon: Cesium.Math.toDegrees(carto.longitude),
+              });
+              setShowAddSighting(true);
+            }
+            return;
           }
-        } else {
-          setSelectedSatellite(null);
-          setSelectedMeteorShower(null);
-          setSelectedUFO(null);
-          viewer.trackedEntity = undefined;
-        }
-      }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+          const pickedObject = viewer.scene.pick(movement.position);
+          if (Cesium.defined(pickedObject) && pickedObject.id instanceof Cesium.Entity) {
+            const entity = pickedObject.id;
+            const props = entity.properties?.getValue(Cesium.JulianDate.now());
+
+            if (props && props.type === 'meteor') {
+              setSelectedMeteorShower(props.data);
+              setSelectedSatellite(null);
+              setSelectedUFO(null);
+              viewer.trackedEntity = undefined;
+              viewer.zoomTo(entity);
+            } else if (props && props.type === 'ufo') {
+              setSelectedUFO(props.data);
+              setSelectedSatellite(null);
+              setSelectedMeteorShower(null);
+              viewer.trackedEntity = undefined;
+              viewer.zoomTo(entity);
+            } else if (props && props.line1 && props.line2) {
+              setSelectedSatellite({
+                name: props.name,
+                line1: props.line1,
+                line2: props.line2,
+                inclination: props.inclination,
+                eccentricity: props.eccentricity
+              });
+              setSelectedMeteorShower(null);
+              setSelectedUFO(null);
+              viewer.trackedEntity = entity;
+            }
+          } else {
+            setSelectedSatellite(null);
+            setSelectedMeteorShower(null);
+            setSelectedUFO(null);
+            viewer.trackedEntity = undefined;
+          }
+        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
       // Fetch data initially
       fetchData();
@@ -778,31 +795,6 @@ const CesiumGlobe: React.FC = () => {
     localStorage.setItem('stargaze_sightings', JSON.stringify(updated));
   }, [sightings]);
 
-  // Register globe click for sighting pin-drop
-  useEffect(() => {
-    const viewer = viewerRef.current;
-    const handler = handlerRef.current;
-    if (!viewer || !handler || activeTab !== 'sightings') return;
-
-    const clickAction = (movement: any) => {
-      if (showAddSighting) return;
-      const cartesian = viewer.camera.pickEllipsoid(movement.position, viewer.scene.globe.ellipsoid);
-      if (!cartesian) return;
-      const carto = Cesium.Cartographic.fromCartesian(cartesian);
-      setPendingLatLon({
-        lat: Cesium.Math.toDegrees(carto.latitude),
-        lon: Cesium.Math.toDegrees(carto.longitude),
-      });
-      setShowAddSighting(true);
-    };
-
-    handler.setInputAction(clickAction, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-    return () => {
-      // Restore default click handler
-      handler.setInputAction((movement: any) => {}, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-    };
-  }, [activeTab, showAddSighting]);
-
   // Derived counts for legend
   const activeTabCount = activeTab === 'satellites' ? satellites.length
     : activeTab === 'debris' ? debris.length
@@ -902,7 +894,7 @@ const CesiumGlobe: React.FC = () => {
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => setActiveTabAndRef(tab.id as any)}
                 className={`relative flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg transition-all duration-200 ${
                   activeTab === tab.id
                     ? 'text-white bg-white/12 border border-white/15'

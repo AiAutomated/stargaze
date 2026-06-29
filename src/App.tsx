@@ -822,6 +822,65 @@ function Home({ watched, addNotification, toggleWatch }: {
         </div>
       </div>
 
+      {/* ── Best Viewing Window Tonight ── */}
+      {(() => {
+        const now = new Date();
+        const hour = now.getHours();
+        // Moon illumination affects optimal window
+        const moonBad = moon.illumination > 55;
+        const moonRises = moon.illumination > 50 ? 'after midnight' : 'late night';
+        // Determine window: meteor showers best after midnight before dawn
+        const midnight = new Date(now); midnight.setHours(23,0,0,0);
+        const dawn = new Date(now); dawn.setDate(dawn.getDate()+1); dawn.setHours(5,30,0,0);
+        const bestHour = moonBad ? '02:00–04:30' : '23:00–04:30';
+        const qualityScore = Math.max(0, 10 - Math.round(moon.illumination / 10));
+        const qualityBars = Array.from({length:10}, (_,i) => i < qualityScore);
+        const qualityLabel = qualityScore >= 8 ? 'Excellent' : qualityScore >= 6 ? 'Good' : qualityScore >= 4 ? 'Fair' : 'Poor';
+        const qualityColor = qualityScore >= 8 ? '#4ade80' : qualityScore >= 6 ? '#fbbf24' : qualityScore >= 4 ? '#f97316' : '#ef4444';
+        const tip = moonBad
+          ? `Full moon washes out fainter meteors. Best window is ${bestHour} when moon is lower.`
+          : `Dark skies tonight. Prime viewing from ${bestHour}. Look away from the Moon toward the zenith.`;
+        return (
+          <motion.div initial={{ opacity:0, y:15 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.3 }}
+            className="glass-card p-5 rounded-2xl mb-10 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-40 h-40 rounded-full pointer-events-none"
+              style={{ background:`radial-gradient(circle, ${qualityColor}0a 0%, transparent 70%)`, transform:'translate(30%, -30%)' }} />
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background:`${qualityColor}18`, border:`1px solid ${qualityColor}33` }}>
+                    <Moon size={12} style={{ color: qualityColor }} />
+                  </div>
+                  <span className="text-xs font-semibold text-white/75">Best Viewing Window Tonight</span>
+                </div>
+                <span className="text-xs font-mono font-bold" style={{ color: qualityColor }}>{qualityLabel}</span>
+              </div>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex gap-0.5">
+                  {qualityBars.map((filled, i) => (
+                    <div key={i} className="w-3 h-3 rounded-sm" style={{ background: filled ? qualityColor : 'rgba(255,255,255,0.06)' }} />
+                  ))}
+                </div>
+                <span className="text-lg font-bold font-space" style={{ color: qualityColor }}>{qualityScore}/10</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
+                {[
+                  { label:'Optimal window', val:bestHour, icon:'🕑' },
+                  { label:'Moon', val:`${moon.illumination}% — ${moon.phase}`, icon:moon.emoji },
+                  { label:'Active showers', val: activeShowers.length > 0 ? activeShowers.map((s:any)=>s.name).join(', ') : 'None tonight', icon:'🌠' },
+                ].map(({ label, val, icon }) => (
+                  <div key={label} className="p-2 rounded-xl" style={{ background:'rgba(255,255,255,0.03)' }}>
+                    <p className="text-[9px] text-white/35 font-mono uppercase tracking-widest mb-0.5">{label}</p>
+                    <p className="text-[11px] text-white/80 font-medium">{icon} {val}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-white/45 leading-relaxed">{tip}</p>
+            </div>
+          </motion.div>
+        );
+      })()}
+
       {/* ── Active Showers ── */}
       {activeShowers.length > 0 && (
         <div className="mb-10">
@@ -1581,7 +1640,14 @@ function LiveFeed({ addNotification }: { addNotification: (n: Omit<Notification,
 
 // ─── GLOBE PAGE ───────────────────────────────────────────────────────────────
 function GlobePage() {
-  const [view, setView] = useState<'earth' | 'solar'>('earth');
+  // Decode shareable URL: /globe?solar=1&z=22&type=planet&name=Jupiter
+  const searchParams = new URLSearchParams(window.location.search);
+  const initView = searchParams.get('solar') === '1' ? 'solar' : 'earth';
+  const initZoom = parseFloat(searchParams.get('z') ?? '0') || null;
+  const initSelect = searchParams.get('name') || null;
+  const initType  = (searchParams.get('type') ?? '') as 'planet' | 'comet' | '';
+
+  const [view, setView] = useState<'earth' | 'solar'>(initView);
 
   return (
     <>
@@ -1624,7 +1690,7 @@ function GlobePage() {
         </div>
         {/* Solar system layer */}
         <div className={`absolute inset-0 transition-opacity duration-500 ${view === 'solar' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-          {view === 'solar' && <SolarSystemViewer />}
+          {view === 'solar' && <SolarSystemViewer initZoom={initZoom} initSelectName={initSelect} initSelectType={initType || undefined} />}
         </div>
       </div>
     </div>
