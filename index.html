@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="manifest" href="/manifest.json" />
     <title>Stargaze - Live Meteor Shower Tracker & Celestial Guide</title>
     <meta name="description" content="Track live meteor showers, find dark sky spots, and get real-time celestial alerts with Stargaze. Your ultimate guide to the night sky." />
     <meta name="keywords" content="meteor shower, stargazing, astronomy, dark sky map, celestial events, space tracker" />
@@ -13,13 +14,13 @@
     <meta property="og:site_name" content="Stargaze" />
     <link rel="canonical" href="https://stargaze.io" />
 
-    <!-- OneSignal Push Notifications — replace YOUR-ONESIGNAL-APP-ID after signing up at onesignal.com -->
+    <!-- OneSignal Web Push Notifications v16 -->
     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
     <script>
       window.OneSignalDeferred = window.OneSignalDeferred || [];
-      OneSignalDeferred.push(function(OneSignal) {
-        OneSignal.init({
-          appId: "YOUR-ONESIGNAL-APP-ID",
+      OneSignalDeferred.push(async function(OneSignal) {
+        await OneSignal.init({
+          appId: "7f4569af-5192-4e42-b6e0-648b4dde7c4b",
           notifyButton: { enable: false },
           allowLocalhostAsSecureOrigin: true,
         });
