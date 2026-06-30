@@ -199,9 +199,10 @@ function NotificationToasts({ notifications, dismiss }: { notifications: Notific
 }
 
 // ─── Navbar ───────────────────────────────────────────────────────────────────
-function Navbar({ watched, notifications }: { watched: WatchedShower[]; notifications: Notification[] }) {
+function Navbar({ watched, notifications, toggleWatch }: { watched: WatchedShower[]; notifications: Notification[]; toggleWatch: (s: WatchedShower) => void }) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [watchlistOpen, setWatchlistOpen] = useState(false);
   const { pathname } = useLocation();
 
   useEffect(() => {
@@ -254,14 +255,20 @@ function Navbar({ watched, notifications }: { watched: WatchedShower[]; notifica
 
         {/* Right side icons */}
         <div className="flex items-center gap-3">
-          {watched.length > 0 && (
-            <div className="relative hidden sm:block">
-              <Bell size={16} className="text-white/45" />
-              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-blue-500 rounded-full text-[8px] flex items-center justify-center font-bold shadow shadow-blue-500/50">
+          {/* Bell — opens watchlist panel */}
+          <button
+            onClick={() => setWatchlistOpen(o => !o)}
+            className="relative hidden sm:flex items-center justify-center w-8 h-8 rounded-lg hover:bg-white/8 transition-all"
+            aria-label="Watchlist"
+            title="My Watchlist"
+          >
+            <Bell size={16} className={watched.length > 0 ? 'text-blue-400' : 'text-white/40'} />
+            {watched.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full text-[8px] flex items-center justify-center font-bold shadow shadow-blue-500/50">
                 {watched.length}
               </span>
-            </div>
-          )}
+            )}
+          </button>
           {notifications.length > 0 && (
             <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse shadow shadow-green-400/50" />
           )}
@@ -300,6 +307,94 @@ function Navbar({ watched, notifications }: { watched: WatchedShower[]; notifica
               ))}
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Watchlist slide-in panel ── */}
+      <AnimatePresence>
+        {watchlistOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
+              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+              onClick={() => setWatchlistOpen(false)} />
+            {/* Panel */}
+            <motion.div initial={{ opacity:0, x:80 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:80 }}
+              transition={{ type:'spring', damping:26, stiffness:280 }}
+              className="fixed top-0 right-0 h-full w-80 z-50 flex flex-col"
+              style={{ background:'rgba(5,0,20,0.97)', borderLeft:'1px solid rgba(255,255,255,0.08)', backdropFilter:'blur(20px)' }}>
+              <div className="flex items-center justify-between px-5 py-4 border-b border-white/8">
+                <div className="flex items-center gap-2">
+                  <Bell size={15} className="text-blue-400" />
+                  <h2 className="font-bold font-space text-sm text-white">My Watchlist</h2>
+                  {watched.length > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300">{watched.length}</span>
+                  )}
+                </div>
+                <button onClick={() => setWatchlistOpen(false)} className="text-white/40 hover:text-white transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-4 py-4">
+                {watched.length === 0 ? (
+                  <div className="text-center py-16">
+                    <p className="text-4xl mb-4">🔭</p>
+                    <p className="text-sm font-semibold text-white/60 mb-2">Nothing watched yet</p>
+                    <p className="text-xs text-white/35 leading-relaxed mb-4">Watch meteor showers from the Calendar to get peak alerts here.</p>
+                    <Link to="/calendar" onClick={() => setWatchlistOpen(false)}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600/30 text-blue-300 border border-blue-500/25 hover:bg-blue-600/50 transition-colors">
+                      <Calendar size={12} /> Browse Calendar
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {watched.map(s => {
+                      const peak = new Date(s.peak);
+                      const now = new Date();
+                      const daysUntil = Math.ceil((peak.getTime() - now.getTime()) / 86400000);
+                      const isActive = now >= new Date(s.start) && now <= new Date(s.end);
+                      const isPast = now > peak;
+                      return (
+                        <motion.div key={s.id} layout initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }}
+                          className="p-3 rounded-2xl relative group"
+                          style={{ background: isActive ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)', border: isActive ? '1px solid rgba(34,197,94,0.20)' : '1px solid rgba(255,255,255,0.06)' }}>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              {isActive && <span className="inline-block text-[9px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded font-mono font-bold mb-1">● ACTIVE</span>}
+                              <p className="text-sm font-bold text-white leading-tight">{s.name}</p>
+                              <p className="text-[11px] text-white/40 mt-0.5">Peak: {peak.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</p>
+                            </div>
+                            <button onClick={() => toggleWatch(s)} className="text-white/20 hover:text-red-400 transition-colors flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100">
+                              <BellOff size={13} />
+                            </button>
+                          </div>
+                          {!isPast && (
+                            <div className="mt-2.5 flex items-center gap-2">
+                              <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background:'rgba(255,255,255,0.06)' }}>
+                                <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all"
+                                  style={{ width: isActive ? '75%' : `${Math.max(5, 100 - Math.min(100, daysUntil * 3))}%` }} />
+                              </div>
+                              <span className="text-[10px] font-mono text-white/40 flex-shrink-0">
+                                {isActive ? 'Now!' : daysUntil > 0 ? `${daysUntil}d` : 'Peak today!'}
+                              </span>
+                            </div>
+                          )}
+                          {isPast && <p className="text-[10px] text-white/25 mt-1.5 font-mono">Peak passed</p>}
+                        </motion.div>
+                      );
+                    })}
+                    <p className="text-[10px] text-white/25 text-center mt-4">Hover a shower to remove it</p>
+                  </div>
+                )}
+              </div>
+              <div className="px-4 py-3 border-t border-white/8">
+                <Link to="/calendar" onClick={() => setWatchlistOpen(false)}
+                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-semibold text-white/60 hover:text-white hover:bg-white/5 transition-all">
+                  <Calendar size={13} /> Open Full Calendar
+                </Link>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </nav>
@@ -584,11 +679,38 @@ function Home({ watched, addNotification, toggleWatch }: {
   const [ref, inView] = useInView({ triggerOnce: true, threshold: 0.1 });
 
   useEffect(() => {
+    // Check localStorage cache first (valid for the current calendar day)
+    const today = new Date().toISOString().slice(0, 10); // "2026-06-30"
+    try {
+      const cached = JSON.parse(localStorage.getItem('stargaze_apod') || '{}');
+      if (cached.date === today && (cached.url || cached.hdurl)) {
+        setApod(cached);
+        setApodLoading(false);
+        return;
+      }
+    } catch {}
+
     setApodLoading(true);
     fetch('https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY')
-      .then(r => r.json())
-      .then(d => { if (d.url || d.hdurl) setApod(d); })
-      .catch(() => {})
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then(d => {
+        if (d.url || d.hdurl) {
+          // Cache with today's date
+          try { localStorage.setItem('stargaze_apod', JSON.stringify({ ...d, _cached: today })); } catch {}
+          setApod(d);
+        }
+      })
+      .catch(() => {
+        // Try the date-indexed fallback: yesterday's APOD is also fine
+        const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
+        fetch(`https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY&date=${yesterday}`)
+          .then(r => r.ok ? r.json() : null)
+          .then(d => { if (d && (d.url || d.hdurl)) setApod(d); })
+          .catch(() => {});
+      })
       .finally(() => setApodLoading(false));
   }, []);
 
@@ -1449,26 +1571,51 @@ function ShowerDetail({ watched, toggleWatch }: { watched: WatchedShower[]; togg
 }
 
 // ─── LIVE FEED PAGE ───────────────────────────────────────────────────────────
-function LiveFeed({ addNotification }: { addNotification: (n: Omit<Notification, 'id' | 'timestamp'>) => void }) {
-  const [reports, setReports] = useState<SightingReport[]>([
-    { id: '1', time: '2 min ago',  location: 'Colorado, USA',         magnitude: '-2', duration: '3s', type: 'fireball', verified: true,  timestamp: Date.now() - 120000  },
-    { id: '2', time: '8 min ago',  location: 'Ontario, Canada',        magnitude: '1',  duration: '1s', type: 'meteor',   verified: true,  timestamp: Date.now() - 480000  },
-    { id: '3', time: '15 min ago', location: 'Bavaria, Germany',       magnitude: '-4', duration: '5s', type: 'bolide',   verified: false, timestamp: Date.now() - 900000  },
-    { id: '4', time: '23 min ago', location: 'New South Wales, AU',    magnitude: '0',  duration: '2s', type: 'meteor',   verified: true,  timestamp: Date.now() - 1380000 },
-    { id: '5', time: '41 min ago', location: 'Hokkaido, Japan',        magnitude: '-1', duration: '2s', type: 'fireball', verified: true,  timestamp: Date.now() - 2460000 },
-  ]);
+// Helper: turn a timestamp into a relative "X min ago" string
+function timeAgo(ts: number): string {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60)  return 'Just now';
+  if (s < 3600) return `${Math.floor(s/60)} min ago`;
+  if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+  return `${Math.floor(s/86400)}d ago`;
+}
 
-  const [form, setForm] = useState({ location: '', magnitude: '', duration: '', type: 'meteor' as const, notes: '' });
+// Seed data (these are example/demo reports to show the page isn't empty)
+const SEED_REPORTS: SightingReport[] = [
+  { id: 's1', time: '', location: 'Colorado, USA',      magnitude: '-2', duration: '3s', type: 'fireball', verified: true,  timestamp: Date.now() - 7*3600000  },
+  { id: 's2', time: '', location: 'Ontario, Canada',    magnitude: '1',  duration: '1s', type: 'meteor',   verified: true,  timestamp: Date.now() - 11*3600000 },
+  { id: 's3', time: '', location: 'Bavaria, Germany',   magnitude: '-4', duration: '5s', type: 'bolide',   verified: false, timestamp: Date.now() - 18*3600000 },
+  { id: 's4', time: '', location: 'New South Wales, AU',magnitude: '0',  duration: '2s', type: 'meteor',   verified: true,  timestamp: Date.now() - 22*3600000 },
+  { id: 's5', time: '', location: 'Hokkaido, Japan',    magnitude: '-1', duration: '2s', type: 'fireball', verified: true,  timestamp: Date.now() - 26*3600000 },
+];
+
+function LiveFeed({ addNotification }: { addNotification: (n: Omit<Notification, 'id' | 'timestamp'>) => void }) {
+  // Load user-submitted sightings from localStorage, merge with seed data
+  const [reports, setReports] = useState<SightingReport[]>(() => {
+    try {
+      const saved: SightingReport[] = JSON.parse(localStorage.getItem('stargaze_live_reports') || '[]');
+      return [...saved, ...SEED_REPORTS];
+    } catch { return SEED_REPORTS; }
+  });
+
+  // Live-update relative timestamps every 30s
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  const [form, setForm] = useState({ location: '', magnitude: '', duration: '', type: 'meteor', notes: '' });
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.location || !form.magnitude) return;
     setSubmitting(true);
-    await new Promise(r => setTimeout(r, 800));
+    await new Promise(r => setTimeout(r, 700));
     const newReport: SightingReport = {
       id: Date.now().toString(),
-      time: 'Just now',
+      time: '',
       location: form.location,
       magnitude: form.magnitude,
       duration: form.duration || '—',
@@ -1476,10 +1623,15 @@ function LiveFeed({ addNotification }: { addNotification: (n: Omit<Notification,
       verified: false,
       timestamp: Date.now(),
     };
+    // Save to localStorage (only user-submitted, not seed data)
+    try {
+      const saved: SightingReport[] = JSON.parse(localStorage.getItem('stargaze_live_reports') || '[]');
+      localStorage.setItem('stargaze_live_reports', JSON.stringify([newReport, ...saved].slice(0, 50)));
+    } catch {}
     setReports(prev => [newReport, ...prev]);
     setForm({ location: '', magnitude: '', duration: '', type: 'meteor', notes: '' });
     setSubmitting(false);
-    addNotification({ title: 'Sighting Submitted!', message: 'Your report is being reviewed.', type: 'success' });
+    addNotification({ title: '🌠 Sighting Logged!', message: `Your ${form.type} from ${form.location} has been added.`, type: 'success' });
   };
 
   const typeConfig: Record<string, { color: string; bg: string; border: string }> = {
@@ -1541,7 +1693,7 @@ function LiveFeed({ addNotification }: { addNotification: (n: Omit<Notification,
                           <div className="flex flex-wrap items-center gap-2 text-[11px] text-white/40">
                             <span className="flex items-center gap-1"><MapPin size={9} />{r.location}</span>
                             <span className="text-white/18">·</span>
-                            <span className="flex items-center gap-1"><Clock size={9} />{r.time}</span>
+                            <span className="flex items-center gap-1"><Clock size={9} />{timeAgo(r.timestamp)}</span>
                             <span className="text-white/18">·</span>
                             <span>{r.duration}</span>
                           </div>
@@ -1721,6 +1873,10 @@ function About() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Open user's email client with pre-filled message
+    const subject = encodeURIComponent(`Stargaze Feedback from ${formState.name}`);
+    const body = encodeURIComponent(`Name: ${formState.name}\nEmail: ${formState.email}\n\n${formState.message}`);
+    window.open(`mailto:blackshotsgeneralstore@gmail.com?subject=${subject}&body=${body}`, '_blank');
     setSent(true);
   };
 
@@ -2240,7 +2396,7 @@ export default function App() {
         <div className="atmosphere" />
         <StarField />
         <ScrollToTop />
-        <Navbar watched={watched} notifications={notifications} />
+        <Navbar watched={watched} notifications={notifications} toggleWatch={toggleWatch} />
         <NotificationToasts notifications={notifications} dismiss={dismissNotification} />
 
         <AnimatedRoutes watched={watched} addNotification={addNotification} toggleWatch={toggleWatch} />
