@@ -1,37 +1,92 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://stargaze.io/</loc>
+    <loc>https://www.stargaze.io/</loc>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://stargaze.io/calendar</loc>
-    <changefreq>weekly</changefreq>
+    <loc>https://www.stargaze.io/calendar</loc>
+    <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://stargaze.io/live</loc>
-    <changefreq>always</changefreq>
+    <loc>https://www.stargaze.io/shower/perseids</loc>
+    <changefreq>yearly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://stargaze.io/globe</loc>
-    <changefreq>weekly</changefreq>
+    <loc>https://www.stargaze.io/shower/geminids</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://www.stargaze.io/shower/leonids</loc>
+    <changefreq>yearly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://stargaze.io/about</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <loc>https://www.stargaze.io/shower/lyrids</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://stargaze.io/privacy</loc>
+    <loc>https://www.stargaze.io/shower/eta-aquariids</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.stargaze.io/shower/orionids</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.stargaze.io/shower/quadrantids</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.stargaze.io/shower/southern-delta-aquariids</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.stargaze.io/shower/ursids</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.stargaze.io/live</loc>
+    <changefreq>hourly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.stargaze.io/globe</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.stargaze.io/sky</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.stargaze.io/gear</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.stargaze.io/about</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://www.stargaze.io/privacy</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://stargaze.io/terms</loc>
+    <loc>https://www.stargaze.io/terms</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>

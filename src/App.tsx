@@ -626,11 +626,11 @@ function ISSWidget() {
 function FaqSection() {
   const [open, setOpen] = useState<number | null>(null);
   const faqs = [
-    { q: 'When is the best time to watch meteor showers?', a: 'The best viewing time is generally after midnight and before dawn, when Earth\'s rotation carries us into the meteor stream head-on, dramatically increasing the rate of visible meteors.' },
-    { q: 'Do I need special equipment?', a: 'No! Meteor showers are one of the few astronomical events best enjoyed with the naked eye. Dark skies, a reclining chair, and patience are all you need.' },
-    { q: 'How does ZHR work?', a: 'Zenithal Hourly Rate (ZHR) is the theoretical maximum meteors per hour under perfect conditions: a limiting magnitude of 6.5 and the radiant at the zenith. Real rates are typically 50–75% of ZHR.' },
-    { q: 'Why do meteor showers have specific dates?', a: 'Earth follows a predictable orbit, so it intersects the same debris trails of comets and asteroids at the same points each year — like clockwork, creating annual showers.' },
-    { q: 'How accurate are the forecasts?', a: 'Dates and peak times are very accurate based on orbital mechanics. Actual ZHR can vary due to uneven debris distribution, atmospheric conditions, and light pollution.' },
+    { q: 'When is the best time to watch meteor showers?', a: 'After midnight is almost always best. As Earth rotates into the incoming debris stream head-on, the rate of meteors roughly doubles compared to the evening hours. Set an alarm for 1 or 2 AM if you\'re serious about it.' },
+    { q: 'Do I need a telescope?', a: 'No, and actually a telescope makes things worse. Meteor showers need wide-angle vision, not magnification. A blanket, a reclining chair, dark skies, and patience are genuinely all you need.' },
+    { q: 'What does ZHR mean?', a: 'Zenithal Hourly Rate is the theoretical maximum under perfect conditions: total darkness, no light pollution, and the radiant directly overhead. Real-world rates are typically 40 to 70 percent of ZHR, so divide by two and you\'re in the right ballpark.' },
+    { q: 'Why do showers happen on the same dates every year?', a: 'Earth crosses the same comet debris trails at the same points in its orbit each year. It\'s as reliable as the calendar. The Perseids are always mid-August, the Geminids always mid-December, and so on.' },
+    { q: 'How accurate are the peak predictions?', a: 'Dates and times are highly accurate because orbital mechanics are well understood. What varies is the actual rate - uneven debris distribution and local weather can push counts up or down significantly.' },
   ];
 
   return (
@@ -735,11 +735,23 @@ function Home({ watched, addNotification, toggleWatch }: {
 
   return (
     <>
-      <title>Stargaze – Live Meteor Shower Tracker & Celestial Guide</title>
-      <meta name="description" content="Track live meteor showers, find dark sky spots, and get real-time celestial alerts. Your ultimate guide to the night sky." />
-      <meta property="og:title" content="Stargaze – Live Meteor Shower Tracker & Celestial Guide" />
-      <meta property="og:description" content="Track live meteor showers, find dark sky spots, and get real-time celestial alerts. Your ultimate guide to the night sky." />
-      <link rel="canonical" href="https://stargaze.io/" />
+      <title>Meteor Shower Calendar 2026 | Live Tracker &amp; Viewing Guide | Stargaze</title>
+      <meta name="description" content="When is the next meteor shower? Track the Perseids, Geminids, Leonids and more with live peak countdowns, cloud cover forecasts, and 3D sky maps. Free, no account needed." />
+      <meta property="og:title" content="Meteor Shower Calendar 2026 | Stargaze" />
+      <meta property="og:description" content="Live meteor shower tracker with peak countdowns, cloud cover forecasts, ISS tracker, and night sky maps. Free." />
+      <meta property="og:url" content="https://www.stargaze.io/" />
+      <meta name="twitter:card" content="summary" />
+      <meta name="twitter:title" content="Meteor Shower Calendar 2026 | Stargaze" />
+      <meta name="twitter:description" content="Track every meteor shower in 2026 with live countdowns, sky conditions, and ISS positioning. Free at stargaze.io" />
+      <link rel="canonical" href="https://www.stargaze.io/" />
+      <script type="application/ld+json">{JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Stargaze",
+        "url": "https://www.stargaze.io",
+        "description": "Free live meteor shower tracker with peak countdowns, cloud cover forecasts, ISS tracking, and 3D sky maps.",
+        "potentialAction": { "@type": "SearchAction", "target": "https://www.stargaze.io/calendar?q={search_term_string}", "query-input": "required name=search_term_string" }
+      })}</script>
     <div className="relative z-10 max-w-7xl mx-auto px-4 pt-28 pb-16">
 
       {/* ── Hero ── */}
@@ -765,7 +777,7 @@ function Home({ watched, addNotification, toggleWatch }: {
           Watch the Skies
         </h1>
         <p className="text-lg text-white/48 max-w-xl mx-auto leading-relaxed font-light">
-          Real-time meteor shower tracking, celestial event calendars, and live ISS positioning — all free, all open.
+          Real-time meteor shower tracking, celestial event calendars, and live ISS positioning. Free, always.
         </p>
 
         {/* CTA buttons */}
@@ -938,7 +950,7 @@ function Home({ watched, addNotification, toggleWatch }: {
               />
             </div>
             <p className="text-[10px] text-white/30 mt-2.5 leading-relaxed">
-              {moon.illumination > 50 ? 'Bright moon — expect reduced meteor visibility' : 'Good dark-sky conditions for viewing'}
+              {moon.illumination > 50 ? 'Bright moon tonight - expect reduced meteor visibility' : 'Good dark-sky conditions for viewing tonight'}
             </p>
           </div>
         </div>
@@ -1207,9 +1219,9 @@ function Home({ watched, addNotification, toggleWatch }: {
               </div>
               <div className="pt-3 border-t border-white/5">
                 <p className="text-xs text-white/40">
-                  {weather.cloudCover < 20 ? '✓ Excellent conditions tonight — crystal clear skies expected.' :
-                   weather.cloudCover < 50 ? '◎ Partly cloudy — viewing may be intermittent. Find a break in the clouds.' :
-                   '✗ Heavy cloud cover — consider rescheduling to a clearer night.'}
+                  {weather.cloudCover < 20 ? '✓ Excellent conditions tonight. Crystal clear skies expected.' :
+                   weather.cloudCover < 50 ? '◎ Partly cloudy. Viewing will be intermittent - look for breaks in the clouds.' :
+                   '✗ Heavy cloud cover. Worth rescheduling to a clearer night if you can.'}
                 </p>
               </div>
             </>
@@ -1256,7 +1268,7 @@ function MeteorCalendar({ watched, toggleWatch, addNotification }: {
 
   return (
     <>
-      <title>Meteor Shower Calendar 2026 | Stargaze</title>
+      <title>Meteor Shower Calendar 2026 | Dates, Peak Times &amp; Forecasts | Stargaze</title>
       <meta name="description" content="Complete 2026 meteor shower calendar with peak dates, ZHR rates, radiant constellations, and viewing tips for every major meteor shower." />
       <meta property="og:title" content="Meteor Shower Calendar 2026 | Stargaze" />
       <meta property="og:description" content="Complete 2026 meteor shower calendar with peak dates, ZHR rates, and viewing tips." />
@@ -1425,13 +1437,35 @@ function ShowerDetail({ watched, toggleWatch }: { watched: WatchedShower[]; togg
   const isWatched = watched.some(w => w.id === shower.id);
   const daysUntil = getDaysUntilPeak(shower);
 
+  const peakYear = new Date(shower.peak).getFullYear();
+  const shareUrl = `https://www.stargaze.io/shower/${shower.id}`;
+  const shareText = `${shower.name} meteor shower peaks ${formatDate(shower.peak)} with up to ${shower.zhr} meteors/hour. Track it live:`;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Event",
+    "name": `${shower.name} Meteor Shower ${peakYear}`,
+    "description": shower.description,
+    "startDate": shower.start,
+    "endDate": shower.end,
+    "eventStatus": "https://schema.org/EventScheduled",
+    "eventAttendanceMode": "https://schema.org/OnlineEventAttendanceMode",
+    "location": { "@type": "VirtualLocation", "url": shareUrl },
+    "url": shareUrl,
+    "organizer": { "@type": "Organization", "name": "Stargaze", "url": "https://www.stargaze.io" }
+  };
+
   return (
     <>
-      <title>{shower.name} Meteor Shower {new Date(shower.peak).getFullYear()} | Stargaze</title>
-      <meta name="description" content={`${shower.name} peaks on ${formatDate(shower.peak)} with up to ${shower.zhr} meteors per hour. Radiant in ${shower.constellation}. Get viewing tips, peak times, and sky conditions.`} />
-      <meta property="og:title" content={`${shower.name} Meteor Shower | Stargaze`} />
-      <meta property="og:description" content={`${shower.name} peaks on ${formatDate(shower.peak)} with up to ${shower.zhr} meteors per hour.`} />
-      <link rel="canonical" href={`https://stargaze.io/shower/${shower.id}`} />
+      <title>{shower.name} Meteor Shower {peakYear}: Peak Date, Times &amp; Viewing Guide | Stargaze</title>
+      <meta name="description" content={`${shower.name} ${peakYear} peaks on ${formatDate(shower.peak)} with up to ${shower.zhr} meteors per hour. Full viewing guide, peak times, weather conditions, and live tracking.`} />
+      <meta property="og:title" content={`${shower.name} Meteor Shower ${peakYear} | Stargaze`} />
+      <meta property="og:description" content={`Peaks ${formatDate(shower.peak)} with up to ${shower.zhr} meteors/hour. Free live tracking and viewing guide.`} />
+      <meta property="og:url" content={shareUrl} />
+      <meta name="twitter:card" content="summary" />
+      <meta name="twitter:title" content={`${shower.name} Meteor Shower ${peakYear}`} />
+      <meta name="twitter:description" content={`Peaks ${formatDate(shower.peak)} — up to ${shower.zhr}/hr. Free tracking at stargaze.io`} />
+      <link rel="canonical" href={shareUrl} />
+      <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
     <div className="relative z-10 max-w-5xl mx-auto px-4 pt-28 pb-16">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         {/* Back */}
@@ -1475,7 +1509,7 @@ function ShowerDetail({ watched, toggleWatch }: { watched: WatchedShower[]; togg
           {[
             { label: 'Peak Date',    value: formatDate(shower.peak),                             icon: Calendar, color: 'text-blue-400' },
             { label: 'ZHR',          value: `${shower.zhr}/hr`,                                 icon: Activity, color: 'text-orange-400' },
-            { label: 'Speed',        value: shower.speed ? `${shower.speed} km/s` : '—',        icon: Gauge,    color: 'text-purple-400' },
+            { label: 'Speed',        value: shower.speed ? `${shower.speed} km/s` : 'N/A',      icon: Gauge,    color: 'text-purple-400' },
             { label: 'Days Until',   value: daysUntil > 0 ? `${daysUntil}d` : status === 'active' ? 'Now!' : 'Past', icon: Clock, color: 'text-green-400' },
           ].map(({ label, value, icon: Icon, color }) => (
             <div key={label} className="glass-card p-4 rounded-xl text-center">
@@ -1519,11 +1553,11 @@ function ShowerDetail({ watched, toggleWatch }: { watched: WatchedShower[]; togg
             </h3>
             <div className="space-y-1">
               {[
-                { label: 'Parent Body',     val: shower.parent || '—' },
+                { label: 'Parent Body',     val: shower.parent || 'Unknown' },
                 { label: 'Constellation',   val: shower.constellation },
-                { label: 'Orbital Period',  val: shower.orbitalPeriod || '—' },
-                { label: 'Composition',     val: shower.composition || '—' },
-                { label: 'Entry Speed',     val: shower.speed ? `${shower.speed} km/s` : '—' },
+                { label: 'Orbital Period',  val: shower.orbitalPeriod || 'Unknown' },
+                { label: 'Composition',     val: shower.composition || 'Unknown' },
+                { label: 'Entry Speed',     val: shower.speed ? `${shower.speed} km/s` : 'Unknown' },
               ].map(({ label, val }) => (
                 <div key={label} className="stat-row">
                   <span className="text-white/40 text-xs font-mono">{label}</span>
@@ -1564,6 +1598,62 @@ function ShowerDetail({ watched, toggleWatch }: { watched: WatchedShower[]; togg
             )}
           </div>
         )}
+
+        {/* Share this shower */}
+        <div className="glass-card p-5 rounded-2xl mt-4">
+          <h3 className="text-sm font-semibold font-space text-white/70 mb-3 flex items-center gap-2">
+            <Send size={13} className="text-blue-400" /> Share This Shower
+          </h3>
+          <p className="text-xs text-white/40 mb-4">Help others catch the {shower.name} this year</p>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`}
+              target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
+              style={{ background: 'rgba(29,155,240,0.12)', border: '1px solid rgba(29,155,240,0.25)', color: '#1d9bf0' }}
+            >
+              𝕏 Share on X
+            </a>
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent(shareText + ' ' + shareUrl)}`}
+              target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
+              style={{ background: 'rgba(37,211,102,0.10)', border: '1px solid rgba(37,211,102,0.22)', color: '#25d366' }}
+            >
+              💬 WhatsApp
+            </a>
+            <a
+              href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
+              target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
+              style={{ background: 'rgba(24,119,242,0.10)', border: '1px solid rgba(24,119,242,0.22)', color: '#4267B2' }}
+            >
+              f Facebook
+            </a>
+            <button
+              onClick={() => { navigator.clipboard.writeText(shareUrl); }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)' }}
+            >
+              <ExternalLink size={11} /> Copy Link
+            </button>
+          </div>
+        </div>
+
+        {/* SEO content block */}
+        <div className="mt-8 p-5 rounded-2xl" style={{ background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <h2 className="text-base font-bold font-space mb-3 text-white/80">About the {shower.name} {peakYear}</h2>
+          <p className="text-sm text-white/45 leading-relaxed mb-3">
+            The {shower.name} meteor shower peaks on <strong className="text-white/65">{formatDate(shower.peak)}</strong> with
+            a maximum rate of <strong className="text-white/65">up to {shower.zhr} meteors per hour</strong> under ideal dark-sky conditions.
+            The radiant point sits in the constellation {shower.constellation}.
+          </p>
+          <p className="text-sm text-white/45 leading-relaxed">
+            Active from {formatDate(shower.start)} through {formatDate(shower.end)}, the shower is caused by Earth passing through
+            debris left behind by {shower.parent || 'its parent body'}.
+            {shower.speed ? ` Meteors enter the atmosphere at ${shower.speed} km/s.` : ''}
+          </p>
+        </div>
       </motion.div>
     </div>
     </>
@@ -1642,10 +1732,10 @@ function LiveFeed({ addNotification }: { addNotification: (n: Omit<Notification,
 
   return (
     <>
-      <title>Live Meteor Sightings Feed | Stargaze</title>
-      <meta name="description" content="Real-time meteor and fireball sighting reports from observers worldwide. Submit your sightings and browse community-verified meteor reports." />
-      <meta property="og:title" content="Live Meteor Sightings Feed | Stargaze" />
-      <meta property="og:description" content="Real-time meteor and fireball sighting reports from observers worldwide." />
+      <title>Live Meteor Sighting Reports | Submit Your Fireball &amp; Meteor Sightings | Stargaze</title>
+      <meta name="description" content="Saw a fireball or meteor? Log your sighting and browse real-time reports from observers across the UK, US, and worldwide. Free community meteor tracker." />
+      <meta property="og:title" content="Live Meteor Sighting Reports | Stargaze" />
+      <meta property="og:description" content="Log meteor and fireball sightings and browse reports from observers worldwide. Free community tracker." />
       <link rel="canonical" href="https://stargaze.io/live" />
     <div className="relative z-10 max-w-7xl mx-auto px-4 pt-28 pb-16">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -1803,10 +1893,10 @@ function GlobePage() {
 
   return (
     <>
-      <title>Solar System & Globe Explorer | Stargaze</title>
-      <meta name="description" content="Explore the full solar system in 3D — real planetary positions, comet debris trails that create meteor showers, and live satellite tracking from Earth orbit to the Oort Cloud." />
-      <meta property="og:title" content="Solar System Explorer | Stargaze" />
-      <meta property="og:description" content="Zoom from Earth's surface all the way to the Oort Cloud. See how meteor showers form as Earth crosses comet debris trails." />
+      <title>3D Solar System &amp; Live Satellite Tracker | Stargaze</title>
+      <meta name="description" content="Interactive 3D globe showing live satellite positions, space debris, and real-time meteor radiant points. Zoom out to explore the full solar system with live planetary positions." />
+      <meta property="og:title" content="3D Solar System &amp; Satellite Tracker | Stargaze" />
+      <meta property="og:description" content="Real-time satellite tracking and 3D solar system explorer. See exactly where every planet is right now, and how meteor showers form." />
       <link rel="canonical" href="https://stargaze.io/globe" />
 
     {/* View toggle — floats above both layers */}
@@ -1854,8 +1944,8 @@ function GlobePage() {
 function SkyPage() {
   return (
     <>
-      <title>Night Sky View | Stargaze</title>
-      <meta name="description" content="First-person night sky view from your location. See meteor shower radiant points, bright stars, and real-time celestial positions." />
+      <title>Tonight's Night Sky | Live Star Map &amp; Meteor Radiant Finder | Stargaze</title>
+      <meta name="description" content="Live 3D night sky view from your location. See which stars are visible tonight, where meteor shower radiants are, and your local seeing conditions." />
       <link rel="canonical" href="https://stargaze.io/sky" />
     <div className="relative z-10 pt-16 h-screen flex flex-col">
       <div className="flex-1 relative overflow-hidden">
@@ -1881,20 +1971,20 @@ function About() {
   };
 
   const features = [
-    { icon: Activity,   title: 'Real-Time Data',       desc: 'Live meteor shower activity tracking using IMO and NASA data sources' },
-    { icon: Globe,      title: '3D Globe',              desc: 'Interactive CesiumJS globe with satellites, debris, and meteor radiant points' },
-    { icon: Navigation, title: 'ISS Tracking',          desc: 'Live International Space Station position updated every 5 seconds' },
-    { icon: Cloud,      title: 'Weather Integration',   desc: 'Local cloud cover and observing conditions via Open-Meteo API' },
-    { icon: Users,      title: 'Community Feed',        desc: 'Submit and browse real-time meteor sighting reports from around the world' },
-    { icon: Bell,       title: 'Peak Alerts',           desc: 'Watch showers and get notified when they approach peak activity' },
+    { icon: Activity,   title: 'Real-Time Data',       desc: 'Meteor shower tracking sourced directly from IMO and NASA. Updates continuously.' },
+    { icon: Globe,      title: '3D Globe',              desc: 'Interactive globe showing live satellites, debris fields, and meteor radiant positions.' },
+    { icon: Navigation, title: 'ISS Tracking',          desc: 'Watch the International Space Station move across the globe in real time, updated every 5 seconds.' },
+    { icon: Cloud,      title: 'Sky Conditions',        desc: 'Your local cloud cover and seeing conditions pulled from Open-Meteo. No account needed.' },
+    { icon: Users,      title: 'Sighting Reports',      desc: 'Log what you see and browse reports from observers around the world.' },
+    { icon: Bell,       title: 'Peak Alerts',           desc: 'Watch any shower and get a notification when peak night is approaching.' },
   ];
 
   return (
     <>
-      <title>About Stargaze – Celestial Tracking Platform</title>
-      <meta name="description" content="Stargaze is a free, open-source celestial tracking platform. We aggregate data from NASA, IMO, and CelesTrak so stargazers worldwide can track meteor showers and satellites." />
-      <meta property="og:title" content="About Stargaze – Celestial Tracking Platform" />
-      <meta property="og:description" content="Free, open-source celestial tracking platform aggregating data from NASA, IMO, and CelesTrak." />
+      <title>About Stargaze | Free Meteor Shower Tracker Built for Stargazers</title>
+      <meta name="description" content="Stargaze is a free meteor shower tracking platform with live data from NASA, IMO, CelesTrak, and Open-Meteo. No ads, no subscriptions, just the night sky." />
+      <meta property="og:title" content="About Stargaze | Free Meteor Shower Tracker" />
+      <meta property="og:description" content="Free meteor shower tracking with live NASA data, ISS positioning, and sky condition forecasts. No ads, no subscriptions." />
       <link rel="canonical" href="https://stargaze.io/about" />
     <div className="relative z-10 max-w-5xl mx-auto px-4 pt-28 pb-16">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -2036,7 +2126,7 @@ function TermsOfService() {
         <p className="text-xs text-white/30 font-mono mb-8">Last updated: January 2026</p>
         <div className="glass-card p-6 rounded-2xl space-y-6">
           {[
-            { h: 'Acceptance of Terms',     p: 'By using Stargaze, you agree to these terms. This is a free educational tool — please use it responsibly.' },
+            { h: 'Acceptance of Terms',     p: 'By using Stargaze, you agree to these terms. It is a free educational tool, so please use it responsibly.' },
             { h: 'Use of Service',          p: 'Stargaze is provided free of charge for personal, non-commercial use. You may not attempt to disrupt, reverse-engineer, or misuse the service.' },
             { h: 'User-Submitted Content',  p: 'Sighting reports you submit may be displayed publicly. Submit only genuine observations. False reports may be removed.' },
             { h: 'Accuracy Disclaimer',     p: 'Celestial data (ZHR, peak dates, conditions) is provided for educational purposes. Real viewing conditions may vary. We make no guarantee of accuracy for time-sensitive decisions.' },
@@ -2118,7 +2208,7 @@ const gearItems: GearItem[] = [
     id: 'heritage-130p', category: 'Telescopes', emoji: '🔭', level: 'beginner',
     name: 'Sky-Watcher Heritage 130P',
     description: 'Collapsible Dobsonian with a 130mm mirror. Huge aperture for the price.',
-    why: 'No motor needed for meteor showers — just point up and look. Best value beginner scope.',
+    why: 'No motor needed for meteor showers. Just point up and look. Easily the best value beginner scope out there.',
     price: '$159', ukPrice: '£149', asin: 'B004YIBVP8',
     badge: 'Best Value', badgeColor: 'green', stars: 4.6, reviews: '3,400+'
   },
@@ -2126,7 +2216,7 @@ const gearItems: GearItem[] = [
     id: 'starsense', category: 'Telescopes', emoji: '🔭', level: 'beginner',
     name: 'Celestron StarSense Explorer LT 114AZ',
     description: 'Uses your smartphone camera as a sky-alignment finder. Point at the sky and it tells you what you\'re looking at.',
-    why: 'Ideal first scope — the app does the hard part of finding objects for you.',
+    why: 'Ideal first scope. The app does the hard part of finding objects, so you can focus on looking.',
     price: '$149', ukPrice: '£139', asin: 'B08D1QMZG1',
     badge: 'Beginner Friendly', badgeColor: 'blue', stars: 4.3, reviews: '890+'
   },
@@ -2134,7 +2224,7 @@ const gearItems: GearItem[] = [
     id: 'dobsonian-8', category: 'Telescopes', emoji: '🔭', level: 'advanced',
     name: 'Sky-Watcher 8" Dobsonian',
     description: '200mm mirror delivers stunning views of planets, nebulae, and galaxies. Manual mount keeps it simple and robust.',
-    why: 'More aperture means more photons — this is the serious upgrade once you\'re hooked.',
+    why: 'More aperture means more photons. Once you\'re hooked on the Heritage 130P, this is the natural step up.',
     price: '$329', ukPrice: '£319', asin: 'B000X2T3Z2',
     badge: 'High Performance', badgeColor: 'purple', stars: 4.7, reviews: '1,800+'
   },
@@ -2143,7 +2233,7 @@ const gearItems: GearItem[] = [
     id: 'skymaster', category: 'Binoculars', emoji: '👁️', level: 'beginner',
     name: 'Celestron SkyMaster 15x70',
     description: '70mm objective lenses pull in serious amounts of light. Tripod-adaptable for steady views.',
-    why: 'Better than a small telescope for meteor showers — wider field means you catch more of the sky.',
+    why: 'Actually better than a small telescope for meteor showers. A wider field means you catch far more of the sky at once.',
     price: '$59', ukPrice: '£55', asin: 'B000JZXWWO',
     badge: 'Most Popular', badgeColor: 'amber', stars: 4.4, reviews: '8,200+'
   },
@@ -2151,7 +2241,7 @@ const gearItems: GearItem[] = [
     id: 'prooptic', category: 'Binoculars', emoji: '👁️', level: 'beginner',
     name: 'Bresser Astro 20x80 Binoculars',
     description: 'Giant 80mm objectives and 20x magnification for serious deep-sky sweeping.',
-    why: 'The poor man\'s telescope — incredible views of the Milky Way band and star clusters.',
+    why: 'Giant binoculars that show you the Milky Way band and star clusters in a way that will genuinely surprise you.',
     price: '$89', ukPrice: '£79', asin: 'B000C28HZS',
     badge: 'Deep Sky King', badgeColor: 'blue', stars: 4.3, reviews: '650+'
   },
@@ -2293,8 +2383,8 @@ function GearPage() {
 
   return (
     <>
-      <title>Astronomy Gear Guide 2026 | Stargaze</title>
-      <meta name="description" content="Best telescopes, binoculars, and stargazing accessories for every budget. Curated picks for meteor watchers and amateur astronomers in the UK and US." />
+      <title>Best Telescopes &amp; Astronomy Gear 2026 | UK &amp; US Buying Guide | Stargaze</title>
+      <meta name="description" content="Best telescopes, binoculars, and stargazing gear for 2026. Hand-picked for UK and US buyers with Amazon links, star ratings, and honest expert notes for every budget." />
       <meta property="og:title" content="Astronomy Gear Guide 2026 | Stargaze" />
       <meta property="og:description" content="Best telescopes, binoculars, and accessories for stargazing. Every budget covered." />
       <link rel="canonical" href="https://stargaze.io/gear" />

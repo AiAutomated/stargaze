@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://stargaze.io/sitemap.xml
+Sitemap: https://www.stargaze.io/sitemap.xml
