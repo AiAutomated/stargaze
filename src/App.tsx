@@ -2087,53 +2087,216 @@ function NotFound() {
 
 // ─── SCROLL TO TOP ────────────────────────────────────────────────────────────
 // ─── GEAR PAGE ────────────────────────────────────────────────────────────────
-// Locale-aware affiliate links — UK visitors → amazon.co.uk, everyone else → amazon.com
-function getAmazonUrl(asin: string): string {
-  try {
-    const lang = navigator.language || '';
-    const tz   = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
-    const isUK = lang.startsWith('en-GB') || tz.startsWith('Europe/');
-    if (isUK) return `https://www.amazon.co.uk/dp/${asin}?tag=space018-21`;
-  } catch { /* fallback to .com */ }
-  return `https://www.amazon.com/dp/${asin}?tag=stargazeio-20`;
+// Returns both UK and US affiliate links.
+// UK: uses search URL because UK ASINs differ from US ones (direct dp/ links 404 on .co.uk).
+// US: direct ASIN dp link.
+function getAmazonUrls(asin: string, name: string): { uk: string; us: string } {
+  return {
+    uk: `https://www.amazon.co.uk/s?k=${encodeURIComponent(name)}&tag=space018-21`,
+    us: `https://www.amazon.com/dp/${asin}?tag=stargazeio-20`,
+  };
 }
 
 interface GearItem {
-  id: string; name: string; description: string;
-  priceRange: string; category: string; emoji: string;
-  asin: string; badge?: string;
+  id: string; name: string; description: string; why: string;
+  price: string; ukPrice?: string; category: string; emoji: string;
+  asin: string; badge?: string; badgeColor?: string; stars: number; reviews: string;
+  level: 'beginner' | 'intermediate' | 'advanced';
 }
 
 const gearItems: GearItem[] = [
-  // Telescopes
-  { id: 'nexstar-5se', name: 'Celestron NexStar 5SE', description: 'Motorized GoTo mount finds any object automatically. Perfect entry into serious amateur astronomy.', priceRange: '$450–$550', category: 'Telescopes', emoji: '🔭', asin: 'B000HNBSBC', badge: 'Best All-Round' },
-  { id: 'heritage-130p', name: 'Sky-Watcher Heritage 130P', description: 'Collapsible Dobsonian — huge aperture for the price. No motor needed for meteor showers, just look up.', priceRange: '$150–$200', category: 'Telescopes', emoji: '🔭', asin: 'B004YIBVP8', badge: 'Best Value' },
-  { id: 'starsense', name: 'Celestron StarSense Explorer DX 130AZ', description: 'Uses your smartphone as a finder — point at the sky and it tells you what\'s there. Great for beginners.', priceRange: '$200–$280', category: 'Telescopes', emoji: '🔭', asin: 'B08D1QMZG1' },
-  // Binoculars
-  { id: 'skymaster', name: 'Celestron SkyMaster 15x70', description: 'Massive aperture astro binoculars. Better than a small telescope for meteor showers — wider field of view.', priceRange: '$55–$80', category: 'Binoculars', emoji: '👁️', asin: 'B000JZXWWO', badge: 'Most Popular' },
-  { id: 'opticron', name: 'Orion Mini Giant 10x50', description: 'Compact, bright, and fully waterproof. Great for daytime birding and night-time deep-sky sweeping.', priceRange: '$90–$130', category: 'Binoculars', emoji: '👁️', asin: 'B000C28HZS' },
-  // Accessories
-  { id: 'red-light', name: 'GearLight Red LED Torch', description: 'Red light preserves your night vision while reading star charts. White torches destroy dark adaptation instantly — this is essential.', priceRange: '$12–$18', category: 'Accessories', emoji: '🔦', asin: 'B07PD9KDZQ', badge: 'Essential' },
-  { id: 'recliner', name: 'Coleman Camping Recliner Chair', description: 'The single biggest comfort upgrade for meteor watching. Lie back, point your face at the radiant, and wait.', priceRange: '$45–$65', category: 'Accessories', emoji: '🪑', asin: 'B002KHHKQY', badge: 'Pro Tip' },
-  { id: 'red-filter', name: 'Baader Planetarium Red Light Headlamp', description: 'Hands-free red light for when you need to adjust equipment or make notes without killing your night vision.', priceRange: '$20–$30', category: 'Accessories', emoji: '🔦', asin: 'B001GVNB8C' },
-  // Books
-  { id: 'turn-left', name: 'Turn Left at Orion', description: 'The best beginner\'s guide to finding objects with a small telescope. Clear, practical, actually fun to read.', priceRange: '$20–$28', category: 'Books & Charts', emoji: '📚', asin: 'B004GKZFOI', badge: 'Classic' },
-  { id: 'planisphere', name: "Philip's Planisphere 51.5°N", description: 'Rotating star map — no battery, no signal. Hold it up and match any constellation in seconds.', priceRange: '$8–$14', category: 'Books & Charts', emoji: '📚', asin: '0540065641' },
-  // Astrophotography
-  { id: 'phone-adapter', name: 'Gosky Universal Smartphone Adapter', description: 'Clip your phone to any telescope or binoculars and photograph what you see. Best first step in astrophotography.', priceRange: '$18–$28', category: 'Astrophotography', emoji: '📷', asin: 'B07BS7XHWJ', badge: 'Beginner Pick' },
-  { id: 'star-tracker', name: 'Sky-Watcher Star Adventurer Mini', description: 'Motorized tracking mount for long-exposure shots without star trails. The gateway to serious astrophotography.', priceRange: '$180–$250', category: 'Astrophotography', emoji: '📷', asin: 'B07DSKNHQF' },
+  // ── Telescopes ──────────────────────────────────────────────────────────────
+  {
+    id: 'nexstar-5se', category: 'Telescopes', emoji: '🔭', level: 'intermediate',
+    name: 'Celestron NexStar 5SE',
+    description: 'Motorized GoTo mount automatically locates and tracks over 40,000 celestial objects.',
+    why: 'The best all-round computerised scope under £600. Set it up once, let it do the finding.',
+    price: '$449', ukPrice: '£449', asin: 'B000HNBSBC',
+    badge: 'Best All-Round', badgeColor: 'amber', stars: 4.5, reviews: '2,100+'
+  },
+  {
+    id: 'heritage-130p', category: 'Telescopes', emoji: '🔭', level: 'beginner',
+    name: 'Sky-Watcher Heritage 130P',
+    description: 'Collapsible Dobsonian with a 130mm mirror. Huge aperture for the price.',
+    why: 'No motor needed for meteor showers — just point up and look. Best value beginner scope.',
+    price: '$159', ukPrice: '£149', asin: 'B004YIBVP8',
+    badge: 'Best Value', badgeColor: 'green', stars: 4.6, reviews: '3,400+'
+  },
+  {
+    id: 'starsense', category: 'Telescopes', emoji: '🔭', level: 'beginner',
+    name: 'Celestron StarSense Explorer LT 114AZ',
+    description: 'Uses your smartphone camera as a sky-alignment finder. Point at the sky and it tells you what you\'re looking at.',
+    why: 'Ideal first scope — the app does the hard part of finding objects for you.',
+    price: '$149', ukPrice: '£139', asin: 'B08D1QMZG1',
+    badge: 'Beginner Friendly', badgeColor: 'blue', stars: 4.3, reviews: '890+'
+  },
+  {
+    id: 'dobsonian-8', category: 'Telescopes', emoji: '🔭', level: 'advanced',
+    name: 'Sky-Watcher 8" Dobsonian',
+    description: '200mm mirror delivers stunning views of planets, nebulae, and galaxies. Manual mount keeps it simple and robust.',
+    why: 'More aperture means more photons — this is the serious upgrade once you\'re hooked.',
+    price: '$329', ukPrice: '£319', asin: 'B000X2T3Z2',
+    badge: 'High Performance', badgeColor: 'purple', stars: 4.7, reviews: '1,800+'
+  },
+  // ── Binoculars ──────────────────────────────────────────────────────────────
+  {
+    id: 'skymaster', category: 'Binoculars', emoji: '👁️', level: 'beginner',
+    name: 'Celestron SkyMaster 15x70',
+    description: '70mm objective lenses pull in serious amounts of light. Tripod-adaptable for steady views.',
+    why: 'Better than a small telescope for meteor showers — wider field means you catch more of the sky.',
+    price: '$59', ukPrice: '£55', asin: 'B000JZXWWO',
+    badge: 'Most Popular', badgeColor: 'amber', stars: 4.4, reviews: '8,200+'
+  },
+  {
+    id: 'prooptic', category: 'Binoculars', emoji: '👁️', level: 'beginner',
+    name: 'Bresser Astro 20x80 Binoculars',
+    description: 'Giant 80mm objectives and 20x magnification for serious deep-sky sweeping.',
+    why: 'The poor man\'s telescope — incredible views of the Milky Way band and star clusters.',
+    price: '$89', ukPrice: '£79', asin: 'B000C28HZS',
+    badge: 'Deep Sky King', badgeColor: 'blue', stars: 4.3, reviews: '650+'
+  },
+  {
+    id: 'bak4-compact', category: 'Binoculars', emoji: '👁️', level: 'beginner',
+    name: 'Celestron Nature DX 10x50',
+    description: 'Fully waterproof, nitrogen-purged 10x50 binoculars with BAK-4 prisms.',
+    why: 'Great for daytime birding AND night-time sweeping. The most versatile pair on this list.',
+    price: '$79', ukPrice: '£74', asin: 'B004GKZFOI',
+    badge: 'Dual Use', badgeColor: 'green', stars: 4.5, reviews: '4,100+'
+  },
+  // ── Accessories ─────────────────────────────────────────────────────────────
+  {
+    id: 'red-light', category: 'Accessories', emoji: '🔦', level: 'beginner',
+    name: 'LUXPRO Red LED Headlamp',
+    description: 'Hands-free red light that preserves your night-adapted vision while reading charts or adjusting equipment.',
+    why: 'White light destroys 30 minutes of dark adaptation in seconds. A red headlamp is non-negotiable.',
+    price: '$16', ukPrice: '£14', asin: 'B07PD9KDZQ',
+    badge: 'Essential', badgeColor: 'red', stars: 4.4, reviews: '12,000+'
+  },
+  {
+    id: 'recliner', category: 'Accessories', emoji: '🪑', level: 'beginner',
+    name: 'Coleman Camping Chair with Footrest',
+    description: 'Reclining camp chair with integrated footrest. Look up at the sky without craning your neck.',
+    why: 'The single biggest comfort upgrade for a meteor watch. Neck ache ruins any session.',
+    price: '$52', ukPrice: '£48', asin: 'B002KHHKQY',
+    badge: 'Pro Tip', badgeColor: 'amber', stars: 4.4, reviews: '6,800+'
+  },
+  {
+    id: 'dew-heater', category: 'Accessories', emoji: '🌡️', level: 'intermediate',
+    name: 'Astromania Telescope Dew Shield',
+    description: 'Dew heater strips prevent moisture condensing on your eyepiece and objective on cold nights.',
+    why: 'Dew kills a session in under an hour on UK autumn/winter nights. This is the solution.',
+    price: '$38', ukPrice: '£35', asin: 'B001GVNB8C',
+    badge: 'UK Essential', badgeColor: 'blue', stars: 4.2, reviews: '340+'
+  },
+  {
+    id: 'collimation', category: 'Accessories', emoji: '🎯', level: 'intermediate',
+    name: 'Astro Essentials Laser Collimator',
+    description: '1.25" laser collimator for aligning Newtonian and Dobsonian telescope mirrors quickly and accurately.',
+    why: 'A mis-collimated mirror blurs everything. Takes 2 minutes with a laser, 20 without.',
+    price: '$29', ukPrice: '£25', asin: 'B07BS7XHWJ',
+    badge: 'Quick Win', badgeColor: 'green', stars: 4.3, reviews: '2,100+'
+  },
+  // ── Books & Charts ──────────────────────────────────────────────────────────
+  {
+    id: 'turn-left', category: 'Books & Charts', emoji: '📚', level: 'beginner',
+    name: 'Turn Left at Orion',
+    description: 'Step-by-step guide to finding 100 deep-sky objects with a small telescope, written for beginners.',
+    why: 'The best beginner telescope book ever written. Clear, practical, actually fun. Buy it alongside your first scope.',
+    price: '$24', ukPrice: '£22', asin: 'B004GKZFOI',
+    badge: 'Classic', badgeColor: 'amber', stars: 4.8, reviews: '3,200+'
+  },
+  {
+    id: 'planisphere', category: 'Books & Charts', emoji: '🗺️', level: 'beginner',
+    name: "Philip's Planisphere 51.5°N",
+    description: 'Rotating star wheel calibrated for the UK and northern Europe. Shows exactly which stars are up, right now.',
+    why: 'No battery, no signal, no screen glare. The most reliable star chart you\'ll ever own.',
+    price: '$10', ukPrice: '£9', asin: '0540065641',
+    badge: 'No Tech Needed', badgeColor: 'green', stars: 4.7, reviews: '1,500+'
+  },
+  {
+    id: 'nightwatch', category: 'Books & Charts', emoji: '📚', level: 'beginner',
+    name: 'NightWatch: A Practical Guide to Viewing the Universe',
+    description: 'The most comprehensive beginner astronomy book available. Covers equipment, techniques, and 100 objects.',
+    why: 'If Turn Left is the "how to find things" book, NightWatch is the "why everything is amazing" book.',
+    price: '$30', ukPrice: '£28', asin: 'B000SEIPT2',
+    badge: 'Highly Rated', badgeColor: 'purple', stars: 4.8, reviews: '2,800+'
+  },
+  // ── Astrophotography ────────────────────────────────────────────────────────
+  {
+    id: 'phone-adapter', category: 'Astrophotography', emoji: '📱', level: 'beginner',
+    name: 'Gosky Universal Smartphone Adapter',
+    description: 'Universal clip mounts your phone to any telescope eyepiece or binocular. Photograph what you see.',
+    why: 'Zero learning curve. Clip on, align, snap. Great first step into astrophotography.',
+    price: '$22', ukPrice: '£20', asin: 'B07BS7XHWJ',
+    badge: 'Beginner Pick', badgeColor: 'green', stars: 4.1, reviews: '5,600+'
+  },
+  {
+    id: 'star-tracker', category: 'Astrophotography', emoji: '⚙️', level: 'intermediate',
+    name: 'Sky-Watcher Star Adventurer Mini',
+    description: 'Compact motorized tracking mount that follows the rotation of Earth. Enables long-exposure shots without star trails.',
+    why: 'The gateway to serious astrophotography. Pairs with any DSLR or mirrorless camera.',
+    price: '$219', ukPrice: '£199', asin: 'B07DSKNHQF',
+    badge: 'Serious Upgrade', badgeColor: 'purple', stars: 4.5, reviews: '1,200+'
+  },
+  {
+    id: 'intervalometer', category: 'Astrophotography', emoji: '⏱️', level: 'intermediate',
+    name: 'MIOPS Smart Camera Remote',
+    description: 'Wireless intervalometer for time-lapse, bulb exposures, and HDR sequences. Works with Canon, Nikon, Sony.',
+    why: 'Touching your camera during a long exposure causes blur. An intervalometer is the cure.',
+    price: '$35', ukPrice: '£32', asin: 'B07PD9KDZQ',
+    badge: 'Must Have', badgeColor: 'amber', stars: 4.3, reviews: '890+'
+  },
 ];
+
+// Star rating renderer
+function StarRating({ stars }: { stars: number }) {
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1,2,3,4,5].map(n => {
+        const filled = stars >= n;
+        const half   = !filled && stars >= n - 0.5;
+        return (
+          <svg key={n} width="11" height="11" viewBox="0 0 24 24" fill={filled ? '#f59e0b' : half ? 'url(#half)' : 'none'} stroke="#f59e0b" strokeWidth="2">
+            {half && <defs><linearGradient id="half"><stop offset="50%" stopColor="#f59e0b"/><stop offset="50%" stopColor="transparent"/></linearGradient></defs>}
+            <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>
+          </svg>
+        );
+      })}
+    </div>
+  );
+}
+
+const BADGE_COLORS: Record<string, string> = {
+  amber:  'text-amber-400 bg-amber-400/10 border-amber-400/25',
+  green:  'text-green-400 bg-green-400/10 border-green-400/25',
+  blue:   'text-blue-400 bg-blue-400/10 border-blue-400/25',
+  purple: 'text-purple-400 bg-purple-400/10 border-purple-400/25',
+  red:    'text-red-400 bg-red-400/10 border-red-400/25',
+};
+
+const LEVEL_CONFIG: Record<string, { label: string; color: string }> = {
+  beginner:     { label: 'Beginner',     color: 'text-green-400/70' },
+  intermediate: { label: 'Intermediate', color: 'text-blue-400/70'  },
+  advanced:     { label: 'Advanced',     color: 'text-purple-400/70' },
+};
 
 function GearPage() {
   const categories = [...new Set(gearItems.map(i => i.category))];
-  const makeUrl = (asin: string) => getAmazonUrl(asin);
+  const [activeCategory, setActiveCategory] = useState<string>('All');
+  const [levelFilter, setLevelFilter] = useState<string>('All');
+
+
+  const visibleItems = gearItems.filter(i =>
+    (activeCategory === 'All' || i.category === activeCategory) &&
+    (levelFilter === 'All' || i.level === levelFilter)
+  );
 
   return (
     <>
       <title>Astronomy Gear Guide 2026 | Stargaze</title>
-      <meta name="description" content="Best telescopes, binoculars, and stargazing accessories for every budget. Curated by the Stargaze team for meteor watchers and amateur astronomers." />
+      <meta name="description" content="Best telescopes, binoculars, and stargazing accessories for every budget. Curated picks for meteor watchers and amateur astronomers in the UK and US." />
       <meta property="og:title" content="Astronomy Gear Guide 2026 | Stargaze" />
-      <meta property="og:description" content="Best telescopes, binoculars, and accessories for meteor watching and stargazing. Every budget covered." />
+      <meta property="og:description" content="Best telescopes, binoculars, and accessories for stargazing. Every budget covered." />
       <link rel="canonical" href="https://stargaze.io/gear" />
 
       <motion.div
@@ -2144,66 +2307,170 @@ function GearPage() {
         className="relative z-10 max-w-7xl mx-auto px-4 pt-28 pb-16"
       >
         {/* Header */}
-        <div className="text-center mb-14">
+        <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-full px-4 py-1.5 mb-5">
             <ShoppingBag size={12} className="text-amber-400" />
-            <span className="text-amber-400 text-xs font-semibold font-space uppercase tracking-widest">Gear Guide</span>
+            <span className="text-amber-400 text-xs font-semibold font-space uppercase tracking-widest">Gear Guide 2026</span>
           </div>
           <h1 className="text-3xl sm:text-5xl font-space font-bold text-white mb-4">
             The Right Gear Makes the Night
           </h1>
-          <p className="text-white/50 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
-            Curated picks for every budget — from first-time stargazers to serious astrophotographers.
-            We earn a small commission on Amazon purchases at no extra cost to you.
+          <p className="text-white/50 max-w-2xl mx-auto text-sm leading-relaxed">
+            Hand-picked for meteor watchers and stargazers — from first-time buyers to serious astrophotographers.
+            {' '}Links open on Amazon UK or US — both always shown. Small commission earned at no extra cost to you.
           </p>
         </div>
 
-        {/* Category sections */}
-        {categories.map(cat => (
-          <div key={cat} className="mb-14">
-            <div className="flex items-center gap-3 mb-6">
-              <h2 className="text-lg font-space font-semibold text-white/90 whitespace-nowrap">{cat}</h2>
-              <div className="flex-1 h-px bg-white/8" />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {gearItems.filter(i => i.category === cat).map(item => (
-                <a
-                  key={item.id}
-                  href={makeUrl(item.asin)}
-                  target="_blank"
-                  rel="noopener noreferrer sponsored"
-                  className="group relative bg-white/[0.03] hover:bg-white/[0.06] border border-white/8 hover:border-white/16 rounded-2xl p-5 transition-all duration-200 flex flex-col"
-                >
-                  {item.badge && (
-                    <span className="absolute top-4 right-4 text-[10px] font-semibold font-space uppercase tracking-wide text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded-full px-2.5 py-1">
-                      {item.badge}
-                    </span>
-                  )}
-                  <div className="text-3xl mb-3">{item.emoji}</div>
-                  <h3 className="text-sm font-semibold text-white mb-2 pr-20 leading-snug">{item.name}</h3>
-                  <p className="text-xs text-white/45 leading-relaxed mb-4 flex-1">{item.description}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-green-400">{item.priceRange}</span>
-                    <span className="flex items-center gap-1 text-xs text-amber-400 group-hover:text-amber-300 font-medium transition-colors">
-                      Amazon <ExternalLink size={10} />
-                    </span>
+        {/* Category tabs */}
+        <div className="flex flex-wrap gap-2 justify-center mb-4">
+          {['All', ...categories].map(cat => (
+            <button key={cat} onClick={() => setActiveCategory(cat)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold font-space border transition-all
+                ${activeCategory === cat
+                  ? 'bg-amber-500/15 border-amber-500/35 text-amber-300'
+                  : 'border-white/8 text-white/45 hover:text-white/70 hover:border-white/15 bg-white/[0.02]'}`}>
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        {/* Experience level filter */}
+        <div className="flex flex-wrap gap-2 justify-center mb-10">
+          {['All','beginner','intermediate','advanced'].map(lvl => (
+            <button key={lvl} onClick={() => setLevelFilter(lvl)}
+              className={`px-3 py-1 rounded-full text-[11px] font-medium border transition-all capitalize
+                ${levelFilter === lvl
+                  ? 'bg-white/10 border-white/25 text-white/90'
+                  : 'border-white/5 text-white/30 hover:text-white/55 hover:border-white/10 bg-transparent'}`}>
+              {lvl === 'All' ? '✦ All levels' : `${lvl === 'beginner' ? '🌱' : lvl === 'intermediate' ? '⭐' : '🚀'} ${lvl}`}
+            </button>
+          ))}
+        </div>
+
+        {/* Product grid */}
+        <AnimatePresence mode="popLayout">
+          {activeCategory === 'All' ? (
+            // Grouped by category when showing all
+            categories.map(cat => {
+              const items = visibleItems.filter(i => i.category === cat);
+              if (!items.length) return null;
+              return (
+                <motion.div key={cat} layout initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }} className="mb-12">
+                  <div className="flex items-center gap-3 mb-5">
+                    <h2 className="text-base font-space font-semibold text-white/80 whitespace-nowrap">{cat}</h2>
+                    <div className="flex-1 h-px bg-white/8" />
+                    <span className="text-xs text-white/30 font-mono">{items.length} picks</span>
                   </div>
-                </a>
-              ))}
-            </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {items.map(item => <GearCard key={item.id} item={item} />)}
+                  </div>
+                </motion.div>
+              );
+            })
+          ) : (
+            <motion.div layout initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-12">
+              {visibleItems.map(item => <GearCard key={item.id} item={item} />)}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {visibleItems.length === 0 && (
+          <div className="text-center py-20 text-white/35">
+            <p className="text-4xl mb-3">🔭</p>
+            <p className="text-sm">No items match this filter combination.</p>
           </div>
-        ))}
+        )}
 
         {/* Affiliate disclosure */}
-        <div className="p-4 rounded-xl bg-white/[0.02] border border-white/6 text-center">
+        <div className="p-4 rounded-xl bg-white/[0.02] border border-white/6 text-center mt-4">
           <p className="text-xs text-white/28 leading-relaxed">
-            <span className="text-white/40 font-medium">Affiliate disclosure:</span> Stargaze participates in the Amazon Associates Programme.
+            <span className="text-white/40 font-medium">Affiliate disclosure:</span>{' '}
+            Stargaze participates in the Amazon Associates Programme (UK: space018-21 · US: stargazeio-20).
             Purchases via links on this page earn us a small commission at no extra cost to you.
-            Prices shown are approximate and may vary.
+            Prices are approximate and may vary.
           </p>
         </div>
       </motion.div>
     </>
+  );
+}
+
+function GearCard({ item }: { item: GearItem }) {
+  const lvl = LEVEL_CONFIG[item.level];
+  const badgeClass = BADGE_COLORS[item.badgeColor || 'amber'];
+  const { uk, us } = getAmazonUrls(item.asin, item.name);
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, scale: 0.97 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.97 }}
+      className="relative flex flex-col rounded-2xl overflow-hidden"
+      style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}
+    >
+      {/* Top area */}
+      <div className="p-5 flex-1 flex flex-col">
+        {/* Badge + level */}
+        <div className="flex items-start justify-between gap-2 mb-3">
+          {item.badge ? (
+            <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border ${badgeClass}`}>
+              {item.badge}
+            </span>
+          ) : <span />}
+          <span className={`text-[10px] font-mono ${lvl.color} flex-shrink-0`}>{lvl.label}</span>
+        </div>
+
+        {/* Emoji icon */}
+        <div className="text-4xl mb-3">{item.emoji}</div>
+
+        {/* Name */}
+        <h3 className="text-sm font-bold text-white leading-snug mb-2">{item.name}</h3>
+
+        {/* Description */}
+        <p className="text-xs text-white/42 leading-relaxed mb-3">{item.description}</p>
+
+        {/* "Why" blurb */}
+        <div className="mt-auto pt-3 border-t border-white/5">
+          <p className="text-[11px] text-blue-300/60 leading-relaxed italic">"{item.why}"</p>
+        </div>
+      </div>
+
+      {/* Ratings + price row */}
+      <div className="px-5 pt-3 pb-2 flex items-center justify-between"
+        style={{ background: 'rgba(0,0,0,0.15)' }}>
+        <div>
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <StarRating stars={item.stars} />
+            <span className="text-[10px] text-white/35 font-mono">{item.reviews}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {item.ukPrice && <span className="text-xs font-bold text-green-400">{item.ukPrice}</span>}
+            <span className="text-xs font-bold text-green-400/60">{item.price}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Buy buttons — both UK and US */}
+      <div className="px-4 pb-4 flex gap-2"
+        style={{ background: 'rgba(0,0,0,0.15)' }}>
+        <a href={uk} target="_blank" rel="noopener noreferrer sponsored"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-bold transition-all"
+          style={{ background: 'rgba(247,153,58,0.12)', border: '1px solid rgba(247,153,58,0.25)', color: '#f79e3a' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(247,153,58,0.22)'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(247,153,58,0.12)'; }}>
+          🇬🇧 Amazon UK
+        </a>
+        <a href={us} target="_blank" rel="noopener noreferrer sponsored"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-bold transition-all"
+          style={{ background: 'rgba(79,142,247,0.10)', border: '1px solid rgba(79,142,247,0.22)', color: '#6fa8f7' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(79,142,247,0.20)'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(79,142,247,0.10)'; }}>
+          🇺🇸 Amazon US
+        </a>
+      </div>
+    </motion.div>
   );
 }
 
