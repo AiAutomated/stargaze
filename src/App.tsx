@@ -691,7 +691,7 @@ function Home({ watched, addNotification, toggleWatch }: {
     } catch {}
 
     setApodLoading(true);
-    fetch('https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY')
+    fetch('https://api.nasa.gov/planetary/apod?api_key=0oMQ3t0Hfqwtanhhg9gIccTe5PHmZjjt6hi48Dmp')
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
@@ -706,7 +706,7 @@ function Home({ watched, addNotification, toggleWatch }: {
       .catch(() => {
         // Try the date-indexed fallback: yesterday's APOD is also fine
         const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
-        fetch(`https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY&date=${yesterday}`)
+        fetch(`https://api.nasa.gov/planetary/apod?api_key=0oMQ3t0Hfqwtanhhg9gIccTe5PHmZjjt6hi48Dmp&date=${yesterday}`)
           .then(r => r.ok ? r.json() : null)
           .then(d => { if (d && (d.url || d.hdurl)) setApod(d); })
           .catch(() => {});
