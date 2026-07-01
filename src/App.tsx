@@ -8,8 +8,10 @@ import {
   Eye, Zap, Activity, Bell, BellOff, Send, Shield, FileText,
   RefreshCw, AlertTriangle, CheckCircle, ExternalLink, Rocket, Moon,
   Cloud, Wind, BarChart2, Users, MessageSquare, Plus, Search,
-  Filter, TrendingUp, Navigation, Compass, Gauge, ShoppingBag, BellRing
+  Filter, TrendingUp, Navigation, Compass, Gauge, ShoppingBag, BellRing,
+  Sun, Flame, Camera, Globe2, Triangle
 } from 'lucide-react';
+import { useSpaceData, auToLD, asteroidSize, fireballEnergy } from './hooks/useSpaceData';
 import meteorShowers from './data/meteorShowers.json';
 import CesiumGlobe from './components/CesiumGlobe';
 import SolarSystemViewer from './components/SolarSystemViewer';
@@ -671,11 +673,13 @@ function Home({ watched, addNotification, toggleWatch }: {
 }) {
   const nextShower = getNextShower();
   const moon = getMoonPhase();
+  const spaceData = useSpaceData();
   const [apod, setApod] = useState<{ title: string; url: string; explanation: string; media_type: string } | null>(null);
   const [apodLoading, setApodLoading] = useState(true);
   const [weather, setWeather] = useState<{ cloudCover: number; humidity: number } | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(false);
   const [weatherDenied, setWeatherDenied] = useState(false);
+  const [weekTab, setWeekTab] = useState<'asteroids' | 'fireballs'>('asteroids');
   const [ref, inView] = useInView({ triggerOnce: true, threshold: 0.1 });
 
   useEffect(() => {
@@ -732,290 +736,365 @@ function Home({ watched, addNotification, toggleWatch }: {
 
   const activeShowers  = showers.filter(s => getShowerStatus(s) === 'active');
   const upcomingShowers = showers.filter(s => getShowerStatus(s) === 'upcoming').slice(0, 3);
+  const { kpNow, kpHistory, kpLabel, kpColor, kpStatus, auroraLat, fireballs, asteroids, epicImg, marsSnap } = spaceData;
+
+  // Viewing quality score (0-10) based on moon + cloud cover
+  const cloudScore = weather ? Math.max(0, 10 - Math.round(weather.cloudCover / 10)) : 7;
+  const moonScore  = Math.max(0, 10 - Math.round(moon.illumination / 10));
+  const viewScore  = Math.round((cloudScore + moonScore) / 2);
+  const viewLabel  = viewScore >= 8 ? 'Excellent' : viewScore >= 6 ? 'Good' : viewScore >= 4 ? 'Fair' : 'Poor';
+  const viewColor  = viewScore >= 8 ? '#4ade80' : viewScore >= 6 ? '#fbbf24' : viewScore >= 4 ? '#f97316' : '#ef4444';
 
   return (
     <>
-      <title>Meteor Shower Calendar 2026 | Live Tracker &amp; Viewing Guide | Stargaze</title>
-      <meta name="description" content="When is the next meteor shower? Track the Perseids, Geminids, Leonids and more with live peak countdowns, cloud cover forecasts, and 3D sky maps. Free, no account needed." />
-      <meta property="og:title" content="Meteor Shower Calendar 2026 | Stargaze" />
-      <meta property="og:description" content="Live meteor shower tracker with peak countdowns, cloud cover forecasts, ISS tracker, and night sky maps. Free." />
+      <title>Stargaze — Live Space Weather, Meteor Showers, Asteroids &amp; Aurora Tracker</title>
+      <meta name="description" content="Real-time space weather dashboard: aurora Kp index, meteor showers, asteroid flybys, JPL fireballs, ISS tracking, Mars rover photos, and NASA APOD. Free, always." />
+      <meta property="og:title" content="Stargaze — Live Space Weather &amp; Meteor Shower Tracker" />
+      <meta property="og:description" content="Aurora alerts, asteroid flybys, meteor showers, ISS tracking, and NASA imagery — all in one free real-time dashboard." />
       <meta property="og:url" content="https://www.stargaze.io/" />
-      <meta name="twitter:card" content="summary" />
-      <meta name="twitter:title" content="Meteor Shower Calendar 2026 | Stargaze" />
-      <meta name="twitter:description" content="Track every meteor shower in 2026 with live countdowns, sky conditions, and ISS positioning. Free at stargaze.io" />
+      <meta name="twitter:card" content="summary_large_image" />
       <link rel="canonical" href="https://www.stargaze.io/" />
       <script type="application/ld+json">{JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": "Stargaze",
-        "url": "https://www.stargaze.io",
-        "description": "Free live meteor shower tracker with peak countdowns, cloud cover forecasts, ISS tracking, and 3D sky maps.",
+        "@context": "https://schema.org", "@type": "WebSite",
+        "name": "Stargaze", "url": "https://www.stargaze.io",
+        "description": "Live space weather, aurora tracker, meteor showers, asteroid close approaches, and NASA imagery. Free.",
         "potentialAction": { "@type": "SearchAction", "target": "https://www.stargaze.io/calendar?q={search_term_string}", "query-input": "required name=search_term_string" }
       })}</script>
+
     <div className="relative z-10 max-w-7xl mx-auto px-4 pt-28 pb-16">
 
-      {/* ── Hero ── */}
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7 }}
-        className="text-center mb-16"
-      >
-        {/* Live badge */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.1 }}
+      {/* ══ HERO ══════════════════════════════════════════════════════════════ */}
+      <motion.div initial={{ opacity:0, y:30 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.7 }}
+        className="text-center mb-10">
+        <motion.div initial={{ opacity:0, scale:0.9 }} animate={{ opacity:1, scale:1 }} transition={{ delay:0.1 }}
           className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-6"
-          style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.20)' }}
-        >
+          style={{ background:'rgba(34,197,94,0.08)', border:'1px solid rgba(34,197,94,0.20)' }}>
           <span className="live-dot" />
-          <span className="text-xs font-mono text-green-400/85 tracking-wider">LIVE CELESTIAL TRACKING</span>
+          <span className="text-xs font-mono text-green-400/85 tracking-wider">LIVE SPACE DASHBOARD</span>
         </motion.div>
-
-        <h1 className="hero-title hero-gradient-text mb-5">
-          Watch the Skies
-        </h1>
-        <p className="text-lg text-white/48 max-w-xl mx-auto leading-relaxed font-light">
-          Real-time meteor shower tracking, celestial event calendars, and live ISS positioning. Free, always.
+        <h1 className="hero-title hero-gradient-text mb-5">Space Is Happening<br className="hidden sm:block" /> Right Now</h1>
+        <p className="text-lg text-white/48 max-w-2xl mx-auto leading-relaxed font-light">
+          Real-time aurora alerts, meteor showers, asteroid close approaches, government fireball data, ISS tracking, and NASA imagery — all free, all live.
         </p>
-
-        {/* CTA buttons */}
         <div className="flex items-center justify-center flex-wrap gap-3 mt-8">
-          <Link to="/calendar" className="btn-primary">
-            <Calendar size={14} />
-            View Calendar
-          </Link>
-          <Link to="/globe" className="btn-secondary">
-            <Globe size={14} />
-            Open 3D Globe
-          </Link>
-          <Link to="/sky" className="btn-secondary">
-            <Star size={14} />
-            Night Sky View
-          </Link>
+          <Link to="/calendar" className="btn-primary"><Calendar size={14} />Meteor Calendar</Link>
+          <Link to="/sky"      className="btn-secondary"><Star size={14} />Night Sky Map</Link>
+          <Link to="/globe"    className="btn-secondary"><Globe size={14} />3D Globe</Link>
+          <Link to="/live"     className="btn-secondary"><Radio size={14} />Live Sightings</Link>
         </div>
-
-        {/* Stats strip */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="flex items-center justify-center flex-wrap gap-4 mt-10"
-        >
-          {[
-            { label: '9 Showers Tracked', icon: Sparkles },
-            { label: 'Live ISS Position', icon: Rocket },
-            { label: 'Real-Time Weather', icon: Cloud },
-            { label: 'Always Free', icon: Star },
-          ].map(({ label, icon: Icon }) => (
-            <div key={label} className="flex items-center gap-1.5 text-xs text-white/30">
-              <Icon size={11} className="text-blue-400/50" />
-              <span className="font-mono">{label}</span>
-            </div>
-          ))}
-        </motion.div>
       </motion.div>
 
-      {/* ── Status Cards ── */}
-      <motion.div
-        ref={ref}
-        initial={{ opacity: 0, y: 20 }}
-        animate={inView ? { opacity: 1, y: 0 } : {}}
-        transition={{ duration: 0.6, delay: 0.1 }}
-        className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10"
-      >
+      {/* ══ LIVE STATUS STRIP ═════════════════════════════════════════════════ */}
+      <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.3 }}
+        className="flex flex-wrap items-center justify-center gap-3 mb-10 text-[11px] font-mono">
         {[
-          {
-            label: activeShowers.length > 0 ? 'Active Showers' : 'Next Shower',
-            value: activeShowers.length > 0 ? activeShowers.length.toString() : (nextShower ? `${getDaysUntilPeak(nextShower)}d` : '—'),
-            sub:   activeShowers.length > 0 ? 'happening now' : (nextShower ? nextShower.name : undefined),
-            icon: Activity,
-            color: activeShowers.length > 0 ? 'text-green-400' : 'text-blue-400',
-            accent: activeShowers.length > 0 ? 'rgba(34,197,94,0.15)' : 'rgba(79,142,247,0.12)',
-          },
-          {
-            label: 'Moon Phase',
-            value: moon.emoji,
-            sub: moon.phase,
-            icon: Moon,
-            color: 'text-yellow-300',
-            accent: 'rgba(251,191,36,0.10)',
-          },
-          {
-            label: 'Illumination',
-            value: `${moon.illumination}%`,
-            sub: moon.illumination > 60 ? 'affects viewing' : 'good for viewing',
-            icon: Eye,
-            color: 'text-blue-400',
-            accent: 'rgba(79,142,247,0.10)',
-          },
-          {
-            label: 'Cloud Cover',
-            value: weather ? `${weather.cloudCover}%` : weatherDenied ? 'Unlock' : '…',
-            sub: weather
-              ? (weather.cloudCover < 30 ? 'clear skies' : weather.cloudCover < 60 ? 'partly cloudy' : 'overcast')
-              : (weatherDenied ? 'Allow location' : undefined),
-            icon: Cloud,
-            color: 'text-purple-400',
-            accent: 'rgba(139,92,246,0.10)',
-          },
-        ].map(({ label, value, sub, icon: Icon, color, accent }) => (
-          <div
-            key={label}
-            className="glass-card p-4 rounded-2xl"
-            style={{ borderTop: `2px solid ${accent}` }}
-          >
-            <Icon size={16} className={`${color} mb-2.5`} />
-            <p className="text-xl font-bold font-space leading-none mb-1">{value}</p>
-            {sub && <p className="text-[10px] text-white/42 mt-0.5">{sub}</p>}
-            <p className="text-[10px] text-white/30 uppercase tracking-wider mt-1.5 font-mono">{label}</p>
+          { icon: Sun,      label: `Kp ${kpNow !== null ? kpNow.toFixed(1) : '…'} — ${kpLabel}`,        color: kpColor },
+          { icon: Sparkles, label: activeShowers.length > 0 ? `${activeShowers.length} Shower${activeShowers.length > 1 ? 's' : ''} Active` : nextShower ? `Next: ${nextShower.name}` : '9 Showers Tracked', color: '#c084fc' },
+          { icon: Flame,    label: `${fireballs.length > 0 ? fireballs.length : '—'} Fireballs on Record`, color: '#fb923c' },
+          { icon: Triangle, label: `${asteroids.length > 0 ? asteroids.length : '—'} Asteroid${asteroids.length !== 1 ? 's' : ''} This Week`, color: '#60a5fa' },
+          { icon: Rocket,   label: 'ISS Orbiting Now',                                                    color: '#34d399' },
+        ].map(({ icon: Icon, label, color }) => (
+          <div key={label} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
+            style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)' }}>
+            <Icon size={11} style={{ color }} />
+            <span style={{ color: 'rgba(255,255,255,0.65)' }}>{label}</span>
           </div>
         ))}
       </motion.div>
 
-      {/* ── Main Grid: Countdown + ISS/Moon ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-        {/* Next Shower Countdown */}
-        <div className="lg:col-span-2">
-          {nextShower ? (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.97 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
-              className="glass-card p-6 rounded-2xl h-full relative overflow-hidden"
-            >
+      {/* ══ TONIGHT GRID — 5 live status cards ═══════════════════════════════ */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-10" ref={ref}>
+        {/* Aurora */}
+        <motion.div initial={{ opacity:0, y:15 }} animate={inView ? { opacity:1, y:0 } : {}} transition={{ delay:0 }}
+          className="glass-card p-4 rounded-2xl" style={{ borderTop:`2px solid ${kpColor}33` }}>
+          <Sun size={16} style={{ color: kpColor }} className="mb-2.5" />
+          <p className="text-xl font-bold font-space leading-none mb-1" style={{ color: kpColor }}>
+            {kpNow !== null ? kpNow.toFixed(1) : '—'}
+          </p>
+          <p className="text-[10px] text-white/42">{kpLabel}</p>
+          <p className="text-[10px] text-white/30 uppercase tracking-wider mt-1.5 font-mono">Kp Index</p>
+        </motion.div>
+        {/* Next Shower */}
+        <motion.div initial={{ opacity:0, y:15 }} animate={inView ? { opacity:1, y:0 } : {}} transition={{ delay:0.06 }}
+          className="glass-card p-4 rounded-2xl" style={{ borderTop:'2px solid rgba(192,132,252,0.25)' }}>
+          <Activity size={16} className={activeShowers.length > 0 ? 'text-green-400 mb-2.5' : 'text-purple-400 mb-2.5'} />
+          <p className="text-xl font-bold font-space leading-none mb-1">
+            {activeShowers.length > 0 ? activeShowers.length : (nextShower ? `${getDaysUntilPeak(nextShower)}d` : '—')}
+          </p>
+          <p className="text-[10px] text-white/42">{activeShowers.length > 0 ? 'happening now' : (nextShower?.name ?? '—')}</p>
+          <p className="text-[10px] text-white/30 uppercase tracking-wider mt-1.5 font-mono">{activeShowers.length > 0 ? 'Active Now' : 'Next Shower'}</p>
+        </motion.div>
+        {/* Moon */}
+        <motion.div initial={{ opacity:0, y:15 }} animate={inView ? { opacity:1, y:0 } : {}} transition={{ delay:0.12 }}
+          className="glass-card p-4 rounded-2xl" style={{ borderTop:'2px solid rgba(253,224,71,0.18)' }}>
+          <Moon size={16} className="text-yellow-300 mb-2.5" />
+          <p className="text-xl font-bold font-space leading-none mb-1">{moon.emoji}</p>
+          <p className="text-[10px] text-white/42">{moon.illumination}% lit</p>
+          <p className="text-[10px] text-white/30 uppercase tracking-wider mt-1.5 font-mono">{moon.phase}</p>
+        </motion.div>
+        {/* Sky Quality */}
+        <motion.div initial={{ opacity:0, y:15 }} animate={inView ? { opacity:1, y:0 } : {}} transition={{ delay:0.18 }}
+          className="glass-card p-4 rounded-2xl" style={{ borderTop:`2px solid ${viewColor}33` }}>
+          <Eye size={16} style={{ color: viewColor }} className="mb-2.5" />
+          <p className="text-xl font-bold font-space leading-none mb-1" style={{ color: viewColor }}>{viewScore}/10</p>
+          <p className="text-[10px] text-white/42">{weather ? `${weather.cloudCover}% cloud` : 'enable location'}</p>
+          <p className="text-[10px] text-white/30 uppercase tracking-wider mt-1.5 font-mono">Sky Quality</p>
+        </motion.div>
+        {/* Fireballs */}
+        <motion.div initial={{ opacity:0, y:15 }} animate={inView ? { opacity:1, y:0 } : {}} transition={{ delay:0.24 }}
+          className="glass-card p-4 rounded-2xl" style={{ borderTop:'2px solid rgba(251,146,60,0.25)' }}>
+          <Flame size={16} className="text-orange-400 mb-2.5" />
+          <p className="text-xl font-bold font-space leading-none mb-1">{fireballs.length || '—'}</p>
+          <p className="text-[10px] text-white/42">JPL confirmed</p>
+          <p className="text-[10px] text-white/30 uppercase tracking-wider mt-1.5 font-mono">Recent Fireballs</p>
+        </motion.div>
+      </div>
+
+      {/* ══ AURORA + NEXT SHOWER ══════════════════════════════════════════════ */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-10">
+
+        {/* Aurora Card */}
+        <motion.div initial={{ opacity:0, x:-20 }} animate={{ opacity:1, x:0 }} transition={{ delay:0.2 }}
+          className="lg:col-span-3 glass-card p-6 rounded-2xl relative overflow-hidden">
+          {/* Background glow */}
+          <div className="absolute top-0 right-0 w-64 h-64 pointer-events-none"
+            style={{ background:`radial-gradient(circle, ${kpColor}12 0%, transparent 70%)`, transform:'translate(25%, -25%)' }} />
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-xl flex items-center justify-center" style={{ background:`${kpColor}18`, border:`1px solid ${kpColor}35` }}>
+                  <Sun size={14} style={{ color: kpColor }} />
+                </div>
+                <div>
+                  <p className="text-xs font-mono text-white/40 uppercase tracking-widest">Geomagnetic Activity</p>
+                  <h2 className="text-sm font-bold font-space text-white/90">Aurora Alert</h2>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-bold font-space" style={{ color: kpColor }}>
+                  {kpNow !== null ? kpNow.toFixed(1) : '—'}
+                </p>
+                <p className="text-[10px] font-mono" style={{ color: kpColor }}>{kpLabel}</p>
+              </div>
+            </div>
+
+            {/* Kp bar meter */}
+            <div className="mb-4">
+              <div className="flex justify-between text-[9px] text-white/30 font-mono mb-1.5">
+                <span>0 Quiet</span><span>3 Unsettled</span><span>5 Storm</span><span>9 Extreme</span>
+              </div>
+              <div className="relative h-5 rounded-full overflow-hidden"
+                style={{ background:'linear-gradient(to right, #4ade80 0%, #a3e635 25%, #fbbf24 40%, #f97316 55%, #ef4444 70%, #dc2626 100%)' }}>
+                {/* dark mask over unfilled portion */}
+                <div className="absolute inset-y-0 right-0 rounded-r-full"
+                  style={{ width:`${100 - ((kpNow ?? 0) / 9) * 100}%`, background:'rgba(2,0,20,0.72)' }} />
+                {/* indicator */}
+                {kpNow !== null && (
+                  <div className="absolute top-1/2 w-4 h-4 rounded-full border-2 border-white shadow-lg z-10"
+                    style={{ left:`${(kpNow / 9) * 100}%`, transform:'translate(-50%, -50%)', background: kpColor, boxShadow:`0 0 10px ${kpColor}` }} />
+                )}
+              </div>
+            </div>
+
+            {/* 24h sparkline */}
+            {kpHistory.length > 0 && (
+              <div className="mb-5">
+                <p className="text-[9px] text-white/30 font-mono uppercase tracking-widest mb-1.5">24h Kp History</p>
+                <div className="flex gap-0.5 h-10 items-end">
+                  {kpHistory.slice(-24).map((pt, i) => {
+                    const barColor = pt.kp < 3 ? '#4ade80' : pt.kp < 5 ? '#fbbf24' : '#ef4444';
+                    return (
+                      <div key={i} title={`Kp ${pt.kp.toFixed(1)} — ${pt.time}`}
+                        className="flex-1 rounded-sm min-h-[2px] transition-all"
+                        style={{ height:`${Math.max(4, (pt.kp / 9) * 100)}%`, background: barColor, opacity: 0.5 + (i / 24) * 0.5 }} />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Aurora visibility */}
+            <div className="p-3 rounded-xl mb-4" style={{ background:'rgba(255,255,255,0.04)', border:`1px solid ${kpColor}22` }}>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full flex-shrink-0 animate-pulse" style={{ background: kpColor }} />
+                <p className="text-xs text-white/75">{auroraLat || 'Connecting to NOAA…'}</p>
+              </div>
+              {kpNow !== null && kpNow >= 5 && (
+                <p className="text-[10px] text-orange-300 mt-1.5 font-semibold">
+                  🌌 Geomagnetic storm in progress — aurora possible at lower latitudes than usual
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <a href="https://www.spaceweather.com" target="_blank" rel="noopener noreferrer"
+                className="flex-1 text-center text-xs py-2 rounded-xl font-semibold transition-all hover:opacity-80"
+                style={{ background:`${kpColor}18`, color: kpColor, border:`1px solid ${kpColor}30` }}>
+                Space Weather
+              </a>
+              <a href="https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json" target="_blank" rel="noopener noreferrer"
+                className="flex-1 text-center text-xs py-2 rounded-xl text-white/50 font-semibold transition-all hover:text-white/80"
+                style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)' }}>
+                NOAA Raw Data
+              </a>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Next Shower + ISS + Moon */}
+        <div className="lg:col-span-2 flex flex-col gap-4">
+          {/* Next Shower Countdown */}
+          {nextShower && (
+            <motion.div initial={{ opacity:0, x:20 }} animate={{ opacity:1, x:0 }} transition={{ delay:0.25 }}
+              className="glass-card p-5 rounded-2xl relative overflow-hidden flex-1">
               <MeteorVisualizer zhr={nextShower.zhr} active />
               <div className="relative z-10">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="section-label text-orange-400">Next Peak Event</span>
-                  {nextShower.speed && (
-                    <span className="text-[10px] font-mono text-white/30 flex items-center gap-1 ml-auto">
-                      <Gauge size={9} />
-                      {nextShower.speed} km/s
-                    </span>
-                  )}
-                </div>
-                <h2 className="text-3xl font-bold font-space mb-1">{nextShower.name}</h2>
-                <p className="text-sm text-white/50 mb-6">
-                  {nextShower.constellation} constellation · Up to {nextShower.zhr} meteors/hour
-                </p>
+                <span className="section-label text-orange-400 mb-3 block">Next Peak Event</span>
+                <h2 className="text-2xl font-bold font-space mb-1">{nextShower.name}</h2>
+                <p className="text-xs text-white/40 mb-4">{nextShower.constellation} · Up to {nextShower.zhr} ZHR</p>
                 <CountdownTimer targetDate={nextShower.peak} label="Until Peak" />
-                <div className="mt-6 flex flex-wrap items-center gap-3">
-                  <Link to={`/shower/${nextShower.id}`} className="btn-primary text-xs">
-                    <ArrowRight size={12} />
-                    Full Details
-                  </Link>
-                  <button
-                    onClick={() => {
-                      toggleWatch(nextShower);
-                      addNotification({
-                        title: watched.some(w => w.id === nextShower.id) ? 'Removed from watchlist' : 'Added to watchlist!',
-                        message: `${nextShower.name} — peak ${formatDate(nextShower.peak)}`,
-                        type: 'success',
-                      });
-                    }}
-                    className="btn-secondary text-xs"
-                  >
-                    {watched.some(w => w.id === nextShower.id) ? <BellOff size={12} /> : <Bell size={12} />}
-                    {watched.some(w => w.id === nextShower.id) ? 'Unwatch' : 'Watch'}
+                <div className="mt-4 flex gap-2 flex-wrap">
+                  <Link to={`/shower/${nextShower.id}`} className="btn-primary text-xs"><ArrowRight size={11}/>Details</Link>
+                  <button onClick={() => { toggleWatch(nextShower); addNotification({ title: watched.some(w=>w.id===nextShower.id) ? 'Removed' : 'Watching!', message: nextShower.name, type:'success' }); }}
+                    className="btn-secondary text-xs">
+                    {watched.some(w=>w.id===nextShower.id) ? <BellOff size={11}/> : <Bell size={11}/>}
+                    {watched.some(w=>w.id===nextShower.id) ? 'Unwatch' : 'Watch'}
                   </button>
                 </div>
               </div>
             </motion.div>
-          ) : (
-            <div className="glass-card p-6 rounded-2xl flex items-center justify-center h-full min-h-48">
-              <p className="text-white/30 text-sm">No upcoming showers found</p>
-            </div>
           )}
-        </div>
-
-        {/* ISS + Moon */}
-        <div className="flex flex-col gap-4">
+          {/* ISS Widget */}
           <ISSWidget />
-          <div className="glass-card p-4 rounded-2xl flex-1">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-6 h-6 rounded-lg bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center">
-                <Moon size={12} className="text-yellow-300" />
-              </div>
-              <span className="text-xs font-semibold font-space text-white/75">Moon Status</span>
-            </div>
-            <p className="text-3xl mb-1">{moon.emoji}</p>
-            <p className="text-sm font-semibold text-white/85">{moon.phase}</p>
-            <p className="text-xs text-white/40 mt-1">{moon.illumination}% illuminated</p>
-            <div className="mt-3 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
-              <div
-                className="h-full bg-gradient-to-r from-yellow-500 to-yellow-200 rounded-full transition-all duration-700"
-                style={{ width: `${moon.illumination}%` }}
-              />
-            </div>
-            <p className="text-[10px] text-white/30 mt-2.5 leading-relaxed">
-              {moon.illumination > 50 ? 'Bright moon tonight - expect reduced meteor visibility' : 'Good dark-sky conditions for viewing tonight'}
-            </p>
-          </div>
         </div>
       </div>
 
-      {/* ── Best Viewing Window Tonight ── */}
-      {(() => {
-        const now = new Date();
-        const hour = now.getHours();
-        // Moon illumination affects optimal window
-        const moonBad = moon.illumination > 55;
-        const moonRises = moon.illumination > 50 ? 'after midnight' : 'late night';
-        // Determine window: meteor showers best after midnight before dawn
-        const midnight = new Date(now); midnight.setHours(23,0,0,0);
-        const dawn = new Date(now); dawn.setDate(dawn.getDate()+1); dawn.setHours(5,30,0,0);
-        const bestHour = moonBad ? '02:00–04:30' : '23:00–04:30';
-        const qualityScore = Math.max(0, 10 - Math.round(moon.illumination / 10));
-        const qualityBars = Array.from({length:10}, (_,i) => i < qualityScore);
-        const qualityLabel = qualityScore >= 8 ? 'Excellent' : qualityScore >= 6 ? 'Good' : qualityScore >= 4 ? 'Fair' : 'Poor';
-        const qualityColor = qualityScore >= 8 ? '#4ade80' : qualityScore >= 6 ? '#fbbf24' : qualityScore >= 4 ? '#f97316' : '#ef4444';
-        const tip = moonBad
-          ? `Full moon washes out fainter meteors. Best window is ${bestHour} when moon is lower.`
-          : `Dark skies tonight. Prime viewing from ${bestHour}. Look away from the Moon toward the zenith.`;
-        return (
-          <motion.div initial={{ opacity:0, y:15 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.3 }}
-            className="glass-card p-5 rounded-2xl mb-10 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-40 h-40 rounded-full pointer-events-none"
-              style={{ background:`radial-gradient(circle, ${qualityColor}0a 0%, transparent 70%)`, transform:'translate(30%, -30%)' }} />
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background:`${qualityColor}18`, border:`1px solid ${qualityColor}33` }}>
-                    <Moon size={12} style={{ color: qualityColor }} />
-                  </div>
-                  <span className="text-xs font-semibold text-white/75">Best Viewing Window Tonight</span>
-                </div>
-                <span className="text-xs font-mono font-bold" style={{ color: qualityColor }}>{qualityLabel}</span>
-              </div>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="flex gap-0.5">
-                  {qualityBars.map((filled, i) => (
-                    <div key={i} className="w-3 h-3 rounded-sm" style={{ background: filled ? qualityColor : 'rgba(255,255,255,0.06)' }} />
-                  ))}
-                </div>
-                <span className="text-lg font-bold font-space" style={{ color: qualityColor }}>{qualityScore}/10</span>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
-                {[
-                  { label:'Optimal window', val:bestHour, icon:'🕑' },
-                  { label:'Moon', val:`${moon.illumination}% — ${moon.phase}`, icon:moon.emoji },
-                  { label:'Active showers', val: activeShowers.length > 0 ? activeShowers.map((s:any)=>s.name).join(', ') : 'None tonight', icon:'🌠' },
-                ].map(({ label, val, icon }) => (
-                  <div key={label} className="p-2 rounded-xl" style={{ background:'rgba(255,255,255,0.03)' }}>
-                    <p className="text-[9px] text-white/35 font-mono uppercase tracking-widest mb-0.5">{label}</p>
-                    <p className="text-[11px] text-white/80 font-medium">{icon} {val}</p>
-                  </div>
-                ))}
-              </div>
-              <p className="text-[11px] text-white/45 leading-relaxed">{tip}</p>
+      {/* ══ THIS WEEK IN SPACE ════════════════════════════════════════════════ */}
+      <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.3 }}
+        className="mb-10">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-lg bg-blue-500/12 border border-blue-500/22 flex items-center justify-center">
+              <AlertTriangle size={12} className="text-blue-400" />
             </div>
-          </motion.div>
-        );
-      })()}
+            <h2 className="text-lg font-bold font-space">This Week in Space</h2>
+          </div>
+          <div className="flex gap-1">
+            {(['asteroids', 'fireballs'] as const).map(tab => (
+              <button key={tab} onClick={() => setWeekTab(tab)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-space transition-all ${
+                  weekTab === tab ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' : 'text-white/35 hover:text-white/60'
+                }`}>
+                {tab === 'asteroids' ? `Asteroids ${asteroids.length > 0 ? `(${asteroids.length})` : ''}` : `Fireballs ${fireballs.length > 0 ? `(${fireballs.length})` : ''}`}
+              </button>
+            ))}
+          </div>
+        </div>
 
-      {/* ── Active Showers ── */}
+        {/* Asteroid Flybys */}
+        {weekTab === 'asteroids' && (
+          asteroids.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {asteroids.slice(0, 6).map((ast, i) => {
+                const dist  = parseFloat(ast.dist);
+                const vrel  = parseFloat(ast.v_rel);
+                const hMag  = parseFloat(ast.h);
+                const ld    = auToLD(dist);
+                const size  = isNaN(hMag) ? 'Unknown' : asteroidSize(hMag);
+                const name  = ast.fullname?.trim() || ast.des;
+                const closeDate = new Date(ast.cd);
+                const daysUntil = Math.ceil((closeDate.getTime() - Date.now()) / 86400000);
+                const isClose = dist < 0.01; // less than ~4 LD
+                return (
+                  <motion.div key={i} initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay: i * 0.07 }}
+                    className="glass-card p-4 rounded-2xl relative overflow-hidden"
+                    style={{ borderLeft: isClose ? '2px solid rgba(96,165,250,0.5)' : undefined }}>
+                    {isClose && (
+                      <div className="absolute top-2 right-2 text-[9px] px-2 py-0.5 rounded-full font-mono font-bold"
+                        style={{ background:'rgba(96,165,250,0.15)', color:'#93c5fd', border:'1px solid rgba(96,165,250,0.25)' }}>
+                        CLOSE APPROACH
+                      </div>
+                    )}
+                    <div className="flex items-start gap-2 mb-3">
+                      <Triangle size={14} className="text-blue-400 flex-shrink-0 mt-0.5" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-white/90 truncate">{name}</p>
+                        <p className="text-[10px] text-white/35 font-mono">
+                          {daysUntil > 0 ? `in ${daysUntil}d` : daysUntil === 0 ? 'today' : `${Math.abs(daysUntil)}d ago`} · {closeDate.toLocaleDateString('en-US',{month:'short',day:'numeric'})}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { label:'Distance', val: ld },
+                        { label:'Speed',    val: `${vrel.toFixed(1)} km/s` },
+                        { label:'Est. Size', val: size },
+                      ].map(({ label, val }) => (
+                        <div key={label} className="p-2 rounded-lg text-center" style={{ background:'rgba(255,255,255,0.03)' }}>
+                          <p className="text-[10px] font-bold text-white/75 leading-tight">{val}</p>
+                          <p className="text-[9px] text-white/30 font-mono mt-0.5">{label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="glass-card p-8 rounded-2xl text-center">
+              <Triangle size={28} className="text-blue-400/30 mx-auto mb-3" />
+              <p className="text-sm text-white/40 font-semibold mb-1">No close approaches this week</p>
+              <p className="text-xs text-white/25">Next week might be different. Check back soon.</p>
+            </div>
+          )
+        )}
+
+        {/* Government Confirmed Fireballs */}
+        {weekTab === 'fireballs' && (
+          fireballs.length > 0 ? (
+            <div className="space-y-2">
+              {fireballs.slice(0, 10).map((fb, i) => {
+                const energy = fireballEnergy(fb);
+                const date = new Date(fb.date);
+                const daysAgo = Math.floor((Date.now() - date.getTime()) / 86400000);
+                const locationStr = fb.lat && fb.lon
+                  ? `${parseFloat(fb.lat).toFixed(1)}°${fb.lat_dir ?? ''}, ${parseFloat(fb.lon).toFixed(1)}°${fb.lon_dir ?? ''}`
+                  : null;
+                return (
+                  <motion.div key={i} initial={{ opacity:0, x:-10 }} animate={{ opacity:1, x:0 }} transition={{ delay: i * 0.04 }}
+                    className="glass-card px-4 py-3 rounded-xl flex items-center gap-4">
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background:'rgba(251,146,60,0.12)', border:'1px solid rgba(251,146,60,0.22)' }}>
+                      <Flame size={14} className="text-orange-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <p className="text-xs font-semibold text-white/85">{date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</p>
+                        {daysAgo === 0 && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-400 font-mono">TODAY</span>}
+                      </div>
+                      <p className="text-[10px] text-white/35 font-mono">{locationStr ?? 'Location not reported'}{fb.alt ? ` · ${parseFloat(fb.alt).toFixed(0)} km alt` : ''}{fb.vel ? ` · ${parseFloat(fb.vel).toFixed(1)} km/s` : ''}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-xs font-bold text-orange-400">{energy}</p>
+                      <p className="text-[9px] text-white/30 font-mono">impact energy</p>
+                    </div>
+                    <div className="text-[10px] text-white/20 font-mono flex-shrink-0">{daysAgo === 0 ? 'today' : `${daysAgo}d ago`}</div>
+                  </motion.div>
+                );
+              })}
+              <p className="text-[10px] text-white/20 text-center pt-1 font-mono">Source: JPL Center for Near Earth Object Studies · US Government sensor network</p>
+            </div>
+          ) : (
+            <div className="glass-card p-8 rounded-2xl text-center">
+              <Flame size={28} className="text-orange-400/30 mx-auto mb-3" />
+              <p className="text-sm text-white/40 font-semibold mb-1">Loading fireball data…</p>
+              <p className="text-xs text-white/25">Fetching from JPL government sensor network</p>
+            </div>
+          )
+        )}
+      </motion.div>
+
+      {/* ══ ACTIVE SHOWERS ════════════════════════════════════════════════════ */}
       {activeShowers.length > 0 && (
         <div className="mb-10">
           <div className="flex items-center gap-2 mb-4">
@@ -1024,12 +1103,8 @@ function Home({ watched, addNotification, toggleWatch }: {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {activeShowers.map(s => (
-              <motion.div
-                key={s.id}
-                whileHover={{ y: -2 }}
-                className="glass-card p-4 rounded-2xl"
-                style={{ borderLeft: '2px solid rgba(34,197,94,0.35)' }}
-              >
+              <motion.div key={s.id} whileHover={{ y:-2 }}
+                className="glass-card p-4 rounded-2xl" style={{ borderLeft:'2px solid rgba(34,197,94,0.35)' }}>
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <span className="badge-active text-[10px] px-2 py-0.5 rounded-full font-mono">ACTIVE</span>
@@ -1050,7 +1125,7 @@ function Home({ watched, addNotification, toggleWatch }: {
         </div>
       )}
 
-      {/* ── Upcoming Showers — live countdown cards ── */}
+      {/* ══ UPCOMING SHOWERS ══════════════════════════════════════════════════ */}
       <div className="mb-10">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -1069,50 +1144,19 @@ function Home({ watched, addNotification, toggleWatch }: {
             const isImminent = daysUntil <= 7;
             const isVeryClose = daysUntil <= 2;
             return (
-              <motion.div
-                key={s.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.12 }}
-                whileHover={{ y: -3 }}
-                className="glass-card p-4 rounded-2xl group relative overflow-hidden"
-                style={{ borderLeft: isImminent ? '2px solid rgba(168,85,247,0.45)' : undefined }}
-              >
-                {/* Glow on imminent */}
-                {isImminent && (
-                  <div className="absolute inset-0 pointer-events-none"
-                    style={{ background: 'radial-gradient(ellipse at top left, rgba(168,85,247,0.06) 0%, transparent 70%)' }} />
-                )}
+              <motion.div key={s.id} initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay: i*0.1 }}
+                whileHover={{ y:-3 }} className="glass-card p-4 rounded-2xl group relative overflow-hidden"
+                style={{ borderLeft: isImminent ? '2px solid rgba(168,85,247,0.45)' : undefined }}>
+                {isImminent && <div className="absolute inset-0 pointer-events-none"
+                  style={{ background:'radial-gradient(ellipse at top left, rgba(168,85,247,0.06) 0%, transparent 70%)' }} />}
                 <div className="flex items-center justify-between mb-3">
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-semibold ${
-                    isVeryClose ? 'bg-purple-500/25 text-purple-300' : 'badge-upcoming'
-                  }`}>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-semibold ${isVeryClose ? 'bg-purple-500/25 text-purple-300' : 'badge-upcoming'}`}>
                     {isVeryClose ? '🌠 IMMINENT' : daysUntil > 0 ? `IN ${daysUntil}d` : 'PEAK SOON'}
                   </span>
                   <span className="text-[10px] font-mono text-orange-400 font-semibold">{s.zhr} ZHR</span>
                 </div>
                 <h3 className="text-sm font-bold mb-0.5 group-hover:text-purple-300 transition-colors">{s.name}</h3>
-                <p className="text-[10px] text-white/35 font-mono mb-3">
-                  {s.parent && <span className="text-white/25">↑ {s.parent.split('/')[0]} · </span>}
-                  Peak {formatDate(s.peak)}
-                </p>
-                {/* Mini countdown */}
-                <div className="flex items-center gap-1.5 mb-3">
-                  {[
-                    { val: String(daysUntil).padStart(2,'0'), label:'d' },
-                    { val: String(new Date(s.peak).getHours()).padStart(2,'0'), label:'h' },
-                  ].map(({ val, label }) => (
-                    <div key={label} className="flex items-center gap-0.5">
-                      <div className="px-2 py-1 rounded-lg text-sm font-bold font-space text-white"
-                        style={{ background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.25)' }}>
-                        {val}
-                      </div>
-                      <span className="text-[9px] text-white/30 font-mono">{label}</span>
-                    </div>
-                  ))}
-                  <span className="text-white/20 text-xs mx-0.5">·</span>
-                  <span className="text-[10px] text-white/35 font-mono">{s.speed} km/s</span>
-                </div>
+                <p className="text-[10px] text-white/35 font-mono mb-3">Peak {formatDate(s.peak)}</p>
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] text-white/35">{s.constellation}</span>
                   <Link to={`/shower/${s.id}`} className="text-[10px] text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-colors">
@@ -1125,93 +1169,178 @@ function Home({ watched, addNotification, toggleWatch }: {
         </div>
       </div>
 
-      {/* ── NASA APOD — always render ── */}
+      {/* ══ SPACE TODAY — APOD + EPIC Earth + Mars Rover ═════════════════════ */}
       <div className="mb-10">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-6 h-6 rounded-lg bg-orange-500/12 border border-orange-500/22 flex items-center justify-center">
             <Rocket size={12} className="text-orange-400" />
           </div>
-          <h2 className="text-lg font-bold font-space">NASA Astronomy Picture of the Day</h2>
+          <h2 className="text-lg font-bold font-space">Space Today</h2>
+          <span className="text-[10px] text-white/25 font-mono ml-1">NASA live feeds</span>
         </div>
-        <div className="glass-card rounded-2xl overflow-hidden">
-          {apodLoading ? (
-            <div className="h-60 flex items-center justify-center shimmer">
-              <div className="text-center">
-                <Rocket size={28} className="text-orange-400/35 mx-auto mb-2 animate-float" />
-                <p className="text-xs text-white/22 font-mono">Fetching from NASA…</p>
-              </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+          {/* APOD */}
+          <div className="glass-card rounded-2xl overflow-hidden flex flex-col">
+            <div className="relative">
+              {apodLoading ? (
+                <div className="h-48 flex items-center justify-center shimmer">
+                  <Rocket size={22} className="text-orange-400/35 animate-float" />
+                </div>
+              ) : apod ? (
+                apod.media_type === 'image' ? (
+                  <img src={apod.url} alt={apod.title} className="w-full h-48 object-cover" loading="lazy" />
+                ) : (
+                  <div className="h-48 flex items-center justify-center bg-blue-500/5">
+                    <a href={apod.url} target="_blank" rel="noopener noreferrer" className="btn-primary text-xs"><ExternalLink size={11}/>Watch on NASA</a>
+                  </div>
+                )
+              ) : (
+                <div className="h-48 flex items-center justify-center" style={{ background:'linear-gradient(135deg,#050520,#0a0540)' }}>
+                  <div className="text-center"><p className="text-3xl mb-2">🔭</p><p className="text-xs text-white/30">NASA APOD</p></div>
+                </div>
+              )}
+              <div className="absolute top-2 left-2 text-[9px] px-2 py-0.5 rounded-full font-mono font-bold"
+                style={{ background:'rgba(251,146,60,0.8)', color:'#fff' }}>NASA APOD</div>
             </div>
-          ) : apod ? (
-            apod.media_type === 'image' ? (
-              <img src={apod.url} alt={apod.title} className="w-full h-60 object-cover" loading="lazy" />
-            ) : (
-              <div className="h-60 flex items-center justify-center" style={{ background: 'rgba(79,142,247,0.06)' }}>
-                <a href={apod.url} target="_blank" rel="noopener noreferrer" className="btn-primary">
-                  <ExternalLink size={12} /> Watch on NASA
-                </a>
-              </div>
-            )
-          ) : (
-            <div className="h-60 relative overflow-hidden flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, #050520, #0a0540, #0d0228)' }}
-            >
-              <div className="absolute inset-0 opacity-25"
-                style={{ background: 'radial-gradient(circle at 30% 50%, rgba(79,142,247,0.5) 0%, transparent 55%), radial-gradient(circle at 70% 30%, rgba(139,92,246,0.4) 0%, transparent 50%)' }}
-              />
-              <div className="relative text-center">
-                <p className="text-4xl mb-2">🔭</p>
-                <p className="text-sm font-semibold text-white/70 mb-1">Astronomy Picture of the Day</p>
-                <p className="text-xs text-white/35 mb-4">NASA APOD · Updated daily</p>
-                <a href="https://apod.nasa.gov" target="_blank" rel="noopener noreferrer" className="btn-secondary text-xs">
-                  <ExternalLink size={11} /> View on NASA
-                </a>
-              </div>
+            <div className="p-4 flex-1">
+              <h3 className="text-xs font-bold mb-1 line-clamp-2">{apod?.title ?? 'Astronomy Picture of the Day'}</h3>
+              <p className="text-[10px] text-white/40 leading-relaxed line-clamp-3">{apod?.explanation ?? 'Updated daily by NASA. The most beautiful images of the universe.'}</p>
             </div>
-          )}
-          {apod && (
-            <div className="p-5 border-t border-white/5">
-              <h3 className="font-bold text-base mb-2">{apod.title}</h3>
-              <p className="text-xs text-white/48 leading-relaxed line-clamp-3">{apod.explanation}</p>
+          </div>
+
+          {/* EPIC Earth */}
+          <div className="glass-card rounded-2xl overflow-hidden flex flex-col">
+            <div className="relative">
+              {epicImg ? (
+                <img src={epicImg.url} alt="Earth from DSCOVR satellite" className="w-full h-48 object-cover object-center" loading="lazy"
+                  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+              ) : (
+                <div className="h-48 flex items-center justify-center" style={{ background:'linear-gradient(135deg,#03071a,#040d26,#030522)' }}>
+                  <Globe2 size={36} className="text-blue-400/30" />
+                </div>
+              )}
+              <div className="absolute top-2 left-2 text-[9px] px-2 py-0.5 rounded-full font-mono font-bold"
+                style={{ background:'rgba(59,130,246,0.8)', color:'#fff' }}>EARTH FROM SPACE</div>
             </div>
-          )}
+            <div className="p-4 flex-1">
+              <h3 className="text-xs font-bold mb-1">Earth Right Now</h3>
+              <p className="text-[10px] text-white/40 leading-relaxed">
+                {epicImg
+                  ? `NASA EPIC camera aboard the DSCOVR satellite, 1.5M km from Earth. Photo taken ${new Date(epicImg.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}.`
+                  : 'Daily full-disk Earth photos from NASA DSCOVR satellite at the L1 Lagrange point, 1.5 million km away.'}
+              </p>
+            </div>
+          </div>
+
+          {/* Mars Rover */}
+          <div className="glass-card rounded-2xl overflow-hidden flex flex-col">
+            <div className="relative">
+              {marsSnap ? (
+                <img src={marsSnap.src} alt={`Mars — ${marsSnap.camera}`} className="w-full h-48 object-cover" loading="lazy"
+                  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+              ) : (
+                <div className="h-48 flex items-center justify-center" style={{ background:'linear-gradient(135deg,#1c0a02,#2d100a,#1a0805)' }}>
+                  <Camera size={36} className="text-red-400/30" />
+                </div>
+              )}
+              <div className="absolute top-2 left-2 text-[9px] px-2 py-0.5 rounded-full font-mono font-bold"
+                style={{ background:'rgba(220,38,38,0.8)', color:'#fff' }}>MARS TODAY</div>
+            </div>
+            <div className="p-4 flex-1">
+              <h3 className="text-xs font-bold mb-1">Curiosity Rover</h3>
+              <p className="text-[10px] text-white/40 leading-relaxed">
+                {marsSnap
+                  ? `${marsSnap.camera} · Sol ${marsSnap.sol} · ${new Date(marsSnap.earthDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`
+                  : 'Latest photos from NASA Curiosity rover on the surface of Mars, updated when the rover transmits new images.'}
+              </p>
+            </div>
+          </div>
+
         </div>
       </div>
 
-      {/* ── Observing Conditions — always render ── */}
+      {/* ══ BEST VIEWING WINDOW ═══════════════════════════════════════════════ */}
+      {(() => {
+        const moonBad  = moon.illumination > 55;
+        const bestHour = moonBad ? '02:00–04:30' : '23:00–04:30';
+        const tip = moonBad
+          ? `Bright moon tonight. Best window is ${bestHour} when the moon is lower. Fireballs and bright meteors still worth watching.`
+          : `Dark skies tonight. Prime viewing is ${bestHour}. Lie flat, look straight up, give your eyes 20 minutes to adapt.`;
+        return (
+          <motion.div initial={{ opacity:0, y:15 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.35 }}
+            className="glass-card p-5 rounded-2xl mb-10 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-40 h-40 pointer-events-none"
+              style={{ background:`radial-gradient(circle,${viewColor}0a 0%,transparent 70%)`, transform:'translate(30%,-30%)' }} />
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center"
+                    style={{ background:`${viewColor}18`, border:`1px solid ${viewColor}33` }}>
+                    <Moon size={12} style={{ color:viewColor }} />
+                  </div>
+                  <span className="text-xs font-semibold text-white/75">Best Viewing Window Tonight</span>
+                </div>
+                <span className="text-xs font-mono font-bold" style={{ color:viewColor }}>{viewLabel} — {viewScore}/10</span>
+              </div>
+              <div className="flex gap-0.5 mb-3">
+                {Array.from({length:10},(_,i) => (
+                  <div key={i} className="flex-1 h-2.5 rounded-sm"
+                    style={{ background: i < viewScore ? viewColor : 'rgba(255,255,255,0.06)' }} />
+                ))}
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+                {[
+                  { label:'Best window', val:bestHour, icon:'🕑' },
+                  { label:'Moon', val:`${moon.illumination}% — ${moon.phase}`, icon:moon.emoji },
+                  { label:'Cloud cover', val: weather ? `${weather.cloudCover}%` : 'Enable location', icon:'☁️' },
+                  { label:'Active showers', val: activeShowers.length > 0 ? activeShowers.map(s=>s.name).join(', ') : 'None tonight', icon:'🌠' },
+                ].map(({label,val,icon}) => (
+                  <div key={label} className="p-2 rounded-xl" style={{ background:'rgba(255,255,255,0.03)' }}>
+                    <p className="text-[9px] text-white/35 font-mono uppercase tracking-widest mb-0.5">{label}</p>
+                    <p className="text-[11px] text-white/80 font-medium">{icon} {val}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-white/45 leading-relaxed">{tip}</p>
+            </div>
+          </motion.div>
+        );
+      })()}
+
+      {/* ══ OBSERVING CONDITIONS ══════════════════════════════════════════════ */}
       <div className="mb-10">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-6 h-6 rounded-lg bg-blue-500/12 border border-blue-500/22 flex items-center justify-center">
             <Cloud size={12} className="text-blue-400" />
           </div>
-          <h2 className="text-lg font-bold font-space">Observing Conditions</h2>
+          <h2 className="text-lg font-bold font-space">Local Observing Conditions</h2>
         </div>
         <div className="glass-card p-5 rounded-2xl">
           {weatherDenied || (!weather && !weatherLoading) ? (
             <div className="flex items-center gap-4">
               <div className="flex-1">
                 <p className="text-sm font-semibold text-white/72 mb-1">Enable location for live conditions</p>
-                <p className="text-xs text-white/40 leading-relaxed">
-                  Allow location access in your browser to see real-time cloud cover, humidity, and sky quality for your area.
-                </p>
+                <p className="text-xs text-white/40 leading-relaxed">Allow location in your browser to see real-time cloud cover and sky quality for your area.</p>
               </div>
               <div className="text-3xl opacity-35 flex-shrink-0">📍</div>
             </div>
           ) : weatherLoading ? (
             <div className="flex items-center gap-3">
               <RefreshCw size={14} className="text-blue-400/50 animate-spin flex-shrink-0" />
-              <p className="text-xs text-white/30 font-mono">Fetching local weather…</p>
+              <p className="text-xs text-white/30 font-mono">Fetching local conditions…</p>
             </div>
           ) : weather ? (
             <>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                 {[
-                  { label: 'Cloud Cover', value: `${weather.cloudCover}%`,    good: weather.cloudCover < 30, icon: Cloud },
-                  { label: 'Humidity',    value: `${weather.humidity}%`,       good: weather.humidity < 70,   icon: Wind },
-                  { label: 'Sky Quality', value: weather.cloudCover < 20 ? 'Excellent' : weather.cloudCover < 50 ? 'Fair' : 'Poor', good: weather.cloudCover < 50, icon: Eye },
-                  { label: 'Moon Impact', value: moon.illumination < 30 ? 'Low' : moon.illumination < 70 ? 'Medium' : 'High', good: moon.illumination < 50, icon: Moon },
-                ].map(({ label, value, good, icon: Icon }) => (
-                  <div key={label} className="text-center p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                    <Icon size={18} className={`mx-auto mb-1.5 ${good ? 'text-green-400' : 'text-orange-400'}`} />
+                  { label:'Cloud Cover', value:`${weather.cloudCover}%`,  good:weather.cloudCover<30,  icon:Cloud },
+                  { label:'Humidity',    value:`${weather.humidity}%`,     good:weather.humidity<70,    icon:Wind },
+                  { label:'Sky Quality', value:weather.cloudCover<20?'Excellent':weather.cloudCover<50?'Fair':'Poor', good:weather.cloudCover<50, icon:Eye },
+                  { label:'Moon Impact', value:moon.illumination<30?'Low':moon.illumination<70?'Medium':'High', good:moon.illumination<50, icon:Moon },
+                ].map(({label,value,good,icon:Icon}) => (
+                  <div key={label} className="text-center p-3 rounded-xl" style={{ background:'rgba(255,255,255,0.03)' }}>
+                    <Icon size={18} className={`mx-auto mb-1.5 ${good?'text-green-400':'text-orange-400'}`} />
                     <p className="text-sm font-bold">{value}</p>
                     <p className="text-[10px] text-white/32 uppercase tracking-wider font-mono mt-0.5">{label}</p>
                   </div>
@@ -1219,8 +1348,8 @@ function Home({ watched, addNotification, toggleWatch }: {
               </div>
               <div className="pt-3 border-t border-white/5">
                 <p className="text-xs text-white/40">
-                  {weather.cloudCover < 20 ? '✓ Excellent conditions tonight. Crystal clear skies expected.' :
-                   weather.cloudCover < 50 ? '◎ Partly cloudy. Viewing will be intermittent - look for breaks in the clouds.' :
+                  {weather.cloudCover<20 ? '✓ Excellent conditions tonight. Crystal clear skies expected.' :
+                   weather.cloudCover<50 ? '◎ Partly cloudy. Viewing will be intermittent — look for breaks in the clouds.' :
                    '✗ Heavy cloud cover. Worth rescheduling to a clearer night if you can.'}
                 </p>
               </div>
@@ -1229,7 +1358,7 @@ function Home({ watched, addNotification, toggleWatch }: {
         </div>
       </div>
 
-      {/* ── FAQ ── */}
+      {/* ══ FAQ ═══════════════════════════════════════════════════════════════ */}
       <div className="mb-10">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-6 h-6 rounded-lg bg-purple-500/12 border border-purple-500/22 flex items-center justify-center">
