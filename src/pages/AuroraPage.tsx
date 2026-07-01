@@ -172,23 +172,24 @@ export default function AuroraPage() {
             <div key={label}>
               <p className="text-[10px] text-white/35 font-mono mb-2">{label}</p>
               <div className="rounded-xl overflow-hidden" style={{ background:'rgba(0,0,0,0.4)' }}>
-                <img src={`${url}?t=${Math.floor(Date.now()/300000)}`}
+                <img src={url}
                   alt={`Aurora oval — ${label}`}
                   className="w-full object-contain"
                   style={{ maxHeight: 320 }}
                   referrerPolicy="no-referrer"
-                  crossOrigin="anonymous"
                   onError={e => {
                     const img = e.target as HTMLImageElement;
-                    // Fallback: try without cache-bust param
-                    if (img.src.includes('?t=')) {
-                      img.src = url;
-                    } else {
-                      img.style.display = 'none';
-                      const p = document.createElement('p');
-                      p.style.cssText = 'text-align:center;padding:40px 0;color:rgba(255,255,255,0.25);font-size:11px';
-                      p.textContent = '🌐 View on NOAA';
-                      img.parentElement?.appendChild(p);
+                    img.style.display = 'none';
+                    const parent = img.parentElement;
+                    if (parent && !parent.querySelector('.noaa-fallback')) {
+                      const a = document.createElement('a');
+                      a.href = 'https://www.swpc.noaa.gov/products/aurora-30-minute-forecast';
+                      a.target = '_blank';
+                      a.rel = 'noopener noreferrer';
+                      a.className = 'noaa-fallback';
+                      a.style.cssText = 'display:flex;align-items:center;justify-content:center;height:180px;color:rgba(99,179,237,0.7);font-size:11px;font-family:monospace;text-decoration:none;gap:6px';
+                      a.innerHTML = '🌐 View aurora oval on NOAA →';
+                      parent.appendChild(a);
                     }
                   }}
                 />
