@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useInView } from 'react-intersection-observer';
@@ -9,13 +9,35 @@ import {
   RefreshCw, AlertTriangle, CheckCircle, ExternalLink, Rocket, Moon,
   Cloud, Wind, BarChart2, Users, MessageSquare, Plus, Search,
   Filter, TrendingUp, Navigation, Compass, Gauge, ShoppingBag, BellRing,
-  Sun, Flame, Camera, Globe2, Triangle
+  Sun, Flame, Camera, Globe2, Triangle, Newspaper, Settings, Orbit
 } from 'lucide-react';
 import { useSpaceData, auToLD, asteroidSize, fireballEnergy } from './hooks/useSpaceData';
+import { getPlanets } from './utils/planets';
 import meteorShowers from './data/meteorShowers.json';
-import CesiumGlobe from './components/CesiumGlobe';
-import SolarSystemViewer from './components/SolarSystemViewer';
-import SkyView from './components/SkyView';
+
+// ─── Lazy-load heavy components ───────────────────────────────────────────────
+const CesiumGlobe       = lazy(() => import('./components/CesiumGlobe'));
+const SolarSystemViewer = lazy(() => import('./components/SolarSystemViewer'));
+const SkyView           = lazy(() => import('./components/SkyView'));
+
+// ─── Lazy-load new page components ───────────────────────────────────────────
+const AuroraPage   = lazy(() => import('./pages/AuroraPage'));
+const PlanetsPage  = lazy(() => import('./pages/PlanetsPage'));
+const NewsPage     = lazy(() => import('./pages/NewsPage'));
+const ISSPage      = lazy(() => import('./pages/ISSPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+
+// Suspense fallback
+function PageLoader() {
+  return (
+    <div className="relative z-10 flex items-center justify-center min-h-[60vh]">
+      <div className="text-center">
+        <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-400 rounded-full animate-spin mx-auto mb-3" />
+        <p className="text-white/30 text-xs font-mono">Loading…</p>
+      </div>
+    </div>
+  );
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface MeteorShower {
@@ -218,11 +240,14 @@ function Navbar({ watched, notifications, toggleWatch }: { watched: WatchedShowe
   const links = [
     { to: '/',         label: 'Home',     icon: Sparkles },
     { to: '/calendar', label: 'Calendar', icon: Calendar },
+    { to: '/aurora',   label: 'Aurora',   icon: Sun },
+    { to: '/planets',  label: 'Planets',  icon: Orbit },
     { to: '/live',     label: 'Live',     icon: Radio },
     { to: '/globe',    label: '3D Globe', icon: Globe },
-    { to: '/sky',      label: 'Night Sky', icon: Star },
+    { to: '/sky',      label: 'Sky',      icon: Star },
+    { to: '/news',     label: 'News',     icon: Newspaper },
+    { to: '/iss',      label: 'ISS',      icon: Rocket },
     { to: '/gear',     label: 'Gear',     icon: ShoppingBag },
-    { to: '/about',    label: 'About',    icon: Info },
   ];
 
   return (
@@ -274,6 +299,11 @@ function Navbar({ watched, notifications, toggleWatch }: { watched: WatchedShowe
           {notifications.length > 0 && (
             <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse shadow shadow-green-400/50" />
           )}
+          <Link to="/settings"
+            className="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg hover:bg-white/8 transition-all"
+            aria-label="Settings" title="Notification Settings">
+            <Settings size={16} className={pathname === '/settings' ? 'text-blue-400' : 'text-white/40'} />
+          </Link>
           <button
             className="md:hidden text-white/60 hover:text-white p-1.5 rounded-lg hover:bg-white/5 transition-all"
             onClick={() => setOpen(o => !o)}
@@ -1358,6 +1388,95 @@ function Home({ watched, addNotification, toggleWatch }: {
         </div>
       </div>
 
+      {/* ══ PLANETS TONIGHT ══════════════════════════════════════════════════ */}
+      {(() => {
+        const planets = getPlanets();
+        const visible = planets.filter(p => p.visibility !== 'hidden');
+        return (
+          <div className="mb-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-purple-500/12 border border-purple-500/22 flex items-center justify-center">
+                  <Orbit size={12} className="text-purple-400" />
+                </div>
+                <h2 className="text-lg font-bold font-space">Planets Tonight</h2>
+              </div>
+              <Link to="/planets" className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors">
+                Full Details <ArrowRight size={11} />
+              </Link>
+            </div>
+            {visible.length === 0 ? (
+              <div className="glass-card p-5 rounded-2xl text-center text-white/30 text-sm">No planets well-placed for viewing tonight</div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                {planets.map(p => {
+                  const visColors: Record<string, string> = { evening:'#fbbf24', morning:'#f472b6', night:'#818cf8', hidden:'rgba(255,255,255,0.2)' };
+                  const vc = visColors[p.visibility];
+                  const isVis = p.visibility !== 'hidden';
+                  return (
+                    <Link to="/planets" key={p.name}
+                      className="glass-card p-3.5 rounded-xl flex flex-col items-center text-center transition-all hover:ring-1 hover:ring-white/10"
+                      style={{ opacity: isVis ? 1 : 0.45 }}>
+                      <div className="text-2xl mb-1.5">{p.symbol}</div>
+                      <p className="text-xs font-bold text-white/80 mb-1">{p.name}</p>
+                      <p className="text-[9px] font-semibold" style={{ color: vc }}>{p.visibility === 'hidden' ? 'Not visible' : p.visibility}</p>
+                      <p className="text-[9px] text-white/25 font-mono mt-0.5">{p.elongation}° from ☀️</p>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* ══ SPACE NEWS ════════════════════════════════════════════════════════ */}
+      {spaceData.news.length > 0 && (
+        <div className="mb-10">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-blue-500/12 border border-blue-500/22 flex items-center justify-center">
+                <Newspaper size={12} className="text-blue-400" />
+              </div>
+              <h2 className="text-lg font-bold font-space">Latest Space News</h2>
+            </div>
+            <Link to="/news" className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors">
+              All Articles <ArrowRight size={11} />
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {spaceData.news.slice(0, 3).map((article, i) => {
+              const ago = (() => {
+                const d = (Date.now() - new Date(article.published_at).getTime()) / 1000;
+                return d < 3600 ? `${Math.floor(d/60)}m ago` : d < 86400 ? `${Math.floor(d/3600)}h ago` : `${Math.floor(d/86400)}d ago`;
+              })();
+              return (
+                <motion.a key={article.id}
+                  href={article.url} target="_blank" rel="noopener noreferrer"
+                  initial={{ opacity:0, y:15 }} animate={{ opacity:1, y:0 }} transition={{ delay: i * 0.08 }}
+                  className="glass-card rounded-2xl overflow-hidden group flex flex-col hover:ring-1 hover:ring-blue-500/25 transition-all">
+                  <div className="relative h-36 overflow-hidden" style={{ background:'rgba(0,0,30,0.6)' }}>
+                    {article.image_url && (
+                      <img src={article.image_url} alt={article.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        loading="lazy"
+                        onError={e => { (e.target as HTMLImageElement).style.display='none'; }}
+                      />
+                    )}
+                    <div className="absolute top-2 right-2 text-[9px] px-2 py-0.5 rounded-full font-mono"
+                      style={{ background:'rgba(0,0,0,0.65)', color:'rgba(255,255,255,0.5)' }}>{ago}</div>
+                  </div>
+                  <div className="p-3.5 flex-1">
+                    <p className="text-[9px] font-mono text-blue-400/60 mb-1">{article.news_site}</p>
+                    <h3 className="text-xs font-bold leading-snug line-clamp-3 group-hover:text-blue-300 transition-colors">{article.title}</h3>
+                  </div>
+                </motion.a>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ══ FAQ ═══════════════════════════════════════════════════════════════ */}
       <div className="mb-10">
         <div className="flex items-center gap-2 mb-4">
@@ -2057,11 +2176,11 @@ function GlobePage() {
       <div className="flex-1 relative overflow-hidden">
         {/* Earth globe layer */}
         <div className={`absolute inset-0 transition-opacity duration-500 ${view === 'earth' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-          <CesiumGlobe />
+          <Suspense fallback={<PageLoader />}><CesiumGlobe /></Suspense>
         </div>
         {/* Solar system layer */}
         <div className={`absolute inset-0 transition-opacity duration-500 ${view === 'solar' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-          {view === 'solar' && <SolarSystemViewer initZoom={initZoom} initSelectName={initSelect} initSelectType={initType || undefined} />}
+          {view === 'solar' && <Suspense fallback={<PageLoader />}><SolarSystemViewer initZoom={initZoom} initSelectName={initSelect} initSelectType={initType || undefined} /></Suspense>}
         </div>
       </div>
     </div>
@@ -2078,7 +2197,7 @@ function SkyPage() {
       <link rel="canonical" href="https://stargaze.io/sky" />
     <div className="relative z-10 pt-16 h-screen flex flex-col">
       <div className="flex-1 relative overflow-hidden">
-        <SkyView />
+        <Suspense fallback={<PageLoader />}><SkyView /></Suspense>
       </div>
     </div>
     </>
@@ -2809,6 +2928,11 @@ function AnimatedRoutes({ watched, addNotification, toggleWatch }: {
         <Route path="/about"      element={<About />} />
         <Route path="/privacy"    element={<PrivacyPolicy />} />
         <Route path="/terms"      element={<TermsOfService />} />
+        <Route path="/aurora"     element={<Suspense fallback={<PageLoader />}><AuroraPage /></Suspense>} />
+        <Route path="/planets"    element={<Suspense fallback={<PageLoader />}><PlanetsPage /></Suspense>} />
+        <Route path="/news"       element={<Suspense fallback={<PageLoader />}><NewsPage /></Suspense>} />
+        <Route path="/iss"        element={<Suspense fallback={<PageLoader />}><ISSPage /></Suspense>} />
+        <Route path="/settings"   element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
         <Route path="*"           element={<NotFound />} />
       </Routes>
     </AnimatePresence>

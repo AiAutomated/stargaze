@@ -15,24 +15,30 @@ function cSet(key: string, v: any) {
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-export interface KpPoint  { time: string; kp: number }
-export interface Fireball { date: string; energy?: string; impact_e?: string; lat?: string; lon?: string; lat_dir?: string; lon_dir?: string; alt?: string; vel?: string }
-export interface Asteroid { des: string; fullname?: string; cd: string; dist: string; v_rel: string; h: string }
-export interface EpicImg  { date: string; url: string }
-export interface MarsSnap { src: string; camera: string; earthDate: string; sol: number }
+export interface KpPoint    { time: string; kp: number }
+export interface Fireball   { date: string; energy?: string; impact_e?: string; lat?: string; lon?: string; lat_dir?: string; lon_dir?: string; alt?: string; vel?: string }
+export interface Asteroid   { des: string; fullname?: string; cd: string; dist: string; v_rel: string; h: string }
+export interface EpicImg    { date: string; url: string }
+export interface MarsSnap   { src: string; camera: string; earthDate: string; sol: number }
+export interface NewsArticle { id: number; title: string; url: string; image_url: string; news_site: string; summary: string; published_at: string }
+export interface SolarFlare  { flrID: string; beginTime: string; peakTime: string; endTime?: string; classType: string; sourceLocation?: string; activeRegionNum?: number }
+export interface CMEEvent    { activityID: string; startTime: string; cmeAnalyses?: Array<{ speed?: number; type?: string }> }
 
 export interface SpaceData {
-  kpNow:     number | null
-  kpHistory: KpPoint[]
-  kpStatus:  'quiet' | 'unsettled' | 'active' | 'storm-minor' | 'storm-major'
-  kpLabel:   string
-  kpColor:   string
-  auroraLat: string
-  fireballs: Fireball[]
-  asteroids: Asteroid[]
-  epicImg:   EpicImg | null
-  marsSnap:  MarsSnap | null
-  loading:   boolean
+  kpNow:      number | null
+  kpHistory:  KpPoint[]
+  kpStatus:   'quiet' | 'unsettled' | 'active' | 'storm-minor' | 'storm-major'
+  kpLabel:    string
+  kpColor:    string
+  auroraLat:  string
+  fireballs:  Fireball[]
+  asteroids:  Asteroid[]
+  epicImg:    EpicImg | null
+  marsSnap:   MarsSnap | null
+  news:       NewsArticle[]
+  flares:     SolarFlare[]
+  cmes:       CMEEvent[]
+  loading:    boolean
 }
 
 // ─── Kp metadata ─────────────────────────────────────────────────────────────
@@ -46,21 +52,17 @@ function kpMeta(kp: number): { status: SpaceData['kpStatus']; label: string; col
   return              { status: 'storm-major', label: 'G3+ Major Storm',  color: '#dc2626', aurora: 'Visible from mid-latitudes — go outside NOW!' }
 }
 
-// ─── Utility: estimate asteroid size from H magnitude ────────────────────────
+// ─── Utilities ───────────────────────────────────────────────────────────────
 export function asteroidSize(h: number): string {
   const km = 3432 * Math.pow(10, -h / 5);
   if (km >= 1) return `~${km.toFixed(1)} km`;
   return `~${Math.round(km * 1000)} m`;
 }
-
-// ─── Utility: convert AU to lunar distances ───────────────────────────────────
 export function auToLD(au: number): string {
   const ld = au * 389.17;
   if (ld < 1) return `${(ld * 384400).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} km`;
   return `${ld.toFixed(1)} LD`;
 }
-
-// ─── Utility: fireball energy label ─────────────────────────────────────────
 export function fireballEnergy(fb: Fireball): string {
   if (fb.impact_e) {
     const kt = parseFloat(fb.impact_e);
@@ -69,6 +71,13 @@ export function fireballEnergy(fb: Fireball): string {
   }
   if (fb.energy) return `${parseFloat(fb.energy).toFixed(0)} GJ`;
   return 'Unknown';
+}
+export function flareClass(classType: string): { color: string; label: string } {
+  const cls = classType?.[0]?.toUpperCase() ?? 'A';
+  if (cls === 'X') return { color: '#dc2626', label: 'X-class (Extreme)' };
+  if (cls === 'M') return { color: '#f97316', label: 'M-class (Strong)' };
+  if (cls === 'C') return { color: '#fbbf24', label: 'C-class (Moderate)' };
+  return { color: '#4ade80', label: 'A/B-class (Weak)' };
 }
 
 // ─── Main hook ────────────────────────────────────────────────────────────────
@@ -79,6 +88,9 @@ export function useSpaceData(): SpaceData {
   const [asteroids,setAst]     = useState<Asteroid[]>([]);
   const [epicImg,  setEpic]    = useState<EpicImg | null>(null);
   const [marsSnap, setMars]    = useState<MarsSnap | null>(null);
+  const [news,     setNews]    = useState<NewsArticle[]>([]);
+  const [flares,   setFlares]  = useState<SolarFlare[]>([]);
+  const [cmes,     setCmes]    = useState<CMEEvent[]>([]);
   const [loading,  setLoading] = useState(true);
 
   useEffect(() => {
@@ -92,18 +104,17 @@ export function useSpaceData(): SpaceData {
         const r = await fetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json');
         if (!r.ok) return;
         const raw: [string, string, string, string][] = await r.json();
-        // First row is header; rest are [time_tag, kp, a_running, station_count]
         const pts: KpPoint[] = raw.slice(1)
           .map(row => ({ time: row[0], kp: parseFloat(row[1]) }))
           .filter(p => !isNaN(p.kp))
-          .slice(-24); // last 24 × 3h = 72h
+          .slice(-24);
         const now = pts[pts.length - 1]?.kp ?? null;
         if (alive) { setKpNow(now); setKpH(pts); }
         cSet('kp', { now, history: pts });
       } catch {}
     }
 
-    // ── JPL Fireball API (government-confirmed, 1h cache) ────────────────────
+    // ── JPL Fireball API (1h cache) ──────────────────────────────────────────
     async function loadFireballs() {
       const cached = cGet('fireballs', 60 * 60_000);
       if (cached) { if (alive) setFballs(cached); return; }
@@ -171,7 +182,6 @@ export function useSpaceData(): SpaceData {
         if (!r.ok) return;
         const d = await r.json();
         const photos: any[] = d.latest_photos ?? [];
-        // Prefer scenic cameras
         const preferred = ['MAST', 'NAVCAM', 'MASTL', 'MARDI'];
         const photo = photos.find(p => preferred.includes(p.camera?.name)) ?? photos[0];
         if (!photo) return;
@@ -186,11 +196,41 @@ export function useSpaceData(): SpaceData {
       } catch {}
     }
 
-    // Load everything in parallel
-    Promise.all([loadKp(), loadFireballs(), loadAsteroids(), loadEPIC(), loadMars()])
+    // ── SpaceflightNews API (15-min cache) ───────────────────────────────────
+    async function loadNews() {
+      const cached = cGet('news', 15 * 60_000);
+      if (cached) { if (alive) setNews(cached); return; }
+      try {
+        const r = await fetch('https://api.spaceflightnewsapi.net/v4/articles/?limit=12&ordering=-published_at');
+        if (!r.ok) return;
+        const d = await r.json();
+        const articles: NewsArticle[] = d.results ?? [];
+        if (alive) setNews(articles);
+        cSet('news', articles);
+      } catch {}
+    }
+
+    // ── NASA DONKI: solar flares + CMEs (1h cache) ───────────────────────────
+    async function loadDONKI() {
+      const cached = cGet('donki', 60 * 60_000);
+      if (cached) { if (alive) { setFlares(cached.flares); setCmes(cached.cmes); } return; }
+      try {
+        const start = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+        const [fRes, cRes] = await Promise.all([
+          fetch(`https://api.nasa.gov/DONKI/FLR?startDate=${start}&api_key=${NASA_KEY}`),
+          fetch(`https://api.nasa.gov/DONKI/CME?startDate=${start}&api_key=${NASA_KEY}`),
+        ]);
+        const flares: SolarFlare[] = fRes.ok ? await fRes.json() : [];
+        const cmes:   CMEEvent[]   = cRes.ok ? await cRes.json() : [];
+        if (alive) { setFlares(flares.reverse()); setCmes(cmes.reverse()); }
+        cSet('donki', { flares: flares.reverse(), cmes: cmes.reverse() });
+      } catch {}
+    }
+
+    // Load all in parallel
+    Promise.all([loadKp(), loadFireballs(), loadAsteroids(), loadEPIC(), loadMars(), loadNews(), loadDONKI()])
       .finally(() => { if (alive) setLoading(false); });
 
-    // Refresh Kp every 5 minutes
     const kpTimer = setInterval(loadKp, 5 * 60_000);
     return () => { alive = false; clearInterval(kpTimer); };
   }, []);
@@ -200,7 +240,8 @@ export function useSpaceData(): SpaceData {
     : { status: 'quiet' as const, label: 'Loading...', color: '#4ade80', aurora: '' };
 
   return {
-    kpNow, kpHistory, fireballs, asteroids, epicImg, marsSnap, loading,
+    kpNow, kpHistory, fireballs, asteroids, epicImg, marsSnap,
+    news, flares, cmes, loading,
     kpStatus: meta.status, kpLabel: meta.label, kpColor: meta.color, auroraLat: meta.aurora,
   };
 }
