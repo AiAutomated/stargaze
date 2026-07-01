@@ -1,10 +1,48 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Sun, ExternalLink, Zap, Wind, AlertTriangle } from 'lucide-react';
 import { useSpaceData, flareClass, SolarFlare, CMEEvent } from '../hooks/useSpaceData';
 
+const NOAA_BASE = 'https://services.swpc.noaa.gov';
+
+function useAuroraOvals() {
+  const [northUrl, setNorth] = useState<string | null>(null);
+  const [southUrl, setSouth] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    // Try localStorage cache (5-min TTL)
+    const cacheKey = 'noaa_ovals';
+    try {
+      const cached = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+      if (cached.ts && Date.now() - cached.ts < 5 * 60_000) {
+        if (alive) { setNorth(cached.north); setSouth(cached.south); }
+        return;
+      }
+    } catch {}
+
+    Promise.all([
+      fetch(`${NOAA_BASE}/products/animations/ovation_north_24h.json`).then(r => r.json()),
+      fetch(`${NOAA_BASE}/products/animations/ovation_south_24h.json`).then(r => r.json()),
+    ]).then(([northData, southData]) => {
+      if (!alive) return;
+      const n = Array.isArray(northData) && northData.length > 0
+        ? NOAA_BASE + northData[northData.length - 1].url : null;
+      const s = Array.isArray(southData) && southData.length > 0
+        ? NOAA_BASE + southData[southData.length - 1].url : null;
+      setNorth(n); setSouth(s);
+      try { localStorage.setItem(cacheKey, JSON.stringify({ north: n, south: s, ts: Date.now() })); } catch {}
+    }).catch(() => {});
+
+    return () => { alive = false; };
+  }, []);
+
+  return { northUrl, southUrl };
+}
+
 export default function AuroraPage() {
   const { kpNow, kpHistory, kpLabel, kpColor, kpStatus, auroraLat, flares, cmes, loading } = useSpaceData();
+  const { northUrl, southUrl } = useAuroraOvals();
 
   const latZones = [
     { lat: '65°+ N', kpMin: 0,  color: '#4ade80', desc: 'Always possible on clear nights' },
@@ -166,33 +204,26 @@ export default function AuroraPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[
-            { label:'Northern Hemisphere', url:'https://services.swpc.noaa.gov/images/aurora-forecast-north.png' },
-            { label:'Southern Hemisphere', url:'https://services.swpc.noaa.gov/images/aurora-forecast-south.png' },
-          ].map(({ label, url }) => (
+            { label: 'Northern Hemisphere', imgUrl: northUrl },
+            { label: 'Southern Hemisphere', imgUrl: southUrl },
+          ].map(({ label, imgUrl }) => (
             <div key={label}>
               <p className="text-[10px] text-white/35 font-mono mb-2">{label}</p>
-              <div className="rounded-xl overflow-hidden" style={{ background:'rgba(0,0,0,0.4)' }}>
-                <img src={url}
-                  alt={`Aurora oval — ${label}`}
-                  className="w-full object-contain"
-                  style={{ maxHeight: 320 }}
-                  referrerPolicy="no-referrer"
-                  onError={e => {
-                    const img = e.target as HTMLImageElement;
-                    img.style.display = 'none';
-                    const parent = img.parentElement;
-                    if (parent && !parent.querySelector('.noaa-fallback')) {
-                      const a = document.createElement('a');
-                      a.href = 'https://www.swpc.noaa.gov/products/aurora-30-minute-forecast';
-                      a.target = '_blank';
-                      a.rel = 'noopener noreferrer';
-                      a.className = 'noaa-fallback';
-                      a.style.cssText = 'display:flex;align-items:center;justify-content:center;height:180px;color:rgba(99,179,237,0.7);font-size:11px;font-family:monospace;text-decoration:none;gap:6px';
-                      a.innerHTML = '🌐 View aurora oval on NOAA →';
-                      parent.appendChild(a);
-                    }
-                  }}
-                />
+              <div className="rounded-xl overflow-hidden flex items-center justify-center" style={{ background:'rgba(0,0,0,0.4)', minHeight: 160 }}>
+                {imgUrl ? (
+                  <img src={imgUrl}
+                    alt={`Aurora oval — ${label}`}
+                    className="w-full object-contain"
+                    style={{ maxHeight: 320 }}
+                    referrerPolicy="no-referrer"
+                    onError={e => { (e.target as HTMLImageElement).style.opacity = '0.15'; }}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center gap-2 py-8">
+                    <div className="w-6 h-6 border-2 border-green-400/30 border-t-green-400 rounded-full animate-spin" />
+                    <p className="text-[10px] text-white/25 font-mono">Loading NOAA oval…</p>
+                  </div>
+                )}
               </div>
             </div>
           ))}
