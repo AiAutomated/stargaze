@@ -172,10 +172,25 @@ export default function AuroraPage() {
             <div key={label}>
               <p className="text-[10px] text-white/35 font-mono mb-2">{label}</p>
               <div className="rounded-xl overflow-hidden" style={{ background:'rgba(0,0,0,0.4)' }}>
-                <img src={url} alt={`Aurora oval — ${label}`}
+                <img src={`${url}?t=${Math.floor(Date.now()/300000)}`}
+                  alt={`Aurora oval — ${label}`}
                   className="w-full object-contain"
                   style={{ maxHeight: 320 }}
-                  onError={e => { (e.target as HTMLImageElement).style.opacity='0.2'; }}
+                  referrerPolicy="no-referrer"
+                  crossOrigin="anonymous"
+                  onError={e => {
+                    const img = e.target as HTMLImageElement;
+                    // Fallback: try without cache-bust param
+                    if (img.src.includes('?t=')) {
+                      img.src = url;
+                    } else {
+                      img.style.display = 'none';
+                      const p = document.createElement('p');
+                      p.style.cssText = 'text-align:center;padding:40px 0;color:rgba(255,255,255,0.25);font-size:11px';
+                      p.textContent = '🌐 View on NOAA';
+                      img.parentElement?.appendChild(p);
+                    }
+                  }}
                 />
               </div>
             </div>
