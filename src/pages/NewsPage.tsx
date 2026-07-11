@@ -33,16 +33,19 @@ export default function NewsPage() {
       <link rel="canonical" href="https://stargaze.io/news" />
     <div className="relative z-10 max-w-7xl mx-auto px-4 pt-28 pb-16">
 
-      <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} className="text-center mb-12">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-5"
-          style={{ background:'rgba(59,130,246,0.10)', border:'1px solid rgba(59,130,246,0.25)' }}>
-          <span className="live-dot" />
-          <span className="text-xs font-mono text-blue-300/80 tracking-wider">LIVE FEED · UPDATES EVERY 15 MIN</span>
+      <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} className="text-center mb-12 relative">
+        <div className="hero-orb hero-orb-blue" style={{ top: -40, left: '25%', opacity: 0.35 }} aria-hidden="true" />
+        <div className="relative z-10">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-5"
+            style={{ background:'rgba(59,130,246,0.12)', border:'1px solid rgba(59,130,246,0.3)', boxShadow: '0 0 20px rgba(59,130,246,0.12)' }}>
+            <span className="live-dot" />
+            <span className="text-xs font-mono text-blue-300/80 tracking-wider">LIVE FEED · UPDATES EVERY 15 MIN</span>
+          </div>
+          <h1 className="hero-title hero-gradient-text mb-4">Space News</h1>
+          <p className="text-white/50 max-w-xl mx-auto leading-relaxed">
+            The latest from NASA, ESA, SpaceX, and the astronomy community — curated from leading space journalism.
+          </p>
         </div>
-        <h1 className="hero-title hero-gradient-text mb-4">Space News</h1>
-        <p className="text-white/50 max-w-xl mx-auto leading-relaxed">
-          The latest from NASA, ESA, SpaceX, and the astronomy community — curated from leading space journalism.
-        </p>
       </motion.div>
 
       {loading && news.length === 0 ? (
@@ -74,10 +77,10 @@ export default function NewsPage() {
                   initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay: Math.min(i * 0.07, 0.5) }}
                   className="glass-card rounded-2xl overflow-hidden group flex flex-col hover:ring-1 hover:ring-blue-500/30 transition-all">
                   {/* Image */}
-                  <div className="relative h-44 overflow-hidden bg-gray-900/60 flex-shrink-0">
+                  <div className="media-frame relative h-44 bg-gray-900/60 flex-shrink-0">
                     {article.image_url ? (
                       <img src={article.image_url} alt={article.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="w-full h-full object-cover"
                         loading="lazy"
                         onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                       />

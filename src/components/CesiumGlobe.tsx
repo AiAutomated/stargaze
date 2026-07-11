@@ -751,7 +751,7 @@ const CesiumGlobe: React.FC = () => {
         const layer = viewer.imageryLayers.addImageryProvider(
           new Cesium.TileMapServiceImageryProvider({
             url: 'https://stargazeio.b-cdn.net/darksky-tiles/{z}/{x}/{y}.png',
-          })
+          } as ConstructorParameters<typeof Cesium.TileMapServiceImageryProvider>[0])
         );
         layer.alpha = 0.55;
         layer.brightness = 0.8;

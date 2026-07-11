@@ -38,18 +38,21 @@ export default function PlanetsPage() {
     <div className="relative z-10 max-w-7xl mx-auto px-4 pt-28 pb-16">
 
       {/* Header */}
-      <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} className="text-center mb-12">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-5"
-          style={{ background:'rgba(139,92,246,0.10)', border:'1px solid rgba(139,92,246,0.25)' }}>
-          <Eye size={12} className="text-purple-400" />
-          <span className="text-xs font-mono text-purple-300/80 tracking-wider">
-            {visibleCount} PLANET{visibleCount !== 1 ? 'S' : ''} VISIBLE TONIGHT
-          </span>
+      <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} className="text-center mb-12 relative">
+        <div className="hero-orb hero-orb-purple" style={{ top: -20, left: '40%', opacity: 0.4 }} aria-hidden="true" />
+        <div className="relative z-10">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-5"
+            style={{ background:'rgba(139,92,246,0.12)', border:'1px solid rgba(139,92,246,0.3)', boxShadow: '0 0 24px rgba(139,92,246,0.12)' }}>
+            <Eye size={12} className="text-purple-400" />
+            <span className="text-xs font-mono text-purple-300/80 tracking-wider">
+              {visibleCount} PLANET{visibleCount !== 1 ? 'S' : ''} VISIBLE TONIGHT
+            </span>
+          </div>
+          <h1 className="hero-title hero-gradient-text mb-4">Planets Tonight</h1>
+          <p className="text-white/50 max-w-xl mx-auto leading-relaxed">
+            Approximate positions computed from orbital mechanics. Visibility depends on your local horizon, atmosphere, and light pollution.
+          </p>
         </div>
-        <h1 className="hero-title hero-gradient-text mb-4">Planets Tonight</h1>
-        <p className="text-white/50 max-w-xl mx-auto leading-relaxed">
-          Approximate positions computed from orbital mechanics. Visibility depends on your local horizon, atmosphere, and light pollution.
-        </p>
       </motion.div>
 
       {/* Quick summary strip */}
@@ -91,10 +94,12 @@ export default function PlanetsPage() {
               <div className="relative z-10">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    {/* Planet symbol */}
-                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl font-bold"
-                      style={{ background: isVisible ? `${p.color}15` : 'rgba(255,255,255,0.05)', border:`1px solid ${p.color}25` }}>
-                      {p.symbol}
+                    <div className="planet-orb" style={{
+                      width: 48, height: 48, fontSize: 22,
+                      ['--planet-glow' as string]: p.color,
+                      background: `radial-gradient(circle at 32% 28%, ${p.color}99, ${p.color}44 55%, rgba(0,0,0,0.5))`,
+                    }}>
+                      <span>{p.symbol}</span>
                     </div>
                     <div>
                       <h2 className="text-base font-bold font-space">{p.name}</h2>
@@ -145,9 +150,9 @@ export default function PlanetsPage() {
                 <div className="w-16 text-right">
                   <span className="text-xs font-mono text-white/50">{p.symbol} {p.name.slice(0,3)}</span>
                 </div>
-                <div className="flex-1 h-3 rounded-full overflow-hidden" style={{ background:'rgba(255,255,255,0.06)' }}>
-                  <div className="h-full rounded-full transition-all duration-700"
-                    style={{ width:`${pct}%`, background: p.color || VIS_COLOR[p.visibility] }} />
+                <div className="score-bar flex-1" style={{ height: 10 }}>
+                  <div className="score-bar-fill"
+                    style={{ width:`${pct}%`, background: `linear-gradient(90deg, ${p.color || VIS_COLOR[p.visibility]}aa, ${p.color || VIS_COLOR[p.visibility]})` }} />
                 </div>
                 <div className="w-12 text-xs font-mono" style={{ color: p.color || VIS_COLOR[p.visibility] }}>
                   {p.elongation}°

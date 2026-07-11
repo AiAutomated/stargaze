@@ -82,7 +82,7 @@ function predictPasses(tle: TLE, lat: number, lon: number, altKm = 0): Pass[] {
       const gmst   = satellite.gstime(date);
       const ecf    = satellite.eciToEcf(pv.position as satellite.EciVec3<number>, gmst);
       const look   = satellite.ecfToLookAngles(observer, ecf);
-      const elDeg  = satellite.radiansToDegrees(look.elevation);
+      const elDeg  = (look.elevation as number) * (180 / Math.PI);
 
       if (elDeg >= 10) {
         if (!inPass) { inPass = true; pStart = date; pMaxEl = elDeg; pMaxT = date; }
@@ -134,16 +134,19 @@ export default function ISSPage() {
       <link rel="canonical" href="https://stargaze.io/iss" />
     <div className="relative z-10 max-w-7xl mx-auto px-4 pt-28 pb-16">
 
-      <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} className="text-center mb-12">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-5"
-          style={{ background:'rgba(52,211,153,0.10)', border:'1px solid rgba(52,211,153,0.25)' }}>
-          <span className="live-dot" />
-          <span className="text-xs font-mono text-emerald-300/80 tracking-wider">LIVE · UPDATES EVERY 5 SECONDS</span>
+      <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} className="text-center mb-12 relative">
+        <div className="hero-orb hero-orb-cyan" style={{ top: -30, left: '35%', opacity: 0.35 }} aria-hidden="true" />
+        <div className="relative z-10">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-5"
+            style={{ background:'rgba(52,211,153,0.12)', border:'1px solid rgba(52,211,153,0.3)', boxShadow: '0 0 20px rgba(52,211,153,0.12)' }}>
+            <span className="live-dot" />
+            <span className="text-xs font-mono text-emerald-300/80 tracking-wider">LIVE · UPDATES EVERY 5 SECONDS</span>
+          </div>
+          <h1 className="hero-title hero-gradient-text mb-4">ISS Tracker</h1>
+          <p className="text-white/50 max-w-xl mx-auto leading-relaxed">
+            The International Space Station orbits Earth every 92 minutes at ~400 km altitude. Here's where it is right now.
+          </p>
         </div>
-        <h1 className="hero-title hero-gradient-text mb-4">ISS Tracker</h1>
-        <p className="text-white/50 max-w-xl mx-auto leading-relaxed">
-          The International Space Station orbits Earth every 92 minutes at ~400 km altitude. Here's where it is right now.
-        </p>
       </motion.div>
 
       {/* Live position grid */}
@@ -155,10 +158,11 @@ export default function ISSPage() {
           { label:'Speed',     value: pos ? `${Math.round(pos.velocity).toLocaleString()} km/h` : '…', icon:'⚡', color:'#fb923c' },
         ].map(({ label, value, icon, color }) => (
           <motion.div key={label} initial={{ opacity:0, y:15 }} animate={{ opacity:1, y:0 }}
-            className="glass-card p-4 rounded-2xl" style={{ borderTop:`2px solid ${color}30` }}>
-            <p className="text-2xl mb-1">{icon}</p>
-            <p className="text-lg font-bold font-space" style={{ color }}>{value}</p>
-            <p className="text-[10px] text-white/30 uppercase tracking-wider font-mono mt-1">{label}</p>
+            className="glass-card metric-card p-4 rounded-2xl" style={{ borderTop:`2px solid ${color}50` }}>
+            <div className="metric-glow" style={{ background: color }} />
+            <p className="text-2xl mb-1 relative z-10">{icon}</p>
+            <p className="text-lg font-bold font-space relative z-10" style={{ color }}>{value}</p>
+            <p className="text-[10px] text-white/30 uppercase tracking-wider font-mono mt-1 relative z-10">{label}</p>
           </motion.div>
         ))}
       </div>

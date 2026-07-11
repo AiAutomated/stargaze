@@ -61,16 +61,20 @@ export default function AuroraPage() {
     <div className="relative z-10 max-w-7xl mx-auto px-4 pt-28 pb-16">
 
       {/* Header */}
-      <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} className="text-center mb-12">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-5"
-          style={{ background:`${kpColor}10`, border:`1px solid ${kpColor}30` }}>
-          <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: kpColor }} />
-          <span className="text-xs font-mono tracking-wider" style={{ color: kpColor }}>LIVE NOAA DATA · UPDATES EVERY 5 MIN</span>
+      <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} className="text-center mb-12 relative">
+        <div className="hero-orb hero-orb-cyan" style={{ top: -40, left: '30%', opacity: 0.4 }} aria-hidden="true" />
+        <div className="hero-orb hero-orb-purple" style={{ top: 20, right: '15%', opacity: 0.35 }} aria-hidden="true" />
+        <div className="relative z-10">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-5 aurora-ribbon"
+            style={{ border:`1px solid ${kpColor}40` }}>
+            <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: kpColor, boxShadow: `0 0 10px ${kpColor}` }} />
+            <span className="text-xs font-mono tracking-wider" style={{ color: kpColor }}>LIVE NOAA DATA · UPDATES EVERY 5 MIN</span>
+          </div>
+          <h1 className="hero-title hero-gradient-text mb-4">Aurora Forecast</h1>
+          <p className="text-white/50 max-w-xl mx-auto text-base leading-relaxed">
+            Real-time geomagnetic conditions, solar flare alerts, CME tracking, and aurora visibility forecasts — powered by NOAA and NASA DONKI.
+          </p>
         </div>
-        <h1 className="hero-title hero-gradient-text mb-4">Aurora Forecast</h1>
-        <p className="text-white/50 max-w-xl mx-auto text-base leading-relaxed">
-          Real-time geomagnetic conditions, solar flare alerts, CME tracking, and aurora visibility forecasts — powered by NOAA and NASA DONKI.
-        </p>
       </motion.div>
 
       {/* Kp + oval grid */}

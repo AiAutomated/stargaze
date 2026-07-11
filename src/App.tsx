@@ -140,32 +140,118 @@ function StarField() {
     if (!ctx) return;
 
     let animId: number;
-    const stars: { x: number; y: number; r: number; a: number; da: number; color: string }[] = [];
-    const colors = ['#ffffff', '#93c5fd', '#c4b5fd', '#fde047'];
+    let w = 0, h = 0, dpr = 1;
+
+    type Star = { x: number; y: number; r: number; a: number; da: number; color: string; glow: boolean };
+    type Meteor = { x: number; y: number; len: number; speed: number; life: number; maxLife: number; angle: number };
+    type Nebula = { x: number; y: number; r: number; color: string; a: number; da: number };
+
+    const stars: Star[] = [];
+    const meteors: Meteor[] = [];
+    const nebulae: Nebula[] = [];
+    const colors = ['#ffffff', '#93c5fd', '#c4b5fd', '#fde047', '#a5f3fc', '#e9d5ff'];
 
     function resize() {
-      canvas!.width = window.innerWidth;
-      canvas!.height = window.innerHeight;
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      w = window.innerWidth;
+      h = window.innerHeight;
+      canvas!.width = Math.floor(w * dpr);
+      canvas!.height = Math.floor(h * dpr);
+      canvas!.style.width = w + 'px';
+      canvas!.style.height = h + 'px';
+      ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
-    resize();
-    window.addEventListener('resize', resize);
 
-    for (let i = 0; i < 280; i++) {
-      stars.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        r: Math.random() * 1.6 + 0.25,
-        a: Math.random(),
-        da: (Math.random() - 0.5) * 0.007,
-        color: colors[Math.floor(Math.random() * colors.length)],
+    function seed() {
+      stars.length = 0;
+      nebulae.length = 0;
+      const count = Math.min(420, Math.floor((w * h) / 3500));
+      for (let i = 0; i < count; i++) {
+        stars.push({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          r: Math.random() * 1.8 + 0.2,
+          a: Math.random() * 0.8 + 0.15,
+          da: (Math.random() - 0.5) * 0.008,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          glow: Math.random() > 0.92,
+        });
+      }
+      // Soft nebula clouds
+      for (let i = 0; i < 5; i++) {
+        nebulae.push({
+          x: Math.random() * w,
+          y: Math.random() * h * 0.7,
+          r: 80 + Math.random() * 160,
+          color: i % 2 === 0 ? '79,142,247' : '139,92,246',
+          a: 0.03 + Math.random() * 0.04,
+          da: (Math.random() - 0.5) * 0.0004,
+        });
+      }
+    }
+
+    function spawnMeteor() {
+      if (meteors.length > 4) return;
+      meteors.push({
+        x: Math.random() * w * 0.9,
+        y: Math.random() * h * 0.35,
+        len: 60 + Math.random() * 100,
+        speed: 6 + Math.random() * 8,
+        life: 0,
+        maxLife: 40 + Math.random() * 30,
+        angle: Math.PI / 4 + (Math.random() - 0.5) * 0.3,
       });
     }
 
+    const onResize = () => { resize(); seed(); };
+    resize();
+    seed();
+    window.addEventListener('resize', onResize);
+
+    let frame = 0;
     function draw() {
-      ctx!.clearRect(0, 0, canvas!.width, canvas!.height);
+      frame++;
+      ctx!.clearRect(0, 0, w, h);
+
+      // Nebulae
+      nebulae.forEach(n => {
+        n.a = Math.max(0.02, Math.min(0.08, n.a + n.da));
+        if (n.a <= 0.02 || n.a >= 0.08) n.da *= -1;
+        const g = ctx!.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r);
+        g.addColorStop(0, `rgba(${n.color},${n.a})`);
+        g.addColorStop(1, `rgba(${n.color},0)`);
+        ctx!.fillStyle = g;
+        ctx!.beginPath();
+        ctx!.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+        ctx!.fill();
+      });
+
+      // Faint milky-way band
+      ctx!.save();
+      ctx!.translate(w * 0.55, h * 0.4);
+      ctx!.rotate(-0.5);
+      const band = ctx!.createLinearGradient(0, -h * 0.15, 0, h * 0.15);
+      band.addColorStop(0, 'rgba(147,197,253,0)');
+      band.addColorStop(0.5, 'rgba(167,139,250,0.04)');
+      band.addColorStop(1, 'rgba(147,197,253,0)');
+      ctx!.fillStyle = band;
+      ctx!.fillRect(-w, -h * 0.15, w * 2, h * 0.3);
+      ctx!.restore();
+
+      // Stars
       stars.forEach(st => {
-        st.a = Math.max(0.05, Math.min(1, st.a + st.da));
-        if (st.a <= 0.05 || st.a >= 1) st.da *= -1;
+        st.a = Math.max(0.08, Math.min(1, st.a + st.da));
+        if (st.a <= 0.08 || st.a >= 1) st.da *= -1;
+        if (st.glow) {
+          const glow = ctx!.createRadialGradient(st.x, st.y, 0, st.x, st.y, st.r * 6);
+          glow.addColorStop(0, st.color + '55');
+          glow.addColorStop(1, 'transparent');
+          ctx!.fillStyle = glow;
+          ctx!.globalAlpha = st.a * 0.5;
+          ctx!.beginPath();
+          ctx!.arc(st.x, st.y, st.r * 6, 0, Math.PI * 2);
+          ctx!.fill();
+        }
         ctx!.beginPath();
         ctx!.arc(st.x, st.y, st.r, 0, Math.PI * 2);
         ctx!.fillStyle = st.color;
@@ -173,13 +259,43 @@ function StarField() {
         ctx!.fill();
       });
       ctx!.globalAlpha = 1;
+
+      // Meteors
+      if (frame % 90 === 0 && Math.random() > 0.4) spawnMeteor();
+      for (let i = meteors.length - 1; i >= 0; i--) {
+        const m = meteors[i];
+        m.life++;
+        m.x += Math.cos(m.angle) * m.speed;
+        m.y += Math.sin(m.angle) * m.speed;
+        const fade = 1 - m.life / m.maxLife;
+        const tx = m.x - Math.cos(m.angle) * m.len;
+        const ty = m.y - Math.sin(m.angle) * m.len;
+        const grad = ctx!.createLinearGradient(tx, ty, m.x, m.y);
+        grad.addColorStop(0, 'rgba(255,255,255,0)');
+        grad.addColorStop(0.6, `rgba(147,197,253,${0.35 * fade})`);
+        grad.addColorStop(1, `rgba(255,255,255,${0.95 * fade})`);
+        ctx!.strokeStyle = grad;
+        ctx!.lineWidth = 1.6;
+        ctx!.lineCap = 'round';
+        ctx!.beginPath();
+        ctx!.moveTo(tx, ty);
+        ctx!.lineTo(m.x, m.y);
+        ctx!.stroke();
+        // Head glow
+        ctx!.fillStyle = `rgba(255,255,255,${fade})`;
+        ctx!.beginPath();
+        ctx!.arc(m.x, m.y, 1.8, 0, Math.PI * 2);
+        ctx!.fill();
+        if (m.life >= m.maxLife || m.x > w + 50 || m.y > h + 50) meteors.splice(i, 1);
+      }
+
       animId = requestAnimationFrame(draw);
     }
     draw();
 
     return () => {
       cancelAnimationFrame(animId);
-      window.removeEventListener('resize', resize);
+      window.removeEventListener('resize', onResize);
     };
   }, []);
 
@@ -187,7 +303,29 @@ function StarField() {
     <canvas
       ref={canvasRef}
       className="fixed inset-0 pointer-events-none z-0"
-      style={{ opacity: 0.75 }}
+      style={{ opacity: 0.85 }}
+      aria-hidden="true"
+    />
+  );
+}
+
+// Visual moon disc (illumination 0–100)
+function MoonDisc({ illumination }: { illumination: number }) {
+  // Shadow covers from the right as illumination decreases from full
+  const shade = 100 - illumination;
+  return (
+    <div
+      className="moon-disc"
+      style={{
+        background: `
+          linear-gradient(90deg,
+            #f5f0d8 0%,
+            #f5f0d8 ${Math.max(0, 50 - shade / 2)}%,
+            #1a1530 ${Math.min(100, 50 + shade / 2)}%,
+            #0c0a18 100%)
+        `,
+      }}
+      title={`${illumination}% illuminated`}
     />
   );
 }
@@ -223,7 +361,7 @@ function NotificationToasts({ notifications, dismiss }: { notifications: Notific
 }
 
 // ─── Navbar ───────────────────────────────────────────────────────────────────
-function Navbar({ watched, notifications, toggleWatch }: { watched: WatchedShower[]; notifications: Notification[]; toggleWatch: (s: WatchedShower) => void }) {
+function Navbar({ watched, notifications, toggleWatch }: { watched: WatchedShower[]; notifications: Notification[]; toggleWatch: (s: { id: string; name: string }) => void }) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [watchlistOpen, setWatchlistOpen] = useState(false);
@@ -254,27 +392,27 @@ function Navbar({ watched, notifications, toggleWatch }: { watched: WatchedShowe
     <nav className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${scrolled ? 'glass-nav py-2' : 'py-4'}`}>
       <div className="max-w-7xl mx-auto px-4 flex items-center justify-between">
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 group">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
-            <Sparkles size={14} className="text-white" />
+        <Link to="/" className="flex items-center gap-2.5 group">
+          <div className="logo-mark">
+            <Sparkles size={13} className="text-white relative z-10" />
           </div>
-          <span className="font-space font-bold text-white text-sm tracking-wide">
+          <span className="font-space font-bold text-white text-sm tracking-wide group-hover:text-blue-200 transition-colors">
             Stargaze
           </span>
         </Link>
 
         {/* Desktop nav */}
-        <div className="hidden md:flex items-center gap-1">
+        <div className="hidden md:flex items-center gap-0.5">
           {links.map(({ to, label, icon: Icon }) => (
             <Link
               key={to}
               to={to}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 font-space
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all duration-200 font-space
                 ${pathname === to
-                  ? 'bg-blue-500/15 text-blue-300 border border-blue-500/25'
+                  ? 'nav-pill-active'
                   : 'text-white/55 hover:text-white/90 hover:bg-white/5'}`}
             >
-              <Icon size={13} />
+              <Icon size={12} />
               {label}
             </Link>
           ))}
@@ -380,23 +518,24 @@ function Navbar({ watched, notifications, toggleWatch }: { watched: WatchedShowe
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {watched.map(s => {
-                      const peak = new Date(s.peak);
+                    {watched.map(w => {
+                      const full = showers.find(sh => sh.id === w.id);
+                      const peak = new Date(full?.peak ?? w.watchedAt);
                       const now = new Date();
                       const daysUntil = Math.ceil((peak.getTime() - now.getTime()) / 86400000);
-                      const isActive = now >= new Date(s.start) && now <= new Date(s.end);
+                      const isActive = full ? now >= new Date(full.start) && now <= new Date(full.end) : false;
                       const isPast = now > peak;
                       return (
-                        <motion.div key={s.id} layout initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }}
+                        <motion.div key={w.id} layout initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }}
                           className="p-3 rounded-2xl relative group"
                           style={{ background: isActive ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)', border: isActive ? '1px solid rgba(34,197,94,0.20)' : '1px solid rgba(255,255,255,0.06)' }}>
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
                               {isActive && <span className="inline-block text-[9px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded font-mono font-bold mb-1">● ACTIVE</span>}
-                              <p className="text-sm font-bold text-white leading-tight">{s.name}</p>
+                              <p className="text-sm font-bold text-white leading-tight">{w.name}</p>
                               <p className="text-[11px] text-white/40 mt-0.5">Peak: {peak.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</p>
                             </div>
-                            <button onClick={() => toggleWatch(s)} className="text-white/20 hover:text-red-400 transition-colors flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100">
+                            <button onClick={() => toggleWatch(w)} className="text-white/20 hover:text-red-400 transition-colors flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100">
                               <BellOff size={13} />
                             </button>
                           </div>
@@ -440,38 +579,39 @@ function Footer() {
       <div className="max-w-7xl mx-auto px-4 py-10">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
           <div className="col-span-2 md:col-span-1">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-6 h-6 rounded-md bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                <Sparkles size={11} className="text-white" />
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="logo-mark" style={{ width: 24, height: 24, borderRadius: 7 }}>
+                <Sparkles size={11} className="text-white relative z-10" />
               </div>
               <span className="font-space font-bold text-sm">Stargaze</span>
             </div>
             <p className="text-xs text-white/40 leading-relaxed">
-              Free, real-time meteor shower tracking and celestial event calendar. Open to all stargazers.
+              Free, real-time space weather, meteor showers, and night-sky tools for every stargazer.
             </p>
           </div>
           <div>
             <p className="text-xs font-semibold text-white/55 uppercase tracking-widest mb-3 font-space">Explore</p>
-            {[['/', 'Home'], ['/calendar', 'Calendar'], ['/live', 'Live Feed'], ['/globe', '3D Globe'], ['/gear', 'Gear Guide']].map(([to, label]) => (
-              <Link key={to} to={to} className="block text-xs text-white/35 hover:text-white/70 mb-2 transition-colors">{label}</Link>
+            {[['/', 'Home'], ['/calendar', 'Calendar'], ['/aurora', 'Aurora'], ['/live', 'Live Feed'], ['/globe', '3D Globe'], ['/gear', 'Gear Guide']].map(([to, label]) => (
+              <Link key={to} to={to} className="footer-link">{label}</Link>
             ))}
           </div>
           <div>
             <p className="text-xs font-semibold text-white/55 uppercase tracking-widest mb-3 font-space">Resources</p>
             {[['https://www.imo.net', 'IMO Data'], ['https://api.nasa.gov', 'NASA API'], ['https://celestrak.org', 'CelesTrak']].map(([href, label]) => (
-              <a key={href} href={href} target="_blank" rel="noopener noreferrer" className="block text-xs text-white/35 hover:text-white/70 mb-2 transition-colors">{label}</a>
+              <a key={href} href={href} target="_blank" rel="noopener noreferrer" className="footer-link">{label}</a>
             ))}
           </div>
           <div>
             <p className="text-xs font-semibold text-white/55 uppercase tracking-widest mb-3 font-space">Legal</p>
             {[['/privacy', 'Privacy Policy'], ['/terms', 'Terms of Service'], ['/about', 'About']].map(([to, label]) => (
-              <Link key={to} to={to} className="block text-xs text-white/35 hover:text-white/70 mb-2 transition-colors">{label}</Link>
+              <Link key={to} to={to} className="footer-link">{label}</Link>
             ))}
           </div>
         </div>
-        <div className="border-t border-white/5 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-white/22">© {new Date().getFullYear()} Stargaze — All rights reserved</p>
-          <p className="text-xs text-white/22">Data: IMO · NASA · Open-Meteo · CelesTrak · WhereTheISS</p>
+        <div className="divider mb-6" />
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p className="text-xs text-white/25">© {new Date().getFullYear()} Stargaze — Look up more often</p>
+          <p className="text-xs text-white/22 font-mono">IMO · NASA · NOAA · Open-Meteo · CelesTrak</p>
         </div>
       </div>
     </footer>
@@ -479,7 +619,7 @@ function Footer() {
 }
 
 // ─── Countdown Timer ──────────────────────────────────────────────────────────
-function CountdownTimer({ targetDate, label }: { targetDate: string; label: string }) {
+function CountdownTimer({ targetDate, label }: { targetDate: string; label?: string }) {
   const [cd, setCd] = useState(() => formatCountdown(new Date(targetDate).getTime() - Date.now()));
 
   useEffect(() => {
@@ -498,15 +638,12 @@ function CountdownTimer({ targetDate, label }: { targetDate: string; label: stri
 
   return (
     <div>
-      <p className="text-xs text-white/40 uppercase tracking-widest font-mono mb-3">{label}</p>
+      {label && <p className="text-xs text-white/40 uppercase tracking-widest font-mono mb-3">{label}</p>}
       <div className="flex gap-2 sm:gap-3">
         {units.map(u => (
           <div key={u.label} className="flex flex-col items-center">
-            <div
-              className="rounded-xl px-2.5 py-2 sm:px-3 sm:py-2.5 min-w-[44px] text-center"
-              style={{ background: 'rgba(79,142,247,0.10)', border: '1px solid rgba(79,142,247,0.20)' }}
-            >
-              <span className="countdown-digit">{u.val}</span>
+            <div className="countdown-box">
+              <span className="countdown-digit text-2xl sm:text-3xl">{u.val}</span>
             </div>
             <span className="countdown-label mt-1.5">{u.label}</span>
           </div>
@@ -609,10 +746,12 @@ function ISSWidget() {
   }, [fetchISS]);
 
   return (
-    <div className="glass-card p-4 rounded-2xl">
-      <div className="flex items-center justify-between mb-3">
+    <div className="glass-card p-4 rounded-2xl relative overflow-hidden">
+      <div className="absolute -top-8 -right-8 w-28 h-28 rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(249,115,22,0.15), transparent 70%)' }} />
+      <div className="flex items-center justify-between mb-3 relative z-10">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-lg bg-orange-500/15 border border-orange-500/25 flex items-center justify-center">
+          <div className="section-icon bg-orange-500/15 border border-orange-500/25">
             <Rocket size={12} className="text-orange-400" />
           </div>
           <span className="text-xs font-semibold font-space text-white/75">ISS Live Tracker</span>
@@ -628,22 +767,27 @@ function ISSWidget() {
           <span className="text-xs">Connection error</span>
         </div>
       ) : iss ? (
-        <div className="grid grid-cols-2 gap-2">
-          {[
-            { label: 'Latitude',  value: `${iss.latitude}°`,                   icon: MapPin },
-            { label: 'Longitude', value: `${iss.longitude}°`,                  icon: MapPin },
-            { label: 'Altitude',  value: `${iss.altitude} km`,                 icon: TrendingUp },
-            { label: 'Speed',     value: `${iss.velocity.toLocaleString()} km/h`, icon: Zap },
-          ].map(({ label, value, icon: Icon }) => (
-            <div key={label} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.04)' }} className="rounded-xl p-2.5">
-              <div className="flex items-center gap-1 mb-1">
-                <Icon size={9} className="text-white/30" />
-                <span className="text-[9px] text-white/30 uppercase tracking-wider font-mono">{label}</span>
+        <>
+          <div className="grid grid-cols-2 gap-2 relative z-10">
+            {[
+              { label: 'Latitude',  value: `${iss.latitude}°`,                   icon: MapPin },
+              { label: 'Longitude', value: `${iss.longitude}°`,                  icon: MapPin },
+              { label: 'Altitude',  value: `${iss.altitude} km`,                 icon: TrendingUp },
+              { label: 'Speed',     value: `${iss.velocity.toLocaleString()} km/h`, icon: Zap },
+            ].map(({ label, value, icon: Icon }) => (
+              <div key={label} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }} className="rounded-xl p-2.5">
+                <div className="flex items-center gap-1 mb-1">
+                  <Icon size={9} className="text-orange-400/50" />
+                  <span className="text-[9px] text-white/30 uppercase tracking-wider font-mono">{label}</span>
+                </div>
+                <p className="text-xs font-semibold font-mono text-white/85">{value}</p>
               </div>
-              <p className="text-xs font-semibold font-mono text-white/85">{value}</p>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+          <Link to="/iss" className="relative z-10 mt-3 flex items-center justify-center gap-1 text-[10px] text-orange-300/80 hover:text-orange-200 font-mono transition-colors">
+            Full ISS tracker <ArrowRight size={10} />
+          </Link>
+        </>
       ) : (
         <div className="flex items-center justify-center gap-2 py-3">
           <RefreshCw size={14} className="text-white/30 animate-spin" />
@@ -699,7 +843,7 @@ function FaqSection() {
 function Home({ watched, addNotification, toggleWatch }: {
   watched: WatchedShower[];
   addNotification: (n: Omit<Notification, 'id' | 'timestamp'>) => void;
-  toggleWatch: (s: MeteorShower) => void;
+  toggleWatch: (s: { id: string; name: string }) => void;
 }) {
   const nextShower = getNextShower();
   const moon = getMoonPhase();
@@ -795,28 +939,37 @@ function Home({ watched, addNotification, toggleWatch }: {
 
       {/* ══ HERO ══════════════════════════════════════════════════════════════ */}
       <motion.div initial={{ opacity:0, y:30 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.7 }}
-        className="text-center mb-10">
-        <motion.div initial={{ opacity:0, scale:0.9 }} animate={{ opacity:1, scale:1 }} transition={{ delay:0.1 }}
-          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-6"
-          style={{ background:'rgba(34,197,94,0.08)', border:'1px solid rgba(34,197,94,0.20)' }}>
-          <span className="live-dot" />
-          <span className="text-xs font-mono text-green-400/85 tracking-wider">LIVE SPACE DASHBOARD</span>
-        </motion.div>
-        <h1 className="hero-title hero-gradient-text mb-5">Space Is Happening<br className="hidden sm:block" /> Right Now</h1>
-        <p className="text-lg text-white/48 max-w-2xl mx-auto leading-relaxed font-light">
-          Real-time aurora alerts, meteor showers, asteroid close approaches, government fireball data, ISS tracking, and NASA imagery — all free, all live.
-        </p>
-        <div className="flex items-center justify-center flex-wrap gap-3 mt-8">
-          <Link to="/calendar" className="btn-primary"><Calendar size={14} />Meteor Calendar</Link>
-          <Link to="/sky"      className="btn-secondary"><Star size={14} />Night Sky Map</Link>
-          <Link to="/globe"    className="btn-secondary"><Globe size={14} />3D Globe</Link>
-          <Link to="/live"     className="btn-secondary"><Radio size={14} />Live Sightings</Link>
+        className="text-center mb-12 relative overflow-hidden rounded-3xl px-4 py-10 sm:py-14">
+        {/* Decorative graphics */}
+        <div className="hero-orb hero-orb-blue" aria-hidden="true" />
+        <div className="hero-orb hero-orb-purple" aria-hidden="true" />
+        <div className="hero-orb hero-orb-cyan" aria-hidden="true" />
+        <div className="orbit-ring animate-spin-slow hidden sm:block" style={{ width: 420, height: 420, top: '50%', left: '50%', marginTop: -210, marginLeft: -210 }} aria-hidden="true" />
+        <div className="orbit-ring animate-spin-slow hidden md:block" style={{ width: 560, height: 560, top: '50%', left: '50%', marginTop: -280, marginLeft: -280, animationDirection: 'reverse', animationDuration: '55s', borderColor: 'rgba(139,92,246,0.08)' }} aria-hidden="true" />
+
+        <div className="relative z-10">
+          <motion.div initial={{ opacity:0, scale:0.9 }} animate={{ opacity:1, scale:1 }} transition={{ delay:0.1 }}
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-6 aurora-ribbon"
+            style={{ border: '1px solid rgba(34,197,94,0.25)' }}>
+            <span className="live-dot" />
+            <span className="text-xs font-mono text-green-400/90 tracking-wider">LIVE SPACE DASHBOARD</span>
+          </motion.div>
+          <h1 className="hero-title hero-gradient-text mb-5">Space Is Happening<br className="hidden sm:block" /> Right Now</h1>
+          <p className="text-lg text-white/50 max-w-2xl mx-auto leading-relaxed font-light">
+            Real-time aurora alerts, meteor showers, asteroid flybys, fireball data, ISS tracking, and NASA imagery — free and always live.
+          </p>
+          <div className="flex items-center justify-center flex-wrap gap-3 mt-9">
+            <Link to="/calendar" className="btn-primary"><Calendar size={14} />Meteor Calendar</Link>
+            <Link to="/sky"      className="btn-secondary"><Star size={14} />Night Sky Map</Link>
+            <Link to="/globe"    className="btn-secondary"><Globe size={14} />3D Globe</Link>
+            <Link to="/aurora"  className="btn-secondary"><Sun size={14} />Aurora</Link>
+          </div>
         </div>
       </motion.div>
 
       {/* ══ LIVE STATUS STRIP ═════════════════════════════════════════════════ */}
       <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.3 }}
-        className="flex flex-wrap items-center justify-center gap-3 mb-10 text-[11px] font-mono">
+        className="flex flex-wrap items-center justify-center gap-2.5 mb-10">
         {[
           { icon: Sun,      label: `Kp ${kpNow !== null ? kpNow.toFixed(1) : '…'} — ${kpLabel}`,        color: kpColor },
           { icon: Sparkles, label: activeShowers.length > 0 ? `${activeShowers.length} Shower${activeShowers.length > 1 ? 's' : ''} Active` : nextShower ? `Next: ${nextShower.name}` : '9 Showers Tracked', color: '#c084fc' },
@@ -824,10 +977,9 @@ function Home({ watched, addNotification, toggleWatch }: {
           { icon: Triangle, label: `${asteroids.length > 0 ? asteroids.length : '—'} Asteroid${asteroids.length !== 1 ? 's' : ''} This Week`, color: '#60a5fa' },
           { icon: Rocket,   label: 'ISS Orbiting Now',                                                    color: '#34d399' },
         ].map(({ icon: Icon, label, color }) => (
-          <div key={label} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
-            style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)' }}>
+          <div key={label} className="status-chip">
             <Icon size={11} style={{ color }} />
-            <span style={{ color: 'rgba(255,255,255,0.65)' }}>{label}</span>
+            <span style={{ color: 'rgba(255,255,255,0.7)' }}>{label}</span>
           </div>
         ))}
       </motion.div>
@@ -836,47 +988,66 @@ function Home({ watched, addNotification, toggleWatch }: {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-10" ref={ref}>
         {/* Aurora */}
         <motion.div initial={{ opacity:0, y:15 }} animate={inView ? { opacity:1, y:0 } : {}} transition={{ delay:0 }}
-          className="glass-card p-4 rounded-2xl" style={{ borderTop:`2px solid ${kpColor}33` }}>
-          <Sun size={16} style={{ color: kpColor }} className="mb-2.5" />
-          <p className="text-xl font-bold font-space leading-none mb-1" style={{ color: kpColor }}>
+          className="glass-card metric-card p-4 rounded-2xl" style={{ borderTop:`2px solid ${kpColor}55` }}>
+          <div className="metric-glow" style={{ background: kpColor }} />
+          <div className="flex items-start justify-between mb-2 relative z-10">
+            <Sun size={16} style={{ color: kpColor }} />
+            <div className="ring-chart" style={{ ['--pct' as string]: ((kpNow ?? 0) / 9) * 100, ['--ring-color' as string]: kpColor, width: 40, height: 40 }}>
+              <span className="text-[10px] font-mono font-bold" style={{ color: kpColor }}>{kpNow !== null ? kpNow.toFixed(0) : '—'}</span>
+            </div>
+          </div>
+          <p className="text-xl font-bold font-space leading-none mb-1 relative z-10" style={{ color: kpColor }}>
             {kpNow !== null ? kpNow.toFixed(1) : '—'}
           </p>
-          <p className="text-[10px] text-white/42">{kpLabel}</p>
-          <p className="text-[10px] text-white/30 uppercase tracking-wider mt-1.5 font-mono">Kp Index</p>
+          <p className="text-[10px] text-white/42 relative z-10">{kpLabel}</p>
+          <p className="text-[10px] text-white/30 uppercase tracking-wider mt-1.5 font-mono relative z-10">Kp Index</p>
         </motion.div>
         {/* Next Shower */}
         <motion.div initial={{ opacity:0, y:15 }} animate={inView ? { opacity:1, y:0 } : {}} transition={{ delay:0.06 }}
-          className="glass-card p-4 rounded-2xl" style={{ borderTop:'2px solid rgba(192,132,252,0.25)' }}>
+          className="glass-card metric-card p-4 rounded-2xl" style={{ borderTop:'2px solid rgba(192,132,252,0.4)' }}>
+          <div className="metric-glow" style={{ background: '#c084fc' }} />
           <Activity size={16} className={activeShowers.length > 0 ? 'text-green-400 mb-2.5' : 'text-purple-400 mb-2.5'} />
-          <p className="text-xl font-bold font-space leading-none mb-1">
+          <p className="text-xl font-bold font-space leading-none mb-1 relative z-10">
             {activeShowers.length > 0 ? activeShowers.length : (nextShower ? `${getDaysUntilPeak(nextShower)}d` : '—')}
           </p>
-          <p className="text-[10px] text-white/42">{activeShowers.length > 0 ? 'happening now' : (nextShower?.name ?? '—')}</p>
-          <p className="text-[10px] text-white/30 uppercase tracking-wider mt-1.5 font-mono">{activeShowers.length > 0 ? 'Active Now' : 'Next Shower'}</p>
+          <p className="text-[10px] text-white/42 relative z-10">{activeShowers.length > 0 ? 'happening now' : (nextShower?.name ?? '—')}</p>
+          <p className="text-[10px] text-white/30 uppercase tracking-wider mt-1.5 font-mono relative z-10">{activeShowers.length > 0 ? 'Active Now' : 'Next Shower'}</p>
         </motion.div>
         {/* Moon */}
         <motion.div initial={{ opacity:0, y:15 }} animate={inView ? { opacity:1, y:0 } : {}} transition={{ delay:0.12 }}
-          className="glass-card p-4 rounded-2xl" style={{ borderTop:'2px solid rgba(253,224,71,0.18)' }}>
-          <Moon size={16} className="text-yellow-300 mb-2.5" />
-          <p className="text-xl font-bold font-space leading-none mb-1">{moon.emoji}</p>
-          <p className="text-[10px] text-white/42">{moon.illumination}% lit</p>
-          <p className="text-[10px] text-white/30 uppercase tracking-wider mt-1.5 font-mono">{moon.phase}</p>
+          className="glass-card metric-card p-4 rounded-2xl" style={{ borderTop:'2px solid rgba(253,224,71,0.3)' }}>
+          <div className="metric-glow" style={{ background: '#fde047' }} />
+          <div className="flex items-center gap-3 mb-2 relative z-10">
+            <MoonDisc illumination={moon.illumination} />
+            <div>
+              <p className="text-sm font-bold font-space leading-tight">{moon.emoji} {moon.illumination}%</p>
+              <p className="text-[10px] text-white/40">{moon.phase}</p>
+            </div>
+          </div>
+          <p className="text-[10px] text-white/30 uppercase tracking-wider mt-1.5 font-mono relative z-10">Moon Phase</p>
         </motion.div>
         {/* Sky Quality */}
         <motion.div initial={{ opacity:0, y:15 }} animate={inView ? { opacity:1, y:0 } : {}} transition={{ delay:0.18 }}
-          className="glass-card p-4 rounded-2xl" style={{ borderTop:`2px solid ${viewColor}33` }}>
-          <Eye size={16} style={{ color: viewColor }} className="mb-2.5" />
-          <p className="text-xl font-bold font-space leading-none mb-1" style={{ color: viewColor }}>{viewScore}/10</p>
-          <p className="text-[10px] text-white/42">{weather ? `${weather.cloudCover}% cloud` : 'enable location'}</p>
-          <p className="text-[10px] text-white/30 uppercase tracking-wider mt-1.5 font-mono">Sky Quality</p>
+          className="glass-card metric-card p-4 rounded-2xl" style={{ borderTop:`2px solid ${viewColor}55` }}>
+          <div className="metric-glow" style={{ background: viewColor }} />
+          <div className="flex items-start justify-between mb-2 relative z-10">
+            <Eye size={16} style={{ color: viewColor }} />
+            <div className="ring-chart" style={{ ['--pct' as string]: viewScore * 10, ['--ring-color' as string]: viewColor, width: 40, height: 40 }}>
+              <span className="text-[10px] font-mono font-bold" style={{ color: viewColor }}>{viewScore}</span>
+            </div>
+          </div>
+          <p className="text-xl font-bold font-space leading-none mb-1 relative z-10" style={{ color: viewColor }}>{viewLabel}</p>
+          <p className="text-[10px] text-white/42 relative z-10">{weather ? `${weather.cloudCover}% cloud` : 'enable location'}</p>
+          <p className="text-[10px] text-white/30 uppercase tracking-wider mt-1.5 font-mono relative z-10">Sky Quality</p>
         </motion.div>
         {/* Fireballs */}
         <motion.div initial={{ opacity:0, y:15 }} animate={inView ? { opacity:1, y:0 } : {}} transition={{ delay:0.24 }}
-          className="glass-card p-4 rounded-2xl" style={{ borderTop:'2px solid rgba(251,146,60,0.25)' }}>
-          <Flame size={16} className="text-orange-400 mb-2.5" />
-          <p className="text-xl font-bold font-space leading-none mb-1">{fireballs.length || '—'}</p>
-          <p className="text-[10px] text-white/42">JPL confirmed</p>
-          <p className="text-[10px] text-white/30 uppercase tracking-wider mt-1.5 font-mono">Recent Fireballs</p>
+          className="glass-card metric-card p-4 rounded-2xl" style={{ borderTop:'2px solid rgba(251,146,60,0.4)' }}>
+          <div className="metric-glow" style={{ background: '#fb923c' }} />
+          <Flame size={16} className="text-orange-400 mb-2.5 relative z-10" />
+          <p className="text-xl font-bold font-space leading-none mb-1 relative z-10">{fireballs.length || '—'}</p>
+          <p className="text-[10px] text-white/42 relative z-10">JPL confirmed</p>
+          <p className="text-[10px] text-white/30 uppercase tracking-wider mt-1.5 font-mono relative z-10">Recent Fireballs</p>
         </motion.div>
       </div>
 
@@ -957,15 +1128,15 @@ function Home({ watched, addNotification, toggleWatch }: {
             </div>
 
             <div className="flex gap-2">
+              <Link to="/aurora"
+                className="flex-1 text-center text-xs py-2.5 rounded-xl font-semibold transition-all hover:opacity-90"
+                style={{ background:`${kpColor}20`, color: kpColor, border:`1px solid ${kpColor}35` }}>
+                Full Aurora Forecast →
+              </Link>
               <a href="https://www.spaceweather.com" target="_blank" rel="noopener noreferrer"
-                className="flex-1 text-center text-xs py-2 rounded-xl font-semibold transition-all hover:opacity-80"
-                style={{ background:`${kpColor}18`, color: kpColor, border:`1px solid ${kpColor}30` }}>
-                Space Weather
-              </a>
-              <a href="https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json" target="_blank" rel="noopener noreferrer"
-                className="flex-1 text-center text-xs py-2 rounded-xl text-white/50 font-semibold transition-all hover:text-white/80"
+                className="flex-1 text-center text-xs py-2.5 rounded-xl text-white/50 font-semibold transition-all hover:text-white/80"
                 style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)' }}>
-                NOAA Raw Data
+                Space Weather ↗
               </a>
             </div>
           </div>
@@ -1211,50 +1382,52 @@ function Home({ watched, addNotification, toggleWatch }: {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
           {/* APOD */}
-          <div className="glass-card rounded-2xl overflow-hidden flex flex-col">
-            <div className="relative">
+          <div className="glass-card rounded-2xl overflow-hidden flex flex-col group">
+            <div className="media-frame relative h-48">
               {apodLoading ? (
-                <div className="h-48 flex items-center justify-center shimmer">
+                <div className="h-full flex items-center justify-center shimmer">
                   <Rocket size={22} className="text-orange-400/35 animate-float" />
                 </div>
               ) : apod ? (
                 apod.media_type === 'image' ? (
-                  <img src={apod.url} alt={apod.title} className="w-full h-48 object-cover" loading="lazy" />
+                  <img src={apod.url} alt={apod.title} className="w-full h-full object-cover" loading="lazy" />
                 ) : (
-                  <div className="h-48 flex items-center justify-center bg-blue-500/5">
+                  <div className="h-full flex items-center justify-center bg-blue-500/5">
                     <a href={apod.url} target="_blank" rel="noopener noreferrer" className="btn-primary text-xs"><ExternalLink size={11}/>Watch on NASA</a>
                   </div>
                 )
               ) : (
-                <div className="h-48 flex items-center justify-center" style={{ background:'linear-gradient(135deg,#050520,#0a0540)' }}>
+                <div className="h-full flex items-center justify-center" style={{ background:'linear-gradient(135deg,#050520,#0a0540)' }}>
                   <div className="text-center"><p className="text-3xl mb-2">🔭</p><p className="text-xs text-white/30">NASA APOD</p></div>
                 </div>
               )}
-              <div className="absolute top-2 left-2 text-[9px] px-2 py-0.5 rounded-full font-mono font-bold"
-                style={{ background:'rgba(251,146,60,0.8)', color:'#fff' }}>NASA APOD</div>
+              <div className="media-card-overlay" />
+              <div className="absolute top-2 left-2 text-[9px] px-2 py-0.5 rounded-full font-mono font-bold z-10"
+                style={{ background:'rgba(251,146,60,0.85)', color:'#fff', boxShadow:'0 2px 8px rgba(0,0,0,0.3)' }}>NASA APOD</div>
             </div>
             <div className="p-4 flex-1">
-              <h3 className="text-xs font-bold mb-1 line-clamp-2">{apod?.title ?? 'Astronomy Picture of the Day'}</h3>
+              <h3 className="text-xs font-bold mb-1 line-clamp-2 group-hover:text-orange-200 transition-colors">{apod?.title ?? 'Astronomy Picture of the Day'}</h3>
               <p className="text-[10px] text-white/40 leading-relaxed line-clamp-3">{apod?.explanation ?? 'Updated daily by NASA. The most beautiful images of the universe.'}</p>
             </div>
           </div>
 
           {/* EPIC Earth */}
-          <div className="glass-card rounded-2xl overflow-hidden flex flex-col">
-            <div className="relative">
+          <div className="glass-card rounded-2xl overflow-hidden flex flex-col group">
+            <div className="media-frame relative h-48">
               {epicImg ? (
-                <img src={epicImg.url} alt="Earth from DSCOVR satellite" className="w-full h-48 object-cover object-center" loading="lazy"
+                <img src={epicImg.url} alt="Earth from DSCOVR satellite" className="w-full h-full object-cover object-center" loading="lazy"
                   onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
               ) : (
-                <div className="h-48 flex items-center justify-center" style={{ background:'linear-gradient(135deg,#03071a,#040d26,#030522)' }}>
-                  <Globe2 size={36} className="text-blue-400/30" />
+                <div className="h-full flex items-center justify-center" style={{ background:'linear-gradient(135deg,#03071a,#040d26,#030522)' }}>
+                  <Globe2 size={36} className="text-blue-400/30 animate-float" />
                 </div>
               )}
-              <div className="absolute top-2 left-2 text-[9px] px-2 py-0.5 rounded-full font-mono font-bold"
-                style={{ background:'rgba(59,130,246,0.8)', color:'#fff' }}>EARTH FROM SPACE</div>
+              <div className="media-card-overlay" />
+              <div className="absolute top-2 left-2 text-[9px] px-2 py-0.5 rounded-full font-mono font-bold z-10"
+                style={{ background:'rgba(59,130,246,0.85)', color:'#fff', boxShadow:'0 2px 8px rgba(0,0,0,0.3)' }}>EARTH FROM SPACE</div>
             </div>
             <div className="p-4 flex-1">
-              <h3 className="text-xs font-bold mb-1">Earth Right Now</h3>
+              <h3 className="text-xs font-bold mb-1 group-hover:text-blue-200 transition-colors">Earth Right Now</h3>
               <p className="text-[10px] text-white/40 leading-relaxed">
                 {epicImg
                   ? `NASA EPIC camera aboard the DSCOVR satellite, 1.5M km from Earth. Photo taken ${new Date(epicImg.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}.`
@@ -1264,21 +1437,22 @@ function Home({ watched, addNotification, toggleWatch }: {
           </div>
 
           {/* Mars Rover */}
-          <div className="glass-card rounded-2xl overflow-hidden flex flex-col">
-            <div className="relative">
+          <div className="glass-card rounded-2xl overflow-hidden flex flex-col group">
+            <div className="media-frame relative h-48">
               {marsSnap ? (
-                <img src={marsSnap.src} alt={`Mars — ${marsSnap.camera}`} className="w-full h-48 object-cover" loading="lazy"
+                <img src={marsSnap.src} alt={`Mars — ${marsSnap.camera}`} className="w-full h-full object-cover" loading="lazy"
                   onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
               ) : (
-                <div className="h-48 flex items-center justify-center" style={{ background:'linear-gradient(135deg,#1c0a02,#2d100a,#1a0805)' }}>
-                  <Camera size={36} className="text-red-400/30" />
+                <div className="h-full flex items-center justify-center" style={{ background:'linear-gradient(135deg,#1c0a02,#2d100a,#1a0805)' }}>
+                  <Camera size={36} className="text-red-400/30 animate-float" />
                 </div>
               )}
-              <div className="absolute top-2 left-2 text-[9px] px-2 py-0.5 rounded-full font-mono font-bold"
-                style={{ background:'rgba(220,38,38,0.8)', color:'#fff' }}>MARS TODAY</div>
+              <div className="media-card-overlay" />
+              <div className="absolute top-2 left-2 text-[9px] px-2 py-0.5 rounded-full font-mono font-bold z-10"
+                style={{ background:'rgba(220,38,38,0.85)', color:'#fff', boxShadow:'0 2px 8px rgba(0,0,0,0.3)' }}>MARS TODAY</div>
             </div>
             <div className="p-4 flex-1">
-              <h3 className="text-xs font-bold mb-1">Curiosity Rover</h3>
+              <h3 className="text-xs font-bold mb-1 group-hover:text-red-200 transition-colors">Curiosity Rover</h3>
               <p className="text-[10px] text-white/40 leading-relaxed">
                 {marsSnap
                   ? `${marsSnap.camera} · Sol ${marsSnap.sol} · ${new Date(marsSnap.earthDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`
@@ -1313,10 +1487,13 @@ function Home({ watched, addNotification, toggleWatch }: {
                 </div>
                 <span className="text-xs font-mono font-bold" style={{ color:viewColor }}>{viewLabel} — {viewScore}/10</span>
               </div>
+              <div className="score-bar mb-3" style={{ height: 12 }}>
+                <div className="score-bar-fill" style={{ width: `${viewScore * 10}%`, background: `linear-gradient(90deg, ${viewColor}aa, ${viewColor})` }} />
+              </div>
               <div className="flex gap-0.5 mb-3">
                 {Array.from({length:10},(_,i) => (
-                  <div key={i} className="flex-1 h-2.5 rounded-sm"
-                    style={{ background: i < viewScore ? viewColor : 'rgba(255,255,255,0.06)' }} />
+                  <div key={i} className="flex-1 h-1.5 rounded-full"
+                    style={{ background: i < viewScore ? viewColor : 'rgba(255,255,255,0.06)', boxShadow: i < viewScore ? `0 0 6px ${viewColor}66` : undefined }} />
                 ))}
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
@@ -1417,10 +1594,15 @@ function Home({ watched, addNotification, toggleWatch }: {
                     <Link to="/planets" key={p.name}
                       className="glass-card p-3.5 rounded-xl flex flex-col items-center text-center transition-all hover:ring-1 hover:ring-white/10"
                       style={{ opacity: isVis ? 1 : 0.45 }}>
-                      <div className="text-2xl mb-1.5">{p.symbol}</div>
+                      <div className="planet-orb mb-2" style={{
+                        ['--planet-glow' as string]: vc,
+                        background: `radial-gradient(circle at 30% 30%, ${vc}55, ${vc}22 60%, rgba(0,0,0,0.4))`,
+                      }}>
+                        <span>{p.symbol}</span>
+                      </div>
                       <p className="text-xs font-bold text-white/80 mb-1">{p.name}</p>
-                      <p className="text-[9px] font-semibold" style={{ color: vc }}>{p.visibility === 'hidden' ? 'Not visible' : p.visibility}</p>
-                      <p className="text-[9px] text-white/25 font-mono mt-0.5">{p.elongation}° from ☀️</p>
+                      <p className="text-[9px] font-semibold capitalize" style={{ color: vc }}>{p.visibility === 'hidden' ? 'Not visible' : p.visibility}</p>
+                      <p className="text-[9px] text-white/25 font-mono mt-0.5">{p.elongation}° from Sun</p>
                     </Link>
                   );
                 })}
@@ -1495,7 +1677,7 @@ function Home({ watched, addNotification, toggleWatch }: {
 // ─── METEOR CALENDAR PAGE ─────────────────────────────────────────────────────
 function MeteorCalendar({ watched, toggleWatch, addNotification }: {
   watched: WatchedShower[];
-  toggleWatch: (s: MeteorShower) => void;
+  toggleWatch: (s: { id: string; name: string }) => void;
   addNotification: (n: Omit<Notification, 'id' | 'timestamp'>) => void;
 }) {
   const [search, setSearch] = useState('');
@@ -1523,10 +1705,13 @@ function MeteorCalendar({ watched, toggleWatch, addNotification }: {
       <link rel="canonical" href="https://stargaze.io/calendar" />
     <div className="relative z-10 max-w-7xl mx-auto px-4 pt-28 pb-16">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="mb-8">
-          <p className="section-label text-blue-400 mb-2">2026 Season</p>
-          <h1 className="text-4xl font-bold font-space mb-2">Meteor Shower <span className="text-gradient">Calendar</span></h1>
-          <p className="text-white/50 text-sm">Complete guide to every major meteor shower of 2026</p>
+        <div className="mb-8 relative">
+          <div className="hero-orb hero-orb-blue" style={{ top: -60, left: 0, width: 200, height: 200, opacity: 0.35 }} aria-hidden="true" />
+          <div className="relative z-10">
+            <p className="section-label text-blue-400 mb-2">2026 Season</p>
+            <h1 className="text-4xl sm:text-5xl font-bold font-space mb-2">Meteor Shower <span className="text-gradient">Calendar</span></h1>
+            <p className="text-white/50 text-sm max-w-xl">Complete guide to every major meteor shower of 2026 — peaks, rates, and when to look up</p>
+          </div>
         </div>
 
         {/* Controls */}
@@ -1664,7 +1849,7 @@ function MeteorCalendar({ watched, toggleWatch, addNotification }: {
 }
 
 // ─── SHOWER DETAIL PAGE ───────────────────────────────────────────────────────
-function ShowerDetail({ watched, toggleWatch }: { watched: WatchedShower[]; toggleWatch: (s: MeteorShower) => void }) {
+function ShowerDetail({ watched, toggleWatch }: { watched: WatchedShower[]; toggleWatch: (s: { id: string; name: string }) => void }) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const shower = showers.find(s => s.id === id);
@@ -2219,12 +2404,12 @@ function About() {
   };
 
   const features = [
-    { icon: Activity,   title: 'Real-Time Data',       desc: 'Meteor shower tracking sourced directly from IMO and NASA. Updates continuously.' },
-    { icon: Globe,      title: '3D Globe',              desc: 'Interactive globe showing live satellites, debris fields, and meteor radiant positions.' },
-    { icon: Navigation, title: 'ISS Tracking',          desc: 'Watch the International Space Station move across the globe in real time, updated every 5 seconds.' },
-    { icon: Cloud,      title: 'Sky Conditions',        desc: 'Your local cloud cover and seeing conditions pulled from Open-Meteo. No account needed.' },
-    { icon: Users,      title: 'Sighting Reports',      desc: 'Log what you see and browse reports from observers around the world.' },
-    { icon: Bell,       title: 'Peak Alerts',           desc: 'Watch any shower and get a notification when peak night is approaching.' },
+    { icon: Activity,   title: 'Real-Time Data',       desc: 'Meteor shower tracking sourced directly from IMO and NASA. Updates continuously.', color: '#4f8ef7' },
+    { icon: Globe,      title: '3D Globe',              desc: 'Interactive globe showing live satellites, debris fields, and meteor radiant positions.', color: '#22d3ee' },
+    { icon: Navigation, title: 'ISS Tracking',          desc: 'Watch the International Space Station move across the globe in real time, updated every 5 seconds.', color: '#34d399' },
+    { icon: Cloud,      title: 'Sky Conditions',        desc: 'Your local cloud cover and seeing conditions pulled from Open-Meteo. No account needed.', color: '#60a5fa' },
+    { icon: Users,      title: 'Sighting Reports',      desc: 'Log what you see and browse reports from observers around the world.', color: '#c084fc' },
+    { icon: Bell,       title: 'Peak Alerts',           desc: 'Watch any shower and get a notification when peak night is approaching.', color: '#fbbf24' },
   ];
 
   return (
@@ -2246,12 +2431,13 @@ function About() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-10">
-          {features.map(({ icon: Icon, title, desc }) => (
-            <div key={title} className="glass-card p-5 rounded-2xl group hover:border-blue-500/20 transition-colors">
-              <div className="w-8 h-8 rounded-xl bg-blue-500/12 border border-blue-500/20 flex items-center justify-center mb-3 group-hover:bg-blue-500/18 transition-colors">
-                <Icon size={16} className="text-blue-400" />
+          {features.map(({ icon: Icon, title, desc, color }) => (
+            <div key={title} className="feature-tile group">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3 transition-all"
+                style={{ background: `${color}18`, border: `1px solid ${color}35` }}>
+                <Icon size={16} style={{ color }} />
               </div>
-              <h3 className="text-sm font-bold font-space mb-1">{title}</h3>
+              <h3 className="text-sm font-bold font-space mb-1 group-hover:text-white transition-colors">{title}</h3>
               <p className="text-xs text-white/45 leading-relaxed">{desc}</p>
             </div>
           ))}
@@ -2912,7 +3098,7 @@ function ScrollToTop() {
 function AnimatedRoutes({ watched, addNotification, toggleWatch }: {
   watched: WatchedShower[];
   addNotification: (n: Omit<Notification, 'id' | 'timestamp'>) => void;
-  toggleWatch: (s: MeteorShower) => void;
+  toggleWatch: (s: { id: string; name: string }) => void;
 }) {
   const location = useLocation();
   return (
@@ -2992,7 +3178,7 @@ export default function App() {
     setNotifications(prev => prev.filter(n => n.id !== id));
   }, []);
 
-  const toggleWatch = useCallback((s: MeteorShower) => {
+  const toggleWatch = useCallback((s: { id: string; name: string }) => {
     setWatched(prev =>
       prev.some(w => w.id === s.id)
         ? prev.filter(w => w.id !== s.id)
