@@ -1,23 +1,62 @@
 {
-  "name": "Stargaze – Live Meteor Shower Tracker",
+  "name": "Stargaze – Live Space & Meteor Tracker",
   "short_name": "Stargaze",
-  "description": "Track live meteor showers, find dark sky spots, and get real-time celestial alerts.",
+  "description": "Live space weather, meteor showers, aurora forecast, ISS tracking, and night sky tools.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#0a0e1a",
-  "theme_color": "#0a0e1a",
+  "orientation": "any",
+  "background_color": "#030014",
+  "theme_color": "#030014",
+  "categories": ["education", "utilities", "lifestyle"],
+  "lang": "en",
   "icons": [
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Meteor Calendar",
+      "url": "/calendar",
+      "description": "2026 meteor shower calendar"
+    },
+    {
+      "name": "Aurora Forecast",
+      "url": "/aurora",
+      "description": "Live Kp index and aurora"
+    },
+    {
+      "name": "ISS Tracker",
+      "url": "/iss",
+      "description": "Live ISS position and passes"
     }
   ]
 }

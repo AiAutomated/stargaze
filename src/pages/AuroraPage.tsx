@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Sun, ExternalLink, Zap, Wind, AlertTriangle } from 'lucide-react';
 import { useSpaceData, flareClass, SolarFlare, CMEEvent } from '../hooks/useSpaceData';
+import KpChart from '../components/KpChart';
 
 const NOAA_BASE = 'https://services.swpc.noaa.gov';
 
@@ -123,24 +124,14 @@ export default function AuroraPage() {
               </div>
             </div>
 
-            {/* 72h sparkline */}
-            {kpHistory.length > 0 && (
-              <div className="mb-5">
-                <p className="text-[10px] text-white/30 font-mono uppercase tracking-widest mb-2">
-                  72-Hour Kp History ({kpHistory.length} readings)
-                </p>
-                <div className="flex gap-0.5 h-14 items-end">
-                  {kpHistory.map((pt, i) => {
-                    const barColor = pt.kp < 3 ? '#4ade80' : pt.kp < 5 ? '#fbbf24' : '#ef4444';
-                    const title = `Kp ${pt.kp.toFixed(1)} — ${new Date(pt.time).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}`;
-                    return (
-                      <div key={i} title={title} className="flex-1 rounded-sm min-h-[3px] cursor-pointer hover:opacity-100 transition-opacity"
-                        style={{ height:`${Math.max(6,(pt.kp/9)*100)}%`, background: barColor, opacity: 0.45 + (i/kpHistory.length)*0.55 }} />
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            {/* Interactive Kp chart */}
+            <div className="mb-5">
+              <KpChart
+                history={kpHistory}
+                height={88}
+                label={`${kpHistory.length || '—'} NOAA readings`}
+              />
+            </div>
 
             {/* Aurora visibility message */}
             <div className="p-3.5 rounded-xl" style={{ background:`${kpColor}0d`, border:`1px solid ${kpColor}25` }}>

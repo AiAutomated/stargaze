@@ -89,16 +89,19 @@ export default function SettingsPage() {
       <meta name="description" content="Manage your Stargaze push notification settings. Choose which meteor showers and aurora alerts to receive." />
     <div className="relative z-10 max-w-3xl mx-auto px-4 pt-28 pb-16">
 
-      <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} className="text-center mb-10">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-5"
-          style={{ background:'rgba(139,92,246,0.10)', border:'1px solid rgba(139,92,246,0.25)' }}>
-          <Settings size={12} className="text-purple-400" />
-          <span className="text-xs font-mono text-purple-300/80 tracking-wider">NOTIFICATION PREFERENCES</span>
+      <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} className="text-center mb-10 relative">
+        <div className="hero-orb hero-orb-purple" style={{ top: -30, left: '35%', opacity: 0.3 }} aria-hidden="true" />
+        <div className="relative z-10">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-5"
+            style={{ background:'rgba(139,92,246,0.12)', border:'1px solid rgba(139,92,246,0.3)', boxShadow: '0 0 20px rgba(139,92,246,0.1)' }}>
+            <Settings size={12} className="text-purple-400" />
+            <span className="text-xs font-mono text-purple-300/80 tracking-wider">NOTIFICATION PREFERENCES</span>
+          </div>
+          <h1 className="text-3xl font-bold font-space mb-3">Settings</h1>
+          <p className="text-white/45 leading-relaxed max-w-md mx-auto">
+            Control which alerts you receive. Preferences are saved on this device only.
+          </p>
         </div>
-        <h1 className="text-3xl font-bold font-space mb-3">Settings</h1>
-        <p className="text-white/45 leading-relaxed">
-          Control which alerts you receive. Settings are saved locally in your browser.
-        </p>
       </motion.div>
 
       {/* Push notification toggle */}
@@ -219,6 +222,15 @@ export default function SettingsPage() {
           {saved ? <span className="flex items-center justify-center gap-2"><CheckCircle size={14}/>Saved!</span> : 'Save Preferences'}
         </button>
       </div>
+
+      {/* Offline / install tip */}
+      <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.3 }}
+        className="glass-card p-4 rounded-2xl mt-5">
+        <p className="text-xs font-bold text-white/75 mb-1">Install & offline</p>
+        <p className="text-[11px] text-white/40 leading-relaxed">
+          Stargaze can be installed as an app from your browser menu. Offline, you'll get the cached shell; live NOAA/NASA feeds need a connection.
+        </p>
+      </motion.div>
 
       {/* Privacy note */}
       <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.35 }}

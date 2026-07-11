@@ -255,6 +255,15 @@ const staticRoutes = [
   ['/about', 'About Stargaze | Free Meteor Shower Tracker Built for Stargazers',
    'Stargaze is a free, real-time meteor shower tracker and celestial event guide, built for stargazers of all levels. No paywalls, no ads on live data.',
    'About Stargaze', 'Free, real-time meteor shower tracking and celestial event calendar. Open to all stargazers.'],
+  ['/settings', 'Notification Settings | Stargaze',
+   'Manage Stargaze push notification preferences for meteor showers and aurora alerts.',
+   'Notification Settings', 'Choose which meteor shower peaks and aurora Kp thresholds trigger browser push alerts.'],
+  ['/privacy', 'Privacy Policy | Stargaze',
+   'How Stargaze handles location, notifications, analytics, and your data.',
+   'Privacy Policy', 'Stargaze privacy practices for location, push notifications, and analytics.'],
+  ['/terms', 'Terms of Service | Stargaze',
+   'Terms of use for the free Stargaze space weather and meteor shower tracker.',
+   'Terms of Service', 'Terms of use for Stargaze, a free educational astronomy tool.'],
 ];
 
 for (const [urlPath, title, description, h1, intro] of staticRoutes) {

@@ -19,6 +19,10 @@ import meteorShowers from './data/meteorShowers.json';
 const CesiumGlobe       = lazy(() => import('./components/CesiumGlobe'));
 const SolarSystemViewer = lazy(() => import('./components/SolarSystemViewer'));
 const SkyView           = lazy(() => import('./components/SkyView'));
+import ConstellationMap from './components/ConstellationMap';
+import KpChart from './components/KpChart';
+import { UpcomingEventsStrip, CelestialEventsPanel } from './components/CelestialEvents';
+import { SkipLink, OfflineBanner, InstallPrompt, ScrollTopButton, useServiceWorker } from './components/AppChrome';
 
 // ─── Lazy-load new page components ───────────────────────────────────────────
 const AuroraPage   = lazy(() => import('./pages/AuroraPage'));
@@ -591,19 +595,19 @@ function Footer() {
           </div>
           <div>
             <p className="text-xs font-semibold text-white/55 uppercase tracking-widest mb-3 font-space">Explore</p>
-            {[['/', 'Home'], ['/calendar', 'Calendar'], ['/aurora', 'Aurora'], ['/live', 'Live Feed'], ['/globe', '3D Globe'], ['/gear', 'Gear Guide']].map(([to, label]) => (
+            {[['/', 'Home'], ['/calendar', 'Calendar'], ['/aurora', 'Aurora'], ['/planets', 'Planets'], ['/iss', 'ISS'], ['/sky', 'Night Sky'], ['/globe', '3D Globe'], ['/gear', 'Gear']].map(([to, label]) => (
               <Link key={to} to={to} className="footer-link">{label}</Link>
             ))}
           </div>
           <div>
             <p className="text-xs font-semibold text-white/55 uppercase tracking-widest mb-3 font-space">Resources</p>
-            {[['https://www.imo.net', 'IMO Data'], ['https://api.nasa.gov', 'NASA API'], ['https://celestrak.org', 'CelesTrak']].map(([href, label]) => (
+            {[['https://www.imo.net', 'IMO Data'], ['https://api.nasa.gov', 'NASA API'], ['https://celestrak.org', 'CelesTrak'], ['https://www.swpc.noaa.gov', 'NOAA SWPC']].map(([href, label]) => (
               <a key={href} href={href} target="_blank" rel="noopener noreferrer" className="footer-link">{label}</a>
             ))}
           </div>
           <div>
             <p className="text-xs font-semibold text-white/55 uppercase tracking-widest mb-3 font-space">Legal</p>
-            {[['/privacy', 'Privacy Policy'], ['/terms', 'Terms of Service'], ['/about', 'About']].map(([to, label]) => (
+            {[['/privacy', 'Privacy Policy'], ['/terms', 'Terms of Service'], ['/about', 'About'], ['/settings', 'Settings'], ['/news', 'Space News']].map(([to, label]) => (
               <Link key={to} to={to} className="footer-link">{label}</Link>
             ))}
           </div>
@@ -1097,22 +1101,10 @@ function Home({ watched, addNotification, toggleWatch }: {
               </div>
             </div>
 
-            {/* 24h sparkline */}
-            {kpHistory.length > 0 && (
-              <div className="mb-5">
-                <p className="text-[9px] text-white/30 font-mono uppercase tracking-widest mb-1.5">24h Kp History</p>
-                <div className="flex gap-0.5 h-10 items-end">
-                  {kpHistory.slice(-24).map((pt, i) => {
-                    const barColor = pt.kp < 3 ? '#4ade80' : pt.kp < 5 ? '#fbbf24' : '#ef4444';
-                    return (
-                      <div key={i} title={`Kp ${pt.kp.toFixed(1)} — ${pt.time}`}
-                        className="flex-1 rounded-sm min-h-[2px] transition-all"
-                        style={{ height:`${Math.max(4, (pt.kp / 9) * 100)}%`, background: barColor, opacity: 0.5 + (i / 24) * 0.5 }} />
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            {/* Polished Kp history chart */}
+            <div className="mb-5">
+              <KpChart history={kpHistory} height={64} label="Kp History (NOAA)" />
+            </div>
 
             {/* Aurora visibility */}
             <div className="p-3 rounded-xl mb-4" style={{ background:'rgba(255,255,255,0.04)', border:`1px solid ${kpColor}22` }}>
@@ -1295,6 +1287,9 @@ function Home({ watched, addNotification, toggleWatch }: {
         )}
       </motion.div>
 
+      {/* ══ CELESTIAL EVENTS ══════════════════════════════════════════════════ */}
+      <UpcomingEventsStrip limit={6} />
+
       {/* ══ ACTIVE SHOWERS ════════════════════════════════════════════════════ */}
       {activeShowers.length > 0 && (
         <div className="mb-10">
@@ -1357,7 +1352,8 @@ function Home({ watched, addNotification, toggleWatch }: {
                   <span className="text-[10px] font-mono text-orange-400 font-semibold">{s.zhr} ZHR</span>
                 </div>
                 <h3 className="text-sm font-bold mb-0.5 group-hover:text-purple-300 transition-colors">{s.name}</h3>
-                <p className="text-[10px] text-white/35 font-mono mb-3">Peak {formatDate(s.peak)}</p>
+                <p className="text-[10px] text-white/35 font-mono mb-2">Peak {formatDate(s.peak)}</p>
+                <ConstellationMap constellation={s.constellation} size="sm" className="mb-3" showLabel={false} />
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] text-white/35">{s.constellation}</span>
                   <Link to={`/shower/${s.id}`} className="text-[10px] text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-colors">
@@ -1793,6 +1789,13 @@ function MeteorCalendar({ watched, toggleWatch, addNotification }: {
                     <p className="text-[10px] font-mono text-white/35 mb-3">
                       Peak: {new Date(s.peak).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                     </p>
+
+                    <ConstellationMap
+                      constellation={s.constellation}
+                      size="sm"
+                      className="mb-3"
+                    />
+
                     <p className="text-xs text-white/50 mb-4 line-clamp-2 leading-relaxed">{s.description}</p>
 
                     {/* Intensity bar */}
@@ -1842,6 +1845,8 @@ function MeteorCalendar({ watched, toggleWatch, addNotification }: {
             <p className="text-white/30 text-sm">No showers match your search</p>
           </div>
         )}
+
+        <CelestialEventsPanel />
       </motion.div>
     </div>
     </>
@@ -1913,27 +1918,34 @@ function ShowerDetail({ watched, toggleWatch }: { watched: WatchedShower[]; togg
         {/* Header card */}
         <div className="glass-card p-6 sm:p-8 rounded-2xl relative overflow-hidden mb-6">
           <MeteorVisualizer zhr={shower.zhr} active={status === 'active'} />
-          <div className="relative z-10">
-            <div className="flex flex-wrap items-center gap-2 mb-4">
-              <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono border ${
-                status === 'active' ? 'badge-active' : status === 'upcoming' ? 'badge-upcoming' : 'badge-past'
-              }`}>{status.toUpperCase()}</span>
-              {shower.parent && (
-                <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-white/5 text-white/40 border border-white/10">
-                  {shower.parent}
-                </span>
-              )}
+          <div className="relative z-10 grid grid-cols-1 md:grid-cols-[1fr_200px] gap-6 items-start">
+            <div>
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono border ${
+                  status === 'active' ? 'badge-active' : status === 'upcoming' ? 'badge-upcoming' : 'badge-past'
+                }`}>{status.toUpperCase()}</span>
+                {shower.parent && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-white/5 text-white/40 border border-white/10">
+                    {shower.parent}
+                  </span>
+                )}
+              </div>
+              <h1 className="text-4xl md:text-5xl font-bold font-space mb-3 text-gradient">{shower.name}</h1>
+              <p className="text-white/50 text-base leading-relaxed max-w-2xl mb-6">{shower.description}</p>
+              <div className="flex flex-wrap gap-3">
+                <button onClick={() => toggleWatch(shower)} className={isWatched ? 'btn-secondary' : 'btn-primary'}>
+                  {isWatched ? <><BellOff size={13} /> Unwatch</> : <><Bell size={13} /> Watch Peak</>}
+                </button>
+                <Link to="/live" className="btn-secondary">
+                  <Radio size={13} /> Report Sighting
+                </Link>
+              </div>
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold font-space mb-3 text-gradient">{shower.name}</h1>
-            <p className="text-white/50 text-base leading-relaxed max-w-2xl mb-6">{shower.description}</p>
-            <div className="flex flex-wrap gap-3">
-              <button onClick={() => toggleWatch(shower)} className={isWatched ? 'btn-secondary' : 'btn-primary'}>
-                {isWatched ? <><BellOff size={13} /> Unwatch</> : <><Bell size={13} /> Watch Peak</>}
-              </button>
-              <Link to="/live" className="btn-secondary">
-                <Radio size={13} /> Report Sighting
-              </Link>
-            </div>
+            <ConstellationMap
+              constellation={shower.constellation}
+              size="lg"
+              className="w-full shadow-lg shadow-blue-500/10"
+            />
           </div>
         </div>
 
@@ -2173,9 +2185,16 @@ function LiveFeed({ addNotification }: { addNotification: (n: Omit<Notification,
     <div className="relative z-10 max-w-7xl mx-auto px-4 pt-28 pb-16">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <div className="mb-8">
-          <p className="section-label text-green-400 mb-2">Community Reports</p>
+          <p className="section-label text-green-400 mb-2">Field Notes</p>
           <h1 className="text-4xl font-bold font-space mb-2">Live <span className="text-gradient">Sighting Feed</span></h1>
-          <p className="text-white/50 text-sm">Real-time meteor sighting reports from observers worldwide</p>
+          <p className="text-white/50 text-sm max-w-xl">
+            Log meteors and fireballs you see. Your reports stay on this device — a personal observing notebook with sample global entries to get you started.
+          </p>
+          <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-mono text-white/45"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <span className="live-dot" style={{ width: 6, height: 6 }} />
+            Saved locally · private to your browser
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -2582,26 +2601,40 @@ function TermsOfService() {
 // ─── NOT FOUND (404) ─────────────────────────────────────────────────────────
 function NotFound() {
   const navigate = useNavigate();
+  const quick = [
+    { to: '/calendar', label: 'Meteor Calendar' },
+    { to: '/aurora', label: 'Aurora Forecast' },
+    { to: '/iss', label: 'ISS Tracker' },
+    { to: '/sky', label: 'Night Sky' },
+  ];
   return (
     <>
       <title>Page Not Found | Stargaze</title>
       <meta name="description" content="The page you're looking for doesn't exist or has moved. Return to the Stargaze meteor shower tracker." />
       <meta name="robots" content="noindex" />
     <div className="relative z-10 min-h-[75vh] flex flex-col items-center justify-center px-4 pt-20 text-center">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-md">
+      <div className="hero-orb hero-orb-purple" style={{ opacity: 0.35 }} aria-hidden="true" />
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-md relative z-10">
         <p className="text-7xl mb-4 select-none leading-none">🔭</p>
         <p className="text-[7rem] font-bold font-mono leading-none text-white/6 select-none -mt-2 mb-4">404</p>
         <h1 className="text-3xl font-bold font-space mb-3 -mt-6">Lost in Space</h1>
-        <p className="text-white/40 text-sm leading-relaxed mb-8 max-w-xs mx-auto">
+        <p className="text-white/40 text-sm leading-relaxed mb-6 max-w-xs mx-auto">
           That page drifted out of orbit. It may have moved, been removed, or never existed.
         </p>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        <div className="flex flex-col sm:flex-row gap-3 justify-center mb-8">
           <button onClick={() => navigate(-1)} className="btn-secondary">
             <ChevronRight size={14} className="rotate-180" /> Go Back
           </button>
           <Link to="/" className="btn-primary">
             <Sparkles size={14} /> Back to Home
           </Link>
+        </div>
+        <div className="flex flex-wrap justify-center gap-2">
+          {quick.map(q => (
+            <Link key={q.to} to={q.to} className="status-chip text-white/50 hover:text-white/80">
+              {q.label}
+            </Link>
+          ))}
         </div>
       </motion.div>
     </div>
@@ -3127,6 +3160,7 @@ function AnimatedRoutes({ watched, addNotification, toggleWatch }: {
 
 // ─── ROOT APP ─────────────────────────────────────────────────────────────────
 export default function App() {
+  useServiceWorker();
   const [watched, setWatched] = useState<WatchedShower[]>(() => {
     try { return JSON.parse(localStorage.getItem('stargaze_watched') || '[]'); } catch { return []; }
   });
@@ -3189,16 +3223,22 @@ export default function App() {
   return (
     <BrowserRouter>
       <div className="min-h-screen text-white relative">
+        <SkipLink />
+        <OfflineBanner />
         <div className="atmosphere" />
         <StarField />
         <ScrollToTop />
         <Navbar watched={watched} notifications={notifications} toggleWatch={toggleWatch} />
         <NotificationToasts notifications={notifications} dismiss={dismissNotification} />
 
-        <AnimatedRoutes watched={watched} addNotification={addNotification} toggleWatch={toggleWatch} />
+        <main id="main-content">
+          <AnimatedRoutes watched={watched} addNotification={addNotification} toggleWatch={toggleWatch} />
+        </main>
 
         <Footer />
         <PushNotificationBanner />
+        <InstallPrompt />
+        <ScrollTopButton />
       </div>
     </BrowserRouter>
   );

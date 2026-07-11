@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
-import { Rocket, MapPin, Navigation, Clock, ExternalLink, RefreshCw } from 'lucide-react';
+import { MapPin, Navigation, Clock, ExternalLink, RefreshCw } from 'lucide-react';
 import * as satellite from 'satellite.js';
+import ISSGroundTrack from '../components/ISSGroundTrack';
 
 interface ISSPosition {
   latitude: number;
@@ -108,24 +109,34 @@ export default function ISSPage() {
   const [locError, setLocError] = useState(false);
   const [passes, setPasses] = useState<Pass[]>([]);
   const [passLoading, setPassLoading] = useState(false);
+  const [tle, setTle] = useState<TLE | null>(null);
+
+  // Load TLE once for orbit path (and reuse for pass prediction)
+  useEffect(() => {
+    let alive = true;
+    fetchTLE().then(t => { if (alive && t) setTle(t); });
+    // refresh TLE every 6 hours
+    const id = setInterval(() => { fetchTLE().then(t => { if (alive && t) setTle(t); }); }, 6 * 3600_000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
 
   const requestLocation = useCallback(() => {
     if (!navigator.geolocation) { setLocError(true); return; }
     navigator.geolocation.getCurrentPosition(
-      async pos => {
-        const loc = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+      async geo => {
+        const loc = { lat: geo.coords.latitude, lon: geo.coords.longitude };
         setUserLoc(loc);
         setPassLoading(true);
-        const tle = await fetchTLE();
-        if (tle) setPasses(predictPasses(tle, loc.lat, loc.lon));
+        const t = tle ?? await fetchTLE();
+        if (t) {
+          setTle(t);
+          setPasses(predictPasses(t, loc.lat, loc.lon));
+        }
         setPassLoading(false);
       },
       () => setLocError(true)
     );
-  }, []);
-
-  const orbitalPeriod = 92; // minutes
-  const orbitNumber   = pos ? Math.floor((pos.timestamp / 60 / orbitalPeriod) % 10000) : null;
+  }, [tle]);
 
   return (
     <>
@@ -170,59 +181,32 @@ export default function ISSPage() {
       {/* Map + Pass finder */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-10">
 
-        {/* World map */}
+        {/* World map — live ground track */}
         <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.2 }}
           className="lg:col-span-3 glass-card p-5 rounded-2xl">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-mono text-white/35 uppercase tracking-widest">Live Ground Track</p>
-            {pos && (
-              <p className="text-[10px] text-white/30 font-mono">
-                {new Date(pos.timestamp * 1000).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'})} UTC
+            <div>
+              <p className="text-xs font-mono text-white/35 uppercase tracking-widest">Live Ground Track</p>
+              <p className="text-[10px] text-white/25 font-mono mt-0.5">
+                {tle ? 'Orbit from live TLE · ' : ''}{posLoading ? 'connecting…' : 'updates every 5s'}
               </p>
+            </div>
+            {pos && (
+              <div className="text-right">
+                <p className="text-[10px] text-white/40 font-mono">
+                  {new Date(pos.timestamp * 1000).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'})} UTC
+                </p>
+                {pos.visibility && (
+                  <p className="text-[9px] font-mono mt-0.5" style={{ color: pos.visibility === 'daylight' ? '#fbbf24' : '#93c5fd' }}>
+                    {pos.visibility === 'daylight' ? '☀ Daylight side' : '☾ Eclipse / night'}
+                  </p>
+                )}
+              </div>
             )}
           </div>
-          {/* Simple SVG world map with ISS dot */}
-          <div className="relative rounded-xl overflow-hidden" style={{ background:'rgba(0,0,50,0.6)', aspectRatio:'2/1' }}>
-            <svg viewBox="0 0 360 180" className="w-full h-full" style={{ opacity:0.4 }}>
-              {/* Simple world outline — latitude/longitude grid */}
-              {[-60,-30,0,30,60].map(lat => (
-                <line key={lat} x1="0" y1={90-lat} x2="360" y2={90-lat} stroke="rgba(255,255,255,0.15)" strokeWidth="0.5"/>
-              ))}
-              {[-150,-120,-90,-60,-30,0,30,60,90,120,150].map(lon => (
-                <line key={lon} x1={lon+180} y1="0" x2={lon+180} y2="180" stroke="rgba(255,255,255,0.15)" strokeWidth="0.5"/>
-              ))}
-            </svg>
-            {/* ISS dot */}
-            {pos && (() => {
-              const x = ((pos.longitude + 180) / 360) * 100;
-              const y = ((90 - pos.latitude) / 180) * 100;
-              return (
-                <div className="absolute" style={{ left:`${x}%`, top:`${y}%`, transform:'translate(-50%,-50%)' }}>
-                  <div className="w-4 h-4 rounded-full border-2 border-emerald-400 bg-emerald-400/30 animate-pulse" />
-                  <div className="absolute top-4 left-4 text-[10px] font-mono text-emerald-300 whitespace-nowrap">ISS ↑</div>
-                </div>
-              );
-            })()}
-            {/* User location */}
-            {userLoc && (() => {
-              const x = ((userLoc.lon + 180) / 360) * 100;
-              const y = ((90 - userLoc.lat) / 180) * 100;
-              return (
-                <div className="absolute" style={{ left:`${x}%`, top:`${y}%`, transform:'translate(-50%,-50%)' }}>
-                  <div className="w-3 h-3 rounded-full bg-blue-400 border border-white" />
-                </div>
-              );
-            })()}
-            {/* Labels */}
-            <div className="absolute inset-x-0 bottom-2 flex justify-center">
-              <div className="flex items-center gap-4 text-[9px] font-mono text-white/40">
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400" />ISS</span>
-                {userLoc && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-400" />You</span>}
-              </div>
-            </div>
-          </div>
-          <p className="text-[10px] text-white/20 text-center mt-2 font-mono">
-            ISS completes 1 orbit every ~92 min · {pos ? `Visibility: ${pos.visibility}` : ''}
+          <ISSGroundTrack pos={pos} userLoc={userLoc} tle={tle} />
+          <p className="text-[10px] text-white/25 text-center mt-2.5 font-mono leading-relaxed">
+            Full orbit path (~92 min) · visibility footprint under the station · night shade is approximate
           </p>
         </motion.div>
 

@@ -18,6 +18,23 @@
   --color-space-yellow: #fbbf24;
 }
 
+/* ─── Accessibility ─────────────────────────────────────────────── */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0);
+  white-space: nowrap; border: 0;
+}
+.sr-only:focus,
+.focus\:not-sr-only:focus {
+  position: fixed;
+  width: auto; height: auto;
+  padding: 0.5rem 1rem; margin: 0;
+  overflow: visible; clip: auto;
+  white-space: normal;
+}
+
 /* ─── Global ────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
@@ -381,6 +398,16 @@ select.input-field option { background: #0a0620; color: white; }
   background: rgba(3,0,20,0.55);
   border-radius: 8px;
   border: 1px solid rgba(255,255,255,0.05);
+}
+.constellation-wrap {
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.group:hover .constellation-wrap {
+  border-color: rgba(147,197,253,0.18) !important;
+  box-shadow: 0 0 24px rgba(79,142,247,0.12);
+}
+.iss-map {
+  box-shadow: inset 0 0 40px rgba(0,0,0,0.35);
 }
 
 /* ─── Animations ────────────────────────────────────────────────── */

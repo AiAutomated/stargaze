@@ -742,31 +742,54 @@ const CesiumGlobe: React.FC = () => {
     }
   }, [sightings]);
 
-  // Dark sky overlay toggle
+  // Dark sky / night-observing mode
   useEffect(() => {
     const viewer = viewerRef.current;
     if (!viewer) return;
+
+    const applyNightMode = (on: boolean) => {
+      viewer.scene.globe.enableLighting = on;
+      viewer.scene.globe.dynamicAtmosphereLighting = on;
+      viewer.scene.globe.showGroundAtmosphere = !on;
+      // Dim base imagery for “dark site” feel
+      const base = viewer.imageryLayers.get(0);
+      if (base) {
+        base.brightness = on ? 0.45 : 1.0;
+        base.contrast = on ? 1.15 : 1.0;
+        base.gamma = on ? 0.85 : 1.0;
+      }
+      // Soft blue night atmosphere
+      if (viewer.scene.skyAtmosphere) {
+        viewer.scene.skyAtmosphere.hueShift = on ? -0.05 : 0;
+        viewer.scene.skyAtmosphere.saturationShift = on ? -0.2 : 0;
+        viewer.scene.skyAtmosphere.brightnessShift = on ? -0.35 : 0;
+      }
+    };
+
     if (darkSkyOn) {
-      try {
-        const layer = viewer.imageryLayers.addImageryProvider(
-          new Cesium.TileMapServiceImageryProvider({
+      applyNightMode(true);
+      // Optional external light-pollution tiles (graceful fail)
+      if (!darkSkyLayerRef.current) {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const provider = new (Cesium as any).UrlTemplateImageryProvider({
             url: 'https://stargazeio.b-cdn.net/darksky-tiles/{z}/{x}/{y}.png',
-          } as ConstructorParameters<typeof Cesium.TileMapServiceImageryProvider>[0])
-        );
-        layer.alpha = 0.55;
-        layer.brightness = 0.8;
-        darkSkyLayerRef.current = layer;
-      } catch (_) {
-        // Fallback: just dim the globe slightly
-        viewer.scene.globe.nightFadeOutDistance = 1e9;
-        viewer.scene.globe.enableLighting = true;
+            maximumLevel: 8,
+          });
+          const layer = viewer.imageryLayers.addImageryProvider(provider);
+          layer.alpha = 0.5;
+          layer.brightness = 0.9;
+          darkSkyLayerRef.current = layer;
+        } catch {
+          // Night lighting alone is enough without tiles
+        }
       }
     } else {
       if (darkSkyLayerRef.current) {
-        try { viewer.imageryLayers.remove(darkSkyLayerRef.current); } catch (_) {}
+        try { viewer.imageryLayers.remove(darkSkyLayerRef.current); } catch { /* ignore */ }
         darkSkyLayerRef.current = null;
       }
-      viewer.scene.globe.enableLighting = false;
+      applyNightMode(false);
     }
   }, [darkSkyOn]);
 
@@ -1213,14 +1236,21 @@ const CesiumGlobe: React.FC = () => {
           onClick={() => setDarkSkyOn(v => !v)}
           className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all backdrop-blur-xl ${
             darkSkyOn
-              ? 'bg-indigo-600/70 text-white border border-indigo-400/40'
+              ? 'bg-indigo-600/70 text-white border border-indigo-400/40 shadow-lg shadow-indigo-500/20'
               : 'bg-black/60 text-white/50 hover:text-white border border-white/10'
           }`}
-          title="Toggle light pollution overlay"
+          title="Night observing mode — dim daylight and show dark-sky conditions"
+          aria-pressed={darkSkyOn}
         >
           <Moon size={13} />
-          <span className="hidden sm:inline">Dark Sky</span>
+          <span className="hidden sm:inline">{darkSkyOn ? 'Night Mode On' : 'Dark Sky'}</span>
         </button>
+        {darkSkyOn && (
+          <div className="px-2.5 py-1.5 rounded-lg text-[9px] font-mono text-indigo-200/80 max-w-[9rem] leading-snug"
+            style={{ background: 'rgba(49,46,129,0.55)', border: '1px solid rgba(129,140,248,0.3)' }}>
+            Night mode: lighting + dark-sky overlay for finding dark sites
+          </div>
+        )}
       </div>
 
       {/* ── Add Sighting Dialog ── */}
