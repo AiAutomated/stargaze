@@ -9,7 +9,7 @@ import {
   RefreshCw, AlertTriangle, CheckCircle, ExternalLink, Rocket, Moon,
   Cloud, Wind, BarChart2, Users, MessageSquare, Plus, Search,
   Filter, TrendingUp, Navigation, Compass, Gauge, ShoppingBag, BellRing,
-  Sun, Flame, Camera, Globe2, Triangle, Newspaper, Settings, Orbit
+  Sun, Flame, Camera, Globe2, Triangle, Newspaper, Settings, Orbit, Gamepad2
 } from 'lucide-react';
 import { useSpaceData, auToLD, asteroidSize, fireballEnergy } from './hooks/useSpaceData';
 import { getPlanets } from './utils/planets';
@@ -30,6 +30,7 @@ const PlanetsPage  = lazy(() => import('./pages/PlanetsPage'));
 const NewsPage     = lazy(() => import('./pages/NewsPage'));
 const ISSPage      = lazy(() => import('./pages/ISSPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const GamePage     = lazy(() => import('./pages/GamePage'));
 
 // Suspense fallback
 function PageLoader() {
@@ -389,6 +390,7 @@ function Navbar({ watched, notifications, toggleWatch }: { watched: WatchedShowe
     { to: '/sky',      label: 'Sky',      icon: Star },
     { to: '/news',     label: 'News',     icon: Newspaper },
     { to: '/iss',      label: 'ISS',      icon: Rocket },
+    { to: '/game',     label: 'Game',     icon: Gamepad2 },
     { to: '/gear',     label: 'Gear',     icon: ShoppingBag },
   ];
 
@@ -595,7 +597,7 @@ function Footer() {
           </div>
           <div>
             <p className="text-xs font-semibold text-white/55 uppercase tracking-widest mb-3 font-space">Explore</p>
-            {[['/', 'Home'], ['/calendar', 'Calendar'], ['/aurora', 'Aurora'], ['/planets', 'Planets'], ['/iss', 'ISS'], ['/sky', 'Night Sky'], ['/globe', '3D Globe'], ['/gear', 'Gear']].map(([to, label]) => (
+            {[['/', 'Home'], ['/calendar', 'Calendar'], ['/aurora', 'Aurora'], ['/planets', 'Planets'], ['/iss', 'ISS'], ['/game', 'Game'], ['/sky', 'Night Sky'], ['/globe', '3D Globe'], ['/gear', 'Gear']].map(([to, label]) => (
               <Link key={to} to={to} className="footer-link">{label}</Link>
             ))}
           </div>
@@ -966,7 +968,7 @@ function Home({ watched, addNotification, toggleWatch }: {
             <Link to="/calendar" className="btn-primary"><Calendar size={14} />Meteor Calendar</Link>
             <Link to="/sky"      className="btn-secondary"><Star size={14} />Night Sky Map</Link>
             <Link to="/globe"    className="btn-secondary"><Globe size={14} />3D Globe</Link>
-            <Link to="/aurora"  className="btn-secondary"><Sun size={14} />Aurora</Link>
+            <Link to="/game"     className="btn-secondary"><Gamepad2 size={14} />Play Game</Link>
           </div>
         </div>
       </motion.div>
@@ -2351,43 +2353,44 @@ function GlobePage() {
       <meta property="og:description" content="Real-time satellite tracking and 3D solar system explorer. See exactly where every planet is right now, and how meteor showers form." />
       <link rel="canonical" href="https://stargaze.io/globe" />
 
-    {/* View toggle — floats above both layers */}
-    <div className="fixed top-[4.5rem] left-1/2 -translate-x-1/2 z-30 flex gap-1 p-1 rounded-2xl"
-      style={{ background: 'rgba(5,5,15,0.82)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)' }}>
-      <button
-        onClick={() => setView('earth')}
-        className={`flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
-          view === 'earth'
-            ? 'bg-blue-600/80 text-white shadow-lg'
-            : 'text-white/45 hover:text-white/70'
-        }`}>
-        <Globe size={12} />
-        Earth Globe
-      </button>
-      <button
-        onClick={() => setView('solar')}
-        className={`flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
-          view === 'solar'
-            ? 'bg-purple-600/80 text-white shadow-lg'
-            : 'text-white/45 hover:text-white/70'
-        }`}>
-        <Sparkles size={12} />
-        Solar System
-      </button>
-    </div>
+    {/* Full-viewport canvas (under nav, above footer) */}
+    <div className="fixed inset-0 z-[5] bg-[#030014]" style={{ top: 0 }}>
+      {/* View toggle */}
+      <div className="absolute top-[4.5rem] left-1/2 -translate-x-1/2 z-30 flex gap-1 p-1 rounded-2xl"
+        style={{ background: 'rgba(5,5,15,0.82)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)' }}>
+        <button
+          onClick={() => setView('earth')}
+          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
+            view === 'earth'
+              ? 'bg-blue-600/80 text-white shadow-lg'
+              : 'text-white/45 hover:text-white/70'
+          }`}>
+          <Globe size={12} />
+          Earth Globe
+        </button>
+        <button
+          onClick={() => setView('solar')}
+          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
+            view === 'solar'
+              ? 'bg-purple-600/80 text-white shadow-lg'
+              : 'text-white/45 hover:text-white/70'
+          }`}>
+          <Sparkles size={12} />
+          Solar System
+        </button>
+      </div>
 
-    <div className="relative z-10 pt-16 h-screen flex flex-col">
-      <div className="flex-1 relative overflow-hidden">
-        {/* Earth globe layer */}
-        <div className={`absolute inset-0 transition-opacity duration-500 ${view === 'earth' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-          <Suspense fallback={<PageLoader />}><CesiumGlobe /></Suspense>
-        </div>
-        {/* Solar system layer */}
-        <div className={`absolute inset-0 transition-opacity duration-500 ${view === 'solar' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-          {view === 'solar' && <Suspense fallback={<PageLoader />}><SolarSystemViewer initZoom={initZoom} initSelectName={initSelect} initSelectType={initType || undefined} /></Suspense>}
-        </div>
+      {/* Earth globe layer */}
+      <div className={`absolute inset-0 transition-opacity duration-500 ${view === 'earth' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+        <Suspense fallback={<PageLoader />}><CesiumGlobe /></Suspense>
+      </div>
+      {/* Solar system layer */}
+      <div className={`absolute inset-0 transition-opacity duration-500 ${view === 'solar' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+        {view === 'solar' && <Suspense fallback={<PageLoader />}><SolarSystemViewer initZoom={initZoom} initSelectName={initSelect} initSelectType={initType || undefined} /></Suspense>}
       </div>
     </div>
+    {/* Spacer so footer doesn't collide when scrolling (globe is fixed) */}
+    <div className="h-screen w-full" aria-hidden="true" />
     </>
   );
 }
@@ -2399,11 +2402,12 @@ function SkyPage() {
       <title>Tonight's Night Sky | Live Star Map &amp; Meteor Radiant Finder | Stargaze</title>
       <meta name="description" content="Live 3D night sky view from your location. See which stars are visible tonight, where meteor shower radiants are, and your local seeing conditions." />
       <link rel="canonical" href="https://stargaze.io/sky" />
-    <div className="relative z-10 pt-16 h-screen flex flex-col">
-      <div className="flex-1 relative overflow-hidden">
+    <div className="fixed inset-0 z-[5] bg-[#030014]">
+      <div className="absolute inset-0 pt-14">
         <Suspense fallback={<PageLoader />}><SkyView /></Suspense>
       </div>
     </div>
+    <div className="h-screen w-full" aria-hidden="true" />
     </>
   );
 }
@@ -3151,6 +3155,7 @@ function AnimatedRoutes({ watched, addNotification, toggleWatch }: {
         <Route path="/planets"    element={<Suspense fallback={<PageLoader />}><PlanetsPage /></Suspense>} />
         <Route path="/news"       element={<Suspense fallback={<PageLoader />}><NewsPage /></Suspense>} />
         <Route path="/iss"        element={<Suspense fallback={<PageLoader />}><ISSPage /></Suspense>} />
+        <Route path="/game"       element={<Suspense fallback={<PageLoader />}><GamePage /></Suspense>} />
         <Route path="/settings"   element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
         <Route path="*"           element={<NotFound />} />
       </Routes>

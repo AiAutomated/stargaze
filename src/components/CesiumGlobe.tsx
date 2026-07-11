@@ -22,6 +22,8 @@ const CesiumGlobe: React.FC = () => {
   // Keep ref in sync so Cesium click handler (set once) can read latest tab without re-init
   const setActiveTabAndRef = (t: typeof activeTab) => { activeTabRef.current = t; setActiveTab(t); };
   const [loading, setLoading] = useState(true);
+  const [initError, setInitError] = useState<string | null>(null);
+  const [initReady, setInitReady] = useState(false);
   const [satellites, setSatellites] = useState<SatelliteData[]>([]);
   const [debris, setDebris] = useState<SatelliteData[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -106,11 +108,20 @@ const CesiumGlobe: React.FC = () => {
         }
       }
 
-      if (!satSuccess) throw new Error('Could not fetch satellite data from any source. Celestrak might be rate-limiting requests.');
-      
-      const parsedSats = parseTLE(satText);
-      if (parsedSats.length === 0) throw new Error('No satellite data parsed');
-      setSatellites(parsedSats);
+      if (!satSuccess) {
+        // Globe still works without live TLEs — show meteors/UI
+        setFetchError('Live satellite feed unavailable (CelesTrak blocked or rate-limited). Globe still works — try Refresh later.');
+        setSatellites([]);
+      } else {
+        const parsedSats = parseTLE(satText);
+        if (parsedSats.length === 0) {
+          setFetchError('Satellite feed returned no objects. Try Refresh.');
+          setSatellites([]);
+        } else {
+          setSatellites(parsedSats);
+          setFetchError(null);
+        }
+      }
 
       // 2. Fetch Debris
       let debrisText = '';
@@ -152,51 +163,125 @@ const CesiumGlobe: React.FC = () => {
 
   useEffect(() => {
     if (!containerRef.current) return;
+    let destroyed = false;
 
     const initCesium = async () => {
       try {
-        // Disable Ion to prevent unnecessary network requests and potential crashes
-        Cesium.Ion.defaultAccessToken = '';
+        setInitError(null);
 
-        // Initialize Cesium Viewer
+        // Workers / Assets / Widgets must resolve under /cesium (vite-plugin-cesium)
+        const base = (import.meta as any).env?.BASE_URL || '/';
+        const cesiumBase = `${base}cesium/`.replace(/\/{2,}/g, '/').replace(':/', '://');
+        (window as any).CESIUM_BASE_URL = cesiumBase;
+        // Prefer buildModuleUrl base when available
+        try {
+          (Cesium as any).buildModuleUrl?.setBaseUrl?.(cesiumBase);
+        } catch { /* older builds */ }
+
+        // Never use Cesium Ion defaults — no token, and default World Imagery breaks the globe
+        try { (Cesium.Ion as any).defaultAccessToken = ''; } catch { /* ignore */ }
+
+        // Initialize without Ion base layer / terrain (critical for production without Ion key)
         const viewer = new Cesium.Viewer(containerRef.current!, {
-          terrainProvider: undefined,
+          baseLayer: false,
+          terrainProvider: new Cesium.EllipsoidTerrainProvider(),
           baseLayerPicker: false,
           geocoder: false,
           homeButton: false,
-          infoBox: false, // Reduced overhead
+          infoBox: false,
           navigationHelpButton: false,
           sceneModePicker: false,
           timeline: false,
           animation: false,
-          selectionIndicator: false, // Custom logic used instead
+          selectionIndicator: false,
           fullscreenButton: false,
+          creditContainer: document.createElement('div'),
+          contextOptions: {
+            webgl: { alpha: false, preserveDrawingBuffer: false },
+          },
         });
 
-        // Use a more reliable imagery provider
+        if (destroyed || !isMounted.current) {
+          viewer.destroy();
+          return;
+        }
+
+        // Imagery stack: satellite → OSM → built-in Natural Earth II
+        let imageryOk = false;
         try {
           const imageryProvider = await Cesium.ArcGisMapServerImageryProvider.fromUrl(
             'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer'
           );
-          viewer.imageryLayers.removeAll(); // Clear defaults
-          viewer.imageryLayers.addImageryProvider(imageryProvider);
-        } catch (e) {
-          console.warn('Failed to load ArcGIS imagery, falling back to OSM');
-          const osmProvider = new Cesium.OpenStreetMapImageryProvider({
-            url: 'https://a.tile.openstreetmap.org/'
-          });
           viewer.imageryLayers.removeAll();
-          viewer.imageryLayers.addImageryProvider(osmProvider);
+          viewer.imageryLayers.addImageryProvider(imageryProvider);
+          imageryOk = true;
+        } catch (e) {
+          console.warn('ArcGIS imagery failed:', e);
         }
 
-        // Remove credits for a cleaner look
-        (viewer.cesiumWidget.creditContainer as HTMLElement).style.display = 'none';
-
-        if (!isMounted.current) {
-          viewer.destroy();
-          return;
+        if (!imageryOk) {
+          try {
+            viewer.imageryLayers.removeAll();
+            viewer.imageryLayers.addImageryProvider(
+              new Cesium.OpenStreetMapImageryProvider({
+                url: 'https://tile.openstreetmap.org/',
+              })
+            );
+            imageryOk = true;
+          } catch (e) {
+            console.warn('OSM imagery failed:', e);
+          }
         }
+
+        if (!imageryOk) {
+          try {
+            const ne = await Cesium.TileMapServiceImageryProvider.fromUrl(
+              Cesium.buildModuleUrl('Assets/Textures/NaturalEarthII')
+            );
+            viewer.imageryLayers.removeAll();
+            viewer.imageryLayers.addImageryProvider(ne);
+            imageryOk = true;
+          } catch (e) {
+            console.warn('NaturalEarthII fallback failed:', e);
+          }
+        }
+
+        // Dark space background (not pure black void if imagery missing)
+        viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#030014');
+        viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#0a1a3a');
+        viewer.scene.globe.enableLighting = false;
+        viewer.scene.fog.enabled = false;
+        if (viewer.scene.skyAtmosphere) {
+          viewer.scene.skyAtmosphere.show = true;
+        }
+
+        // Fit canvas to container (important inside absolute layouts)
+        viewer.resize();
+        viewer.camera.setView({
+          destination: Cesium.Cartesian3.fromDegrees(0, 20, 22_000_000),
+        });
+
+        // Hide leftover credits if any
+        try {
+          const credit = viewer.cesiumWidget.creditContainer as HTMLElement;
+          if (credit) credit.style.display = 'none';
+        } catch { /* ignore */ }
+
         viewerRef.current = viewer;
+        setInitReady(true);
+
+        // Resize observer — keeps WebGL canvas sized when layout settles
+        const ro = typeof ResizeObserver !== 'undefined'
+          ? new ResizeObserver(() => {
+              try { viewer.resize(); } catch { /* destroyed */ }
+            })
+          : null;
+        if (containerRef.current && ro) ro.observe(containerRef.current);
+        (viewer as any).__stargazeRO = ro;
+
+        const onWinResize = () => { try { viewer.resize(); } catch { /* ignore */ } };
+        window.addEventListener('resize', onWinResize);
+        (viewer as any).__stargazeOnResize = onWinResize;
 
         // Setup click handler for selection
         const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
@@ -253,12 +338,14 @@ const CesiumGlobe: React.FC = () => {
           }
         }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
-      // Fetch data initially
-      fetchData();
-    } catch (err) {
-      console.error('Cesium initialization failed:', err);
-    }
-  };
+        // Fetch orbital data after globe is visible
+        fetchData();
+      } catch (err: any) {
+        console.error('Cesium initialization failed:', err);
+        setInitError(err?.message || 'Failed to start 3D globe. WebGL may be blocked.');
+        setInitReady(false);
+      }
+    };
 
     initCesium();
 
@@ -266,13 +353,19 @@ const CesiumGlobe: React.FC = () => {
     const refreshInterval = setInterval(fetchData, 30 * 60 * 1000);
 
     return () => {
+      destroyed = true;
       clearInterval(refreshInterval);
       if (handlerRef.current) {
-        handlerRef.current.destroy();
+        try { handlerRef.current.destroy(); } catch { /* ignore */ }
         handlerRef.current = null;
       }
       if (viewerRef.current) {
-        viewerRef.current.destroy();
+        const v = viewerRef.current as any;
+        try {
+          if (v.__stargazeRO) v.__stargazeRO.disconnect();
+          if (v.__stargazeOnResize) window.removeEventListener('resize', v.__stargazeOnResize);
+        } catch { /* ignore */ }
+        try { viewerRef.current.destroy(); } catch { /* ignore */ }
         viewerRef.current = null;
       }
     };
@@ -854,8 +947,39 @@ const CesiumGlobe: React.FC = () => {
       ];
 
   return (
-    <div className="relative w-full h-screen bg-black overflow-hidden">
-      <div ref={containerRef} className="w-full h-full" />
+    <div className="relative w-full h-full min-h-[50vh] bg-[#030014] overflow-hidden absolute inset-0">
+      <div ref={containerRef} className="absolute inset-0 w-full h-full" style={{ minHeight: '100%' }} />
+
+      {/* Init failure */}
+      {initError && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center p-6"
+          style={{ background: 'radial-gradient(ellipse at center, #0a1530 0%, #030014 70%)' }}>
+          <div className="max-w-sm text-center glass-card p-6 rounded-2xl">
+            <AlertCircle size={28} className="text-orange-400 mx-auto mb-3" />
+            <h3 className="text-sm font-bold font-space mb-2">Globe failed to start</h3>
+            <p className="text-xs text-white/45 leading-relaxed mb-4">{initError}</p>
+            <p className="text-[10px] text-white/30 font-mono mb-4">
+              Try allowing WebGL, disable strict tracking blockers for this site, or switch to Solar System view.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="btn-primary text-xs"
+            >
+              <RefreshCw size={12} /> Reload page
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Booting state */}
+      {!initReady && !initError && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+          <div className="text-center">
+            <Loader2 size={28} className="text-blue-400 animate-spin mx-auto mb-3" />
+            <p className="text-xs text-white/40 font-mono">Starting 3D globe…</p>
+          </div>
+        </div>
+      )}
 
       {/* ── Left Control Panel ── */}
       <div className="absolute top-20 left-3 sm:left-5 z-10 flex flex-col gap-2 sm:gap-3"

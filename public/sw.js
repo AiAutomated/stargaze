@@ -11,6 +11,7 @@ const PRECACHE = [
   '/aurora',
   '/planets',
   '/iss',
+  '/game',
   '/news',
   '/gear',
   '/sky',

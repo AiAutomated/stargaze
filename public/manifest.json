@@ -57,6 +57,11 @@
       "name": "ISS Tracker",
       "url": "/iss",
       "description": "Live ISS position and passes"
+    },
+    {
+      "name": "Meteor Drift",
+      "url": "/game",
+      "description": "Space arcade game"
     }
   ]
 }
