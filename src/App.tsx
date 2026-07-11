@@ -968,7 +968,7 @@ function Home({ watched, addNotification, toggleWatch }: {
             <Link to="/calendar" className="btn-primary"><Calendar size={14} />Meteor Calendar</Link>
             <Link to="/sky"      className="btn-secondary"><Star size={14} />Night Sky Map</Link>
             <Link to="/globe"    className="btn-secondary"><Globe size={14} />3D Globe</Link>
-            <Link to="/game"     className="btn-secondary"><Gamepad2 size={14} />Play Game</Link>
+            <Link to="/game"     className="btn-secondary"><Gamepad2 size={14} />Armada Game</Link>
           </div>
         </div>
       </motion.div>
