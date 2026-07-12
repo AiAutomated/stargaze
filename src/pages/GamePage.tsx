@@ -21,6 +21,8 @@ const emptyHud: HudState = {
   score: 0,
   wave: 1,
   kills: 0,
+  combo: 0,
+  highScore: 0,
   objective: '',
   capturing: null,
   capturePct: 0,
@@ -468,6 +470,11 @@ export default function GamePage() {
                   <h2 className="text-2xl sm:text-3xl font-bold font-space text-white/90 relative mb-4 tracking-wide">
                     ARMADA
                   </h2>
+                  {hud.highScore > 0 && (
+                    <p className="text-[11px] font-mono relative mb-4 tracking-[0.2em]" style={{ color: '#ffb700', textShadow: '0 0 14px rgba(255,183,0,0.4)' }}>
+                      ★ HIGH SCORE {hud.highScore.toLocaleString()}
+                    </p>
+                  )}
                   <p className="text-sm text-white/50 leading-relaxed max-w-md mx-auto mb-6 relative">
                     Pilot your interceptor through asteroid fields, gravity wells, and Dominion fleets.
                     Hold orbit, capture worlds, and conquer the sector.

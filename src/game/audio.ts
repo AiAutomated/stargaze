@@ -110,4 +110,55 @@ export class GameAudio {
     this.ensure();
     this.tone(65, 1.2, 'sine', 0.04, 55);
   }
+
+  // ── Continuous engine hum — pitch rises with velocity ────────────────────
+  private humOsc: OscillatorNode | null = null;
+  private humGain: GainNode | null = null;
+
+  /** ratio 0..1 of max speed; call every few frames. Pass 0 to fade out. */
+  setHum(ratio: number) {
+    this.ensure();
+    if (!this.ctx || !this.master) return;
+    if (this.muted || ratio <= 0.02) {
+      if (this.humGain) this.humGain.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.15);
+      return;
+    }
+    if (!this.humOsc) {
+      this.humOsc = this.ctx.createOscillator();
+      this.humGain = this.ctx.createGain();
+      this.humOsc.type = 'sawtooth';
+      const f = this.ctx.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.value = 180;
+      this.humGain.gain.value = 0.0001;
+      this.humOsc.connect(f);
+      f.connect(this.humGain);
+      this.humGain.connect(this.master);
+      this.humOsc.start();
+    }
+    const t = this.ctx.currentTime;
+    this.humOsc.frequency.setTargetAtTime(40 + ratio * 55, t, 0.1);
+    this.humGain!.gain.setTargetAtTime(0.02 + ratio * 0.045, t, 0.12);
+  }
+
+  stopHum() {
+    if (this.humGain && this.ctx) this.humGain.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.1);
+  }
+
+  /** Victory fanfare — sector captured / campaign won */
+  fanfare() {
+    this.ensure();
+    const seq: [number, number][] = [[392, 0], [523, 0.12], [659, 0.24], [784, 0.36]];
+    for (const [f, delay] of seq) {
+      setTimeout(() => this.tone(f, 0.35, 'triangle', 0.16), delay * 1000);
+    }
+  }
+
+  /** Dramatic fail stinger on death */
+  failStinger() {
+    this.ensure();
+    this.tone(220, 0.5, 'sawtooth', 0.16, 110);
+    setTimeout(() => this.tone(165, 0.7, 'sawtooth', 0.14, 82), 250);
+    this.noise(0.6, 0.14);
+  }
 }

@@ -1,5 +1,68 @@
 import * as THREE from 'three';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { GameAudio } from './audio';
+
+const HIGHSCORE_KEY = 'stargaze_armada_highscore';
+
+/** Animated deep-space nebula skysphere — one draw call, cheap FBM shader */
+function makeNebulaSky(): { mesh: THREE.Mesh; uniforms: { uTime: { value: number } } } {
+  const uniforms = { uTime: { value: 0 } };
+  const mat = new THREE.ShaderMaterial({
+    uniforms,
+    side: THREE.BackSide,
+    depthWrite: false,
+    fog: false,
+    vertexShader: /* glsl */`
+      varying vec3 vDir;
+      void main() {
+        vDir = normalize(position);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */`
+      precision mediump float;
+      varying vec3 vDir;
+      uniform float uTime;
+      float hash(vec3 p) {
+        p = fract(p * 0.3183099 + 0.1);
+        p *= 17.0;
+        return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+      }
+      float noise(vec3 p) {
+        vec3 i = floor(p), f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(
+          mix(mix(hash(i), hash(i + vec3(1,0,0)), f.x), mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
+          mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x), mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y),
+          f.z);
+      }
+      float fbm(vec3 p) {
+        float v = 0.0, a = 0.5;
+        for (int i = 0; i < 3; i++) { v += a * noise(p); p *= 2.1; a *= 0.5; }
+        return v;
+      }
+      void main() {
+        vec3 d = vDir;
+        float t = uTime * 0.008;
+        float n1 = fbm(d * 3.0 + vec3(t, 0.0, -t));
+        float n2 = fbm(d * 5.5 + vec3(-t * 0.7, t * 0.5, 0.0) + n1);
+        vec3 deep   = vec3(0.008, 0.004, 0.05);
+        vec3 purple = vec3(0.10, 0.02, 0.20);
+        vec3 cyan   = vec3(0.0, 0.14, 0.22);
+        vec3 col = deep;
+        col += purple * smoothstep(0.45, 0.85, n1) * 0.9;
+        col += cyan * smoothstep(0.55, 0.9, n2) * 0.7;
+        col += vec3(0.15, 0.05, 0.02) * smoothstep(0.72, 0.95, n1 * n2 * 2.0) * 0.5;
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `,
+  });
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(1900, 24, 16), mat);
+  mesh.frustumCulled = false;
+  return { mesh, uniforms };
+}
 
 export type GamePhase = 'title' | 'briefing' | 'playing' | 'paused' | 'victory' | 'defeat';
 
@@ -20,6 +83,8 @@ export interface HudState {
   score: number;
   wave: number;
   kills: number;
+  combo: number;
+  highScore: number;
   objective: string;
   capturing: string | null;
   capturePct: number;
@@ -275,6 +340,11 @@ export class VoidArmadaGame {
   private score = 0;
   private wave = 1;
   private kills = 0;
+  private combo = 0;
+  private lastKillT = 0;
+  private highScore = 0;
+  private composer: EffectComposer | null = null;
+  private nebulaUniforms: { uTime: { value: number } } | null = null;
   private spawnT = 0;
   private invuln = 0;
   private message: string | null = null;
@@ -322,9 +392,33 @@ export class VoidArmadaGame {
     rim.position.set(-60, 20, -40);
     this.scene.add(rim);
 
+    // Nebula skysphere (replaces flat clear colour)
+    const nebula = makeNebulaSky();
+    this.scene.add(nebula.mesh);
+    this.nebulaUniforms = nebula.uniforms;
+
     this.buildStarfield();
     this.initSectors();
     this.buildWorld();
+
+    // High score
+    try { this.highScore = parseInt(localStorage.getItem(HIGHSCORE_KEY) || '0', 10) || 0; } catch {}
+
+    // Bloom post-processing — desktop only (mobile keeps direct render for 60fps)
+    const isCoarse = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+    if (!isCoarse) {
+      try {
+        this.composer = new EffectComposer(this.renderer);
+        this.composer.addPass(new RenderPass(this.scene, this.camera));
+        const bloom = new UnrealBloomPass(
+          new THREE.Vector2(container.clientWidth, container.clientHeight),
+          0.8,  // strength
+          0.5,  // radius
+          0.2,  // threshold
+        );
+        this.composer.addPass(bloom);
+      } catch { this.composer = null; }
+    }
 
     // Input
     this.onKeyDown = (e) => {
@@ -355,6 +449,7 @@ export class VoidArmadaGame {
       this.camera.aspect = w / h;
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(w, h);
+      this.composer?.setSize(w, h);
     };
 
     window.addEventListener('keydown', this.onKeyDown);
@@ -405,6 +500,8 @@ export class VoidArmadaGame {
       score: this.score,
       wave: this.wave,
       kills: this.kills,
+      combo: this.combo,
+      highScore: this.highScore,
       objective: this.objectiveText(),
       capturing: capturing ? capturing.name : null,
       capturePct: capturing ? Math.round(capturing.body.capture || 0) : 0,
@@ -575,6 +672,8 @@ export class VoidArmadaGame {
 
   dispose() {
     this.stop();
+    this.audio.stopHum();
+    this.composer?.dispose();
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
     window.removeEventListener('mousemove', this.onMouseMove);
@@ -586,8 +685,18 @@ export class VoidArmadaGame {
     }
   }
 
+  private saveHighScore() {
+    if (this.score > this.highScore) {
+      this.highScore = this.score;
+      this.message = `★ NEW HIGH SCORE — ${this.score.toLocaleString()}`;
+      this.messageT = 6;
+      try { localStorage.setItem(HIGHSCORE_KEY, String(this.highScore)); } catch {}
+    }
+  }
+
   setPhase(p: GamePhase) {
     this.phase = p;
+    if (p !== 'playing') this.audio.stopHum();
     if (p === 'playing') {
       this.audio.resume();
       this.audio.ui();
@@ -613,6 +722,8 @@ export class VoidArmadaGame {
     this.score = 0;
     this.wave = 1;
     this.kills = 0;
+    this.combo = 0;
+    this.lastKillT = 0;
     this.spawnT = 8;
     this.invuln = 2;
     this.initSectors();
@@ -630,7 +741,9 @@ export class VoidArmadaGame {
     else this.updateIdle(dt);
     this.updateFX(dt);
     this.updateCamera(dt);
-    this.renderer.render(this.scene, this.camera);
+    if (this.nebulaUniforms) this.nebulaUniforms.uTime.value += dt;
+    if (this.composer) this.composer.render();
+    else this.renderer.render(this.scene, this.camera);
   }
 
   private updateIdle(dt: number) {
@@ -729,6 +842,14 @@ export class VoidArmadaGame {
     // Shield regen
     if (this.shield < 100) this.shield = Math.min(100, this.shield + 4 * dt);
 
+    // Engine hum pitches with velocity (updated ~15Hz)
+    if (this._tickCount % 4 === 0) {
+      this.audio.setHum(this.playerBody.vel.length() / 55);
+    }
+
+    // Combo window expiry
+    if (this.combo > 0 && performance.now() - this.lastKillT > 3000) this.combo = 0;
+
     // Update asteroids
     for (const b of this.bodies) {
       if (b.kind === 'asteroid') {
@@ -764,6 +885,9 @@ export class VoidArmadaGame {
         const targetPlanet = this.planets[Math.min(this.wave - 1, this.planets.length - 1)];
         this.spawnEnemies(2 + Math.floor(this.wave / 2), targetPlanet.body.mesh.position.clone().add(new THREE.Vector3(20, 10, 20)));
         this.wave += 1;
+        this.message = `⚠ INCOMING WAVE ${this.wave}`;
+        this.messageT = 3;
+        this.audio.ambientPulse();
         this.audio.ui();
       }
       this.spawnT = 14;
@@ -781,15 +905,17 @@ export class VoidArmadaGame {
 
     // Victory
     if (this.sectors.every(s => s.status === 'allied')) {
+      this.saveHighScore();
       this.setPhase('victory');
-      this.audio.captureDone();
+      this.audio.fanfare();
     }
 
     // Defeat
     if (this.hull <= 0) {
       this.hull = 0;
+      this.saveHighScore();
       this.setPhase('defeat');
-      this.audio.explode();
+      this.audio.failStinger();
     }
 
     // Throttle React HUD updates to ~15fps (every 4th tick)
@@ -918,7 +1044,17 @@ export class VoidArmadaGame {
     this.scene.remove(t.mesh);
     if (t.kind === 'enemy') {
       this.kills += 1;
-      this.score += t.enemyKind === 'capital' ? 500 : 100;
+      // combo: kills within 3s of each other multiply score
+      const now = performance.now();
+      this.combo = now - this.lastKillT < 3000 ? this.combo + 1 : 1;
+      this.lastKillT = now;
+      const base = t.enemyKind === 'capital' ? 500 : 100;
+      const points = base * this.combo;
+      this.score += points;
+      if (this.combo > 1) {
+        this.message = `×${this.combo} COMBO  +${points}`;
+        this.messageT = 1.6;
+      }
       this.audio.explode();
     } else {
       this.score += 25;
@@ -940,8 +1076,10 @@ export class VoidArmadaGame {
     return this._fxMats.get(color)!;
   }
 
+  private readonly _ringGeo = new THREE.RingGeometry(0.8, 1.0, 24);
+
   private spawnHitFX(pos: THREE.Vector3, color: number, big = false) {
-    const n = big ? 8 : 5;
+    const n = big ? 12 : 5;
     const mat = this.getFxMat(color);
     const geo = big ? this._fxGeoBig : this._fxGeoSm;
     for (let i = 0; i < n; i++) {
@@ -949,10 +1087,21 @@ export class VoidArmadaGame {
       m.position.copy(pos);
       this.scene.add(m);
       const vel = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5)
-        .normalize().multiplyScalar(big ? 10 : 5);
+        .normalize().multiplyScalar(big ? 8 + Math.random() * 8 : 5);
       this._fxParticles.push({ mesh: m, vel, life: 1.0 });
     }
+    // expanding shockwave ring on big explosions
+    if (big) {
+      const rMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false });
+      const ring = new THREE.Mesh(this._ringGeo, rMat);
+      ring.position.copy(pos);
+      ring.quaternion.copy(this.camera.quaternion); // face camera
+      this.scene.add(ring);
+      this._fxRings.push({ mesh: ring, mat: rMat, life: 1.0 });
+    }
   }
+
+  private _fxRings: { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial; life: number }[] = [];
 
   private updateFX(dt: number) {
     for (let i = this._fxParticles.length - 1; i >= 0; i--) {
@@ -964,6 +1113,18 @@ export class VoidArmadaGame {
       if (p.life <= 0) {
         this.scene.remove(p.mesh);
         this._fxParticles.splice(i, 1);
+      }
+    }
+    for (let i = this._fxRings.length - 1; i >= 0; i--) {
+      const r = this._fxRings[i];
+      r.life -= dt * 1.8;
+      const grow = (1 - r.life) * 14 + 0.5;
+      r.mesh.scale.setScalar(grow);
+      r.mat.opacity = Math.max(0, r.life * 0.85);
+      if (r.life <= 0) {
+        this.scene.remove(r.mesh);
+        r.mat.dispose();
+        this._fxRings.splice(i, 1);
       }
     }
   }
