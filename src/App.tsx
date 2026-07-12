@@ -615,6 +615,9 @@ function Footer() {
           </div>
         </div>
         <div className="divider mb-6" />
+        <p className="text-center text-[11px] text-white/30 font-mono mb-5 tracking-wide">
+          🌟 Estimated stars in the observable universe: <span className="text-white/55">2,000,000,000,000,000,000,000</span>
+        </p>
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-xs text-white/25">© {new Date().getFullYear()} Stargaze — Look up more often</p>
           <p className="text-xs text-white/22 font-mono">IMO · NASA · NOAA · Open-Meteo · CelesTrak</p>
@@ -846,6 +849,148 @@ function FaqSection() {
 }
 
 // ─── HOME PAGE ────────────────────────────────────────────────────────────────
+// ─── Letter-by-letter hero reveal ────────────────────────────────────────────
+function LetterReveal({ text, className }: { text: string; className?: string }) {
+  return (
+    <span className={className} aria-label={text}>
+      {text.split('').map((ch, i) => (
+        <motion.span key={i} aria-hidden="true" className="inline-block"
+          initial={{ opacity: 0, y: 28, rotateX: 60 }}
+          animate={{ opacity: 1, y: 0, rotateX: 0 }}
+          transition={{ delay: 0.15 + i * 0.055, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
+          {ch === ' ' ? ' ' : ch}
+        </motion.span>
+      ))}
+    </span>
+  );
+}
+
+// ─── Live local clock (hero) ─────────────────────────────────────────────────
+function LiveClock() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <span className="font-mono tabular-nums" style={{ color: 'rgba(0,212,255,0.85)' }}>
+      {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+    </span>
+  );
+}
+
+// ─── 3D perspective tilt wrapper ─────────────────────────────────────────────
+function useTilt<T extends HTMLElement>(max = 7) {
+  const ref = useRef<T>(null);
+  const onMouseMove = useCallback((e: React.MouseEvent) => {
+    const el = ref.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width - 0.5;
+    const py = (e.clientY - r.top) / r.height - 0.5;
+    el.style.setProperty('--tilt-x', `${(-py * max).toFixed(2)}deg`);
+    el.style.setProperty('--tilt-y', `${(px * max).toFixed(2)}deg`);
+  }, [max]);
+  const onMouseLeave = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.setProperty('--tilt-x', '0deg');
+    el.style.setProperty('--tilt-y', '0deg');
+  }, []);
+  return { ref, onMouseMove, onMouseLeave };
+}
+
+// ─── Feature bento card ──────────────────────────────────────────────────────
+function FeatureCard({ to, icon: Icon, title, desc, color, decor, delay }: {
+  to: string;
+  icon: React.ComponentType<{ size?: number; style?: React.CSSProperties; className?: string }>;
+  title: string; desc: string; color: string;
+  decor: 'orbits' | 'meteors' | 'aurora' | 'particles';
+  delay: number;
+}) {
+  const { ref, onMouseMove, onMouseLeave } = useTilt<HTMLAnchorElement>();
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-40px' }} transition={{ delay, duration: 0.45, ease: 'easeOut' }}>
+      <Link to={to} ref={ref} onMouseMove={onMouseMove} onMouseLeave={onMouseLeave}
+        className="tilt-card glass-card group relative block overflow-hidden rounded-2xl p-5 h-full"
+        style={{ minHeight: 168 }}
+        onFocus={e => { (e.currentTarget as HTMLElement).style.boxShadow = `0 0 24px ${color}44`; }}
+        onBlur={e => { (e.currentTarget as HTMLElement).style.boxShadow = ''; }}>
+        {/* animated micro-background */}
+        <div className="absolute inset-0 pointer-events-none opacity-60 group-hover:opacity-100 transition-opacity duration-500" aria-hidden="true">
+          {decor === 'orbits' && (
+            <>
+              <div className="orbit-ring animate-spin-slow" style={{ width: 150, height: 150, right: -40, top: -40, borderColor: `${color}22` }} />
+              <div className="orbit-ring animate-spin-slow" style={{ width: 90, height: 90, right: -10, top: -10, borderColor: `${color}30`, animationDirection: 'reverse', animationDuration: '24s' }} />
+            </>
+          )}
+          {decor === 'meteors' && (
+            <div className="meteor-streak-lane absolute inset-0">
+              <div className="meteor-streak" style={{ width: 90 }} />
+              <div className="meteor-streak delay-2" style={{ width: 60 }} />
+            </div>
+          )}
+          {decor === 'aurora' && (
+            <div className="aurora-ribbon absolute inset-x-0 top-4 h-16" style={{ borderRadius: 12, opacity: 0.8 }} />
+          )}
+          {decor === 'particles' && (
+            <div className="absolute inset-0">
+              {[...Array(14)].map((_, i) => (
+                <span key={i} className="star" style={{
+                  width: 2 + (i % 3), height: 2 + (i % 3),
+                  left: `${(i * 37) % 100}%`, top: `${(i * 53) % 100}%`,
+                  background: `${color}cc`,
+                  ['--duration' as string]: `${2 + (i % 4)}s`,
+                  ['--delay' as string]: `${(i * 0.4) % 3}s`,
+                }} />
+              ))}
+            </div>
+          )}
+        </div>
+        {/* hover glow */}
+        <div className="absolute inset-0 rounded-2xl pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+          style={{ boxShadow: `inset 0 0 0 1px ${color}55, 0 0 32px ${color}22` }} aria-hidden="true" />
+        <div className="relative z-10 flex flex-col h-full">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3"
+            style={{ background: `${color}16`, border: `1px solid ${color}33`, boxShadow: `0 0 14px ${color}18` }}>
+            <Icon size={16} style={{ color }} />
+          </div>
+          <h3 className="text-sm font-bold font-space mb-1 group-hover:text-white transition-colors" style={{ color: 'rgba(255,255,255,0.92)' }}>{title}</h3>
+          <p className="text-[11px] text-white/40 leading-relaxed flex-1">{desc}</p>
+          <span className="text-[10px] font-mono mt-3 inline-flex items-center gap-1 transition-transform group-hover:translate-x-1" style={{ color }}>
+            OPEN <ArrowRight size={10} />
+          </span>
+        </div>
+      </Link>
+    </motion.div>
+  );
+}
+
+function FeatureBento() {
+  const cards = [
+    { to: '/sky',      icon: Star,     title: 'Sky Tonight',     desc: 'Interactive planetarium — stars, constellations and planets for your location.', color: '#00d4ff', decor: 'orbits' as const },
+    { to: '/calendar', icon: Calendar, title: 'Meteor Calendar', desc: 'Every shower of the year with peak dates, ZHR and viewing guides.',              color: '#c084fc', decor: 'meteors' as const },
+    { to: '/aurora',   icon: Sun,      title: 'Aurora Tracker',  desc: 'Live Kp index, storm alerts and visibility for your latitude.',                  color: '#00ff88', decor: 'aurora' as const },
+    { to: '/iss',      icon: Rocket,   title: 'ISS Tracker',     desc: 'Real-time station position, orbit path and next-pass predictions.',              color: '#60a5fa', decor: 'orbits' as const },
+    { to: '/planets',  icon: Orbit,    title: 'Planets',         desc: 'Tonight’s visibility, rise and set times, and solar-system positions.',     color: '#ffb700', decor: 'particles' as const },
+    { to: '/game',     icon: Gamepad2, title: 'Void Armada',     desc: 'Defend the sector — a 3D space shooter, right in your browser.',                 color: '#ff3366', decor: 'particles' as const },
+  ];
+  return (
+    <div className="mb-10">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.22)' }}>
+          <Compass size={12} style={{ color: '#00d4ff' }} />
+        </div>
+        <h2 className="text-lg font-bold font-space">Explore Stargaze</h2>
+      </div>
+      <div className="bento-grid" style={{ perspective: '1200px' }}>
+        {cards.map((c, i) => <FeatureCard key={c.to} {...c} delay={i * 0.06} />)}
+      </div>
+    </div>
+  );
+}
+
 function Home({ watched, addNotification, toggleWatch }: {
   watched: WatchedShower[];
   addNotification: (n: Omit<Notification, 'id' | 'timestamp'>) => void;
@@ -960,10 +1105,21 @@ function Home({ watched, addNotification, toggleWatch }: {
             <span className="live-dot" />
             <span className="text-xs font-mono text-green-400/90 tracking-wider">LIVE SPACE DASHBOARD</span>
           </motion.div>
-          <h1 className="hero-title hero-gradient-text mb-5">Space Is Happening<br className="hidden sm:block" /> Right Now</h1>
+          <h1 className="hero-title mb-3" style={{ perspective: '600px' }}>
+            <LetterReveal text="STARGAZE" className="hero-gradient-text tracking-tight" />
+          </h1>
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}
+            className="text-xl sm:text-2xl font-space font-medium text-white/80 mb-4">
+            Space is happening right now
+          </motion.p>
           <p className="text-lg text-white/50 max-w-2xl mx-auto leading-relaxed font-light">
             Real-time aurora alerts, meteor showers, asteroid flybys, fireball data, ISS tracking, and NASA imagery — free and always live.
           </p>
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.1 }}
+            className="text-xs font-mono mt-4 text-white/45 tracking-wider">
+            LOCAL TIME <LiveClock />
+            {nextShower && <> · TONIGHT’S HEADLINE <span style={{ color: '#ffb700' }}>{nextShower.name.toUpperCase()} — PEAK {formatDate(nextShower.peak).toUpperCase()}</span></>}
+          </motion.p>
           <div className="flex items-center justify-center flex-wrap gap-3 mt-9">
             <Link to="/calendar" className="btn-primary"><Calendar size={14} />Meteor Calendar</Link>
             <Link to="/sky"      className="btn-secondary"><Star size={14} />Night Sky Map</Link>
@@ -973,21 +1129,29 @@ function Home({ watched, addNotification, toggleWatch }: {
         </div>
       </motion.div>
 
-      {/* ══ LIVE STATUS STRIP ═════════════════════════════════════════════════ */}
+      {/* ══ LIVE STATS TICKER ═════════════════════════════════════════════════ */}
       <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.3 }}
-        className="flex flex-wrap items-center justify-center gap-2.5 mb-10">
-        {[
-          { icon: Sun,      label: `Kp ${kpNow !== null ? kpNow.toFixed(1) : '…'} — ${kpLabel}`,        color: kpColor },
-          { icon: Sparkles, label: activeShowers.length > 0 ? `${activeShowers.length} Shower${activeShowers.length > 1 ? 's' : ''} Active` : nextShower ? `Next: ${nextShower.name}` : '9 Showers Tracked', color: '#c084fc' },
-          { icon: Flame,    label: `${fireballs.length > 0 ? fireballs.length : '—'} Fireballs on Record`, color: '#fb923c' },
-          { icon: Triangle, label: `${asteroids.length > 0 ? asteroids.length : '—'} Asteroid${asteroids.length !== 1 ? 's' : ''} This Week`, color: '#60a5fa' },
-          { icon: Rocket,   label: 'ISS Orbiting Now',                                                    color: '#34d399' },
-        ].map(({ icon: Icon, label, color }) => (
-          <div key={label} className="status-chip">
-            <Icon size={11} style={{ color }} />
-            <span style={{ color: 'rgba(255,255,255,0.7)' }}>{label}</span>
-          </div>
-        ))}
+        className="ticker-wrap mb-10" role="marquee" aria-label="Live space statistics">
+        <div className="ticker-track py-0.5">
+          {[0, 1].map(dup => (
+            <div key={dup} className="flex items-center gap-3" aria-hidden={dup === 1}>
+              {[
+                { icon: Sun,      label: `Kp ${kpNow !== null ? kpNow.toFixed(1) : '…'} — ${kpLabel}`,        color: kpColor },
+                { icon: Sparkles, label: activeShowers.length > 0 ? `${activeShowers.length} Shower${activeShowers.length > 1 ? 's' : ''} Active — ${activeShowers.map(s => `${s.name} ${s.zhr} ZHR`).join(' · ')}` : nextShower ? `Next: ${nextShower.name} (${nextShower.zhr} ZHR) in ${getDaysUntilPeak(nextShower)}d` : '9 Showers Tracked', color: '#c084fc' },
+                { icon: Moon,     label: `Moon ${moon.emoji} ${moon.illumination}% — ${moon.phase}`,          color: '#fde047' },
+                { icon: Flame,    label: `${fireballs.length > 0 ? fireballs.length : '—'} Fireballs on Record`, color: '#fb923c' },
+                { icon: Triangle, label: `${asteroids.length > 0 ? asteroids.length : '—'} Asteroid${asteroids.length !== 1 ? 's' : ''} This Week`, color: '#60a5fa' },
+                { icon: Rocket,   label: 'ISS Orbiting Now · 27,600 km/h',                                    color: '#34d399' },
+                { icon: Orbit,    label: `${getPlanets().filter(p => p.visibility !== 'hidden').length} Planets Visible Tonight`, color: '#ffb700' },
+              ].map(({ icon: Icon, label, color }) => (
+                <div key={label} className="status-chip flex-shrink-0">
+                  <Icon size={11} style={{ color }} />
+                  <span style={{ color: 'rgba(255,255,255,0.7)' }}>{label}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
       </motion.div>
 
       {/* ══ TONIGHT GRID — 5 live status cards ═══════════════════════════════ */}
@@ -1056,6 +1220,9 @@ function Home({ watched, addNotification, toggleWatch }: {
           <p className="text-[10px] text-white/30 uppercase tracking-wider mt-1.5 font-mono relative z-10">Recent Fireballs</p>
         </motion.div>
       </div>
+
+      {/* ══ EXPLORE BENTO ═════════════════════════════════════════════════════ */}
+      <FeatureBento />
 
       {/* ══ AURORA + NEXT SHOWER ══════════════════════════════════════════════ */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-10">
@@ -1672,6 +1839,116 @@ function Home({ watched, addNotification, toggleWatch }: {
   );
 }
 
+// ─── Year timeline (SVG) ─────────────────────────────────────────────────────
+function dayOfYear(dateStr: string): number {
+  const d = new Date(dateStr);
+  return Math.floor((d.getTime() - new Date(d.getFullYear(), 0, 0).getTime()) / 86400000);
+}
+
+function YearTimeline({ onPick }: { onPick: (s: MeteorShower) => void }) {
+  const W = 980, H = 150, PAD = 24;
+  const year = new Date().getFullYear();
+  const todayX = PAD + (dayOfYear(new Date().toISOString()) / 366) * (W - PAD * 2);
+  const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const maxZhr = Math.max(...showers.map(s => s.zhr));
+  return (
+    <div className="glass-card rounded-2xl p-4 mb-6 overflow-x-auto">
+      <div className="flex items-center justify-between mb-2 min-w-[640px]">
+        <p className="section-label text-white/40">{year} Shower Intensity Timeline</p>
+        <p className="text-[10px] font-mono text-white/25">bar height = ZHR · tap a bar to filter</p>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full min-w-[640px]" role="img" aria-label="Meteor shower timeline for the year">
+        <defs>
+          <linearGradient id="tl-bar" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stopColor="#4f8ef7" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="#00d4ff" stopOpacity="0.95" />
+          </linearGradient>
+          <filter id="tl-glow" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="2.4" result="b" />
+            <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
+        {/* month gridlines + labels */}
+        {months.map((m, i) => {
+          const x = PAD + (i / 12) * (W - PAD * 2);
+          return (
+            <g key={m}>
+              <line x1={x} y1={14} x2={x} y2={H - 26} stroke="rgba(255,255,255,0.07)" strokeWidth="1" />
+              <text x={x + 4} y={H - 12} fill="rgba(255,255,255,0.35)" fontSize="10" fontFamily="JetBrains Mono, monospace">{m}</text>
+            </g>
+          );
+        })}
+        <line x1={PAD} y1={H - 26} x2={W - PAD} y2={H - 26} stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
+        {/* today marker */}
+        <line x1={todayX} y1={10} x2={todayX} y2={H - 26} stroke="#ffb700" strokeWidth="1.5" strokeDasharray="3 3" filter="url(#tl-glow)" />
+        <text x={todayX + 5} y={20} fill="#ffb700" fontSize="9" fontFamily="JetBrains Mono, monospace">TODAY</text>
+        {/* activity spans + peak bars */}
+        {showers.map(s => {
+          const x1 = PAD + (dayOfYear(s.start) / 366) * (W - PAD * 2);
+          const x2 = PAD + (dayOfYear(s.end) / 366) * (W - PAD * 2);
+          const px = PAD + (dayOfYear(s.peak) / 366) * (W - PAD * 2);
+          const h = 12 + (s.zhr / maxZhr) * 82;
+          const status = getShowerStatus(s);
+          const active = status === 'active';
+          return (
+            <g key={s.id} className="cursor-pointer" onClick={() => onPick(s)} filter="url(#tl-glow)">
+              {x2 > x1 && (
+                <rect x={x1} y={H - 26 - h * 0.35} width={x2 - x1} height={h * 0.35}
+                  fill={active ? 'rgba(0,255,136,0.13)' : 'rgba(79,142,247,0.10)'} rx="2" />
+              )}
+              <rect x={px - 2.5} y={H - 26 - h} width="5" height={h} rx="2.5"
+                fill={active ? '#00ff88' : 'url(#tl-bar)'} opacity={status === 'past' ? 0.45 : 1}>
+                <title>{`${s.name} — peak ${formatDate(s.peak)} · ${s.zhr} ZHR`}</title>
+              </rect>
+              <text x={px} y={H - 30 - h} fill={active ? '#00ff88' : 'rgba(255,255,255,0.55)'} fontSize="8.5"
+                fontFamily="JetBrains Mono, monospace" textAnchor="middle">{s.zhr}</text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+// ─── Mission-clock countdowns for the next 3 showers ────────────────────────
+function MissionCountdowns() {
+  const next3 = [...showers]
+    .filter(s => new Date(s.peak).getTime() > Date.now())
+    .sort((a, b) => new Date(a.peak).getTime() - new Date(b.peak).getTime())
+    .slice(0, 3);
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => tick(t => t + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+  if (next3.length === 0) return null;
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+      {next3.map((s, i) => {
+        const c = formatCountdown(new Date(s.peak).getTime() - Date.now());
+        return (
+          <motion.div key={s.id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
+            className="mission-clock p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[9px] tracking-[0.2em] uppercase" style={{ color: 'rgba(0,212,255,0.7)' }}>T-MINUS · {s.name}</p>
+              <span className="text-[9px] text-white/30">{s.zhr} ZHR</span>
+            </div>
+            <div className="flex items-baseline gap-1 tabular-nums">
+              {[[c.days, 'D'], [c.hours, 'H'], [c.mins, 'M'], [c.secs, 'S']].map(([v, u]) => (
+                <span key={u} className="flex items-baseline">
+                  <span className="text-2xl font-bold text-white" style={{ textShadow: '0 0 18px rgba(0,212,255,0.45)' }}>{v}</span>
+                  <span className="text-[10px] text-white/35 mr-1.5">{u}</span>
+                </span>
+              ))}
+            </div>
+            <p className="text-[9px] text-white/30 mt-1.5">PEAK {formatDate(s.peak).toUpperCase()} · {s.constellation.toUpperCase()}</p>
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── METEOR CALENDAR PAGE ─────────────────────────────────────────────────────
 function MeteorCalendar({ watched, toggleWatch, addNotification }: {
   watched: WatchedShower[];
@@ -1705,12 +1982,24 @@ function MeteorCalendar({ watched, toggleWatch, addNotification }: {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <div className="mb-8 relative">
           <div className="hero-orb hero-orb-blue" style={{ top: -60, left: 0, width: 200, height: 200, opacity: 0.35 }} aria-hidden="true" />
+          {/* animated meteor streaks */}
+          <div className="meteor-streak-lane absolute inset-0" aria-hidden="true">
+            <div className="meteor-streak" />
+            <div className="meteor-streak delay-2" />
+            <div className="meteor-streak delay-4" />
+          </div>
           <div className="relative z-10">
             <p className="section-label text-blue-400 mb-2">2026 Season</p>
             <h1 className="text-4xl sm:text-5xl font-bold font-space mb-2">Meteor Shower <span className="text-gradient">Calendar</span></h1>
             <p className="text-white/50 text-sm max-w-xl">Complete guide to every major meteor shower of 2026 — peaks, rates, and when to look up</p>
           </div>
         </div>
+
+        {/* Mission countdowns — next 3 peaks */}
+        <MissionCountdowns />
+
+        {/* Full-year intensity timeline */}
+        <YearTimeline onPick={s => { setSearch(s.name); setFilter('all'); }} />
 
         {/* Controls */}
         <div className="flex flex-col sm:flex-row gap-3 mb-6">
