@@ -103,6 +103,55 @@ function predictPasses(tle: TLE, lat: number, lon: number, altKm = 0): Pass[] {
   } catch { return []; }
 }
 
+// ─── Orbit number from TLE (rev at epoch + orbits since) ────────────────────
+function orbitNumber(tle: TLE | null): number | null {
+  if (!tle) return null;
+  try {
+    const satrec = satellite.twoline2satrec(tle.line1, tle.line2);
+    const revAtEpoch = parseInt(tle.line2.substring(63, 68).trim(), 10);
+    if (isNaN(revAtEpoch)) return null;
+    // epoch → JS date
+    const epochDays = satrec.jdsatepoch - 2440587.5;
+    const epochMs = epochDays * 86400000;
+    const meanMotion = satrec.no * 1440 / (2 * Math.PI); // revs/day
+    const elapsed = (Date.now() - epochMs) / 86400000;
+    return Math.floor(revAtEpoch + elapsed * meanMotion);
+  } catch { return null; }
+}
+
+// ─── Mission-control telemetry terminal ─────────────────────────────────────
+function TelemetryTerminal({ pos, tle }: { pos: ISSPosition | null; tle: TLE | null }) {
+  const orbit = orbitNumber(tle);
+  const rows: [string, string, string][] = [
+    ['LAT', pos ? `${pos.latitude >= 0 ? '+' : ''}${pos.latitude.toFixed(4)}°` : '——.————°', '#00ff88'],
+    ['LON', pos ? `${pos.longitude >= 0 ? '+' : ''}${pos.longitude.toFixed(4)}°` : '——.————°', '#00ff88'],
+    ['ALT', pos ? `${pos.altitude.toFixed(2)} KM` : '———.—— KM', '#00d4ff'],
+    ['VEL', pos ? `${pos.velocity.toFixed(0)} KM/H` : '————— KM/H', '#00d4ff'],
+    ['MODE', pos ? (pos.visibility === 'daylight' ? 'DAYLIGHT' : 'ECLIPSE') : 'ACQUIRING', pos?.visibility === 'daylight' ? '#ffb700' : '#c084fc'],
+    ['ORBIT', orbit !== null ? `#${orbit.toLocaleString()}` : 'AWAITING TLE', '#f0f4ff'],
+  ];
+  return (
+    <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+      className="rounded-2xl mb-8 overflow-hidden"
+      style={{ background: 'rgba(1, 4, 2, 0.92)', border: '1px solid rgba(0,255,136,0.22)', boxShadow: '0 0 32px rgba(0,255,136,0.06), inset 0 0 60px rgba(0,255,136,0.03)' }}>
+      <div className="flex items-center justify-between px-4 py-2" style={{ background: 'rgba(0,255,136,0.06)', borderBottom: '1px solid rgba(0,255,136,0.15)' }}>
+        <p className="text-[10px] font-mono tracking-[0.25em]" style={{ color: '#00ff88' }}>■ ZARYA-25544 // LIVE TELEMETRY</p>
+        <p className="text-[10px] font-mono" style={{ color: 'rgba(0,255,136,0.55)' }}>
+          {pos ? new Date(pos.timestamp * 1000).toISOString().slice(11, 19) : '--:--:--'} UTC<span className="animate-pulse">▌</span>
+        </p>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-px" style={{ background: 'rgba(0,255,136,0.08)' }}>
+        {rows.map(([label, value, color]) => (
+          <div key={label} className="px-4 py-3" style={{ background: 'rgba(1,4,2,0.95)' }}>
+            <p className="text-[9px] font-mono tracking-[0.2em] mb-1" style={{ color: 'rgba(0,255,136,0.45)' }}>{label}</p>
+            <p className="text-sm font-mono font-bold tabular-nums" style={{ color, textShadow: `0 0 12px ${color}55` }}>{value}</p>
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
 export default function ISSPage() {
   const { pos, loading: posLoading } = useISSPosition();
   const [userLoc, setUserLoc] = useState<{ lat: number; lon: number } | null>(null);
@@ -159,6 +208,9 @@ export default function ISSPage() {
           </p>
         </div>
       </motion.div>
+
+      {/* Mission-control telemetry */}
+      <TelemetryTerminal pos={pos} tle={tle} />
 
       {/* Live position grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">

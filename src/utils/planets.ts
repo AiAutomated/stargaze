@@ -68,6 +68,18 @@ export interface PlanetInfo {
   visibility:  'evening' | 'morning' | 'night' | 'hidden';
   description: string;
   approxMag?:  number;
+  /** Current distance from Earth in AU */
+  earthDistAU?: number;
+}
+
+/** Format an AU distance as km + light-minutes. */
+export function formatEarthDist(au: number): { km: string; lightMin: string } {
+  const km = au * 149_597_870.7;
+  const lightMin = (km / 299_792.458) / 60;
+  return {
+    km: km >= 1e9 ? `${(km / 1e9).toFixed(2)} bn km` : `${(km / 1e6).toFixed(1)} M km`,
+    lightMin: lightMin >= 60 ? `${(lightMin / 60).toFixed(1)} light-hours` : `${lightMin.toFixed(1)} light-min`,
+  };
 }
 
 // Keplerian elements at epoch + daily rates (Schlyter Table 1)
@@ -194,6 +206,7 @@ export function getPlanets(): PlanetInfo[] {
       visibility: vis,
       description: descMap[vis],
       approxMag,
+      earthDistAU: parseFloat(R.toFixed(3)),
     });
   }
 

@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import { motion } from 'motion/react';
-import { ExternalLink, Eye, Sun } from 'lucide-react';
-import { getPlanets, PlanetInfo } from '../utils/planets';
+import { Link } from 'react-router-dom';
+import { ExternalLink, Eye, Orbit } from 'lucide-react';
+import { getPlanets, formatEarthDist, PlanetInfo } from '../utils/planets';
 
 const VIS_ICON: Record<PlanetInfo['visibility'], string> = {
   evening: '🌅',
@@ -76,6 +77,22 @@ export default function PlanetsPage() {
         ))}
       </div>
 
+      {/* Orrery CTA */}
+      <motion.div initial={{ opacity:0, y:15 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.2 }} className="mb-10">
+        <Link to="/globe?solar=1" className="glass-card glow-hover-nav rounded-2xl p-5 flex items-center gap-4 group relative overflow-hidden block">
+          <div className="orbit-ring animate-spin-slow" style={{ width: 120, height: 120, right: -30, top: -30, borderColor: 'rgba(0,212,255,0.15)' }} aria-hidden="true" />
+          <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+            style={{ background:'rgba(0,212,255,0.1)', border:'1px solid rgba(0,212,255,0.3)', boxShadow:'0 0 20px rgba(0,212,255,0.15)' }}>
+            <Orbit size={20} style={{ color:'#00d4ff' }} />
+          </div>
+          <div className="flex-1 relative z-10">
+            <h2 className="text-sm font-bold font-space group-hover:text-white transition-colors">3D Solar System Orrery</h2>
+            <p className="text-xs text-white/40">Fly through the solar system — live planetary positions computed for right now.</p>
+          </div>
+          <span className="text-xs font-mono flex-shrink-0" style={{ color:'#00d4ff' }}>LAUNCH →</span>
+        </Link>
+      </motion.div>
+
       {/* Planet cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-12">
         {planets.map((p, i) => {
@@ -126,12 +143,34 @@ export default function PlanetsPage() {
                     <p className="text-sm font-bold text-white/85">{p.direction === 'east' ? 'East' : 'West'}</p>
                     <p className="text-[9px] text-white/30 font-mono">of Sun</p>
                   </div>
+                  {p.earthDistAU !== undefined && (() => {
+                    const dist = formatEarthDist(p.earthDistAU);
+                    return (
+                      <>
+                        <div className="p-2 rounded-lg text-center" style={{ background:'rgba(255,255,255,0.03)' }}>
+                          <p className="text-sm font-bold text-white/85">{dist.km}</p>
+                          <p className="text-[9px] text-white/30 font-mono">from Earth</p>
+                        </div>
+                        <div className="p-2 rounded-lg text-center" style={{ background:'rgba(255,255,255,0.03)' }}>
+                          <p className="text-sm font-bold text-white/85">{dist.lightMin}</p>
+                          <p className="text-[9px] text-white/30 font-mono">light travel</p>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* Tip */}
                 {TIPS[p.name] && (
                   <p className="text-[10px] text-white/35 leading-relaxed mt-3">{TIPS[p.name]}</p>
                 )}
+
+                {/* 3D view */}
+                <Link to={`/globe?solar=1&type=planet&name=${p.name}`}
+                  className="inline-flex items-center gap-1.5 text-[10px] font-mono mt-3 transition-colors"
+                  style={{ color: `${p.color}cc` }}>
+                  <Orbit size={10} /> View in 3D orrery →
+                </Link>
               </div>
             </motion.div>
           );

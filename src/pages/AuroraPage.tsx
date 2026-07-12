@@ -41,6 +41,162 @@ function useAuroraOvals() {
   return { northUrl, southUrl };
 }
 
+// ─── Kp required for aurora at a given |geographic latitude| ────────────────
+function requiredKpForLat(absLat: number): number {
+  if (absLat >= 65) return 0;
+  if (absLat >= 60) return 2;
+  if (absLat >= 55) return 4;
+  if (absLat >= 50) return 5;
+  if (absLat >= 45) return 6;
+  if (absLat >= 40) return 7;
+  return 9;
+}
+
+// ─── Visibility calculator with radial probability ring ─────────────────────
+function VisibilityCalculator({ kpNow }: { kpNow: number | null }) {
+  const [lat, setLat] = useState<number | null>(null);
+  const [manual, setManual] = useState('');
+  const [denied, setDenied] = useState(false);
+
+  useEffect(() => {
+    if (!navigator.geolocation) { setDenied(true); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => setLat(pos.coords.latitude),
+      () => setDenied(true),
+      { timeout: 8000 },
+    );
+  }, []);
+
+  const effLat = lat ?? (manual !== '' && !isNaN(parseFloat(manual)) ? parseFloat(manual) : null);
+  const absLat = effLat !== null ? Math.abs(effLat) : null;
+  const reqKp = absLat !== null ? requiredKpForLat(absLat) : null;
+  const kp = kpNow ?? 0;
+
+  // probability: 0 below threshold, ramps with margin above it
+  const probability = reqKp === null ? null
+    : Math.round(Math.min(95, Math.max(2, 50 + (kp - reqKp) * 18)));
+  const pColor = probability === null ? '#4f8ef7'
+    : probability >= 60 ? '#00ff88' : probability >= 30 ? '#ffb700' : '#ff3366';
+
+  const narrative = (() => {
+    if (absLat === null || probability === null) return 'Share your location (or enter a latitude) to get a personalised aurora forecast for tonight.';
+    const dir = (effLat ?? 0) >= 0 ? 'northern' : 'southern';
+    if (probability >= 60) return `Strong chance tonight. At ${absLat.toFixed(1)}°${dir === 'northern' ? 'N' : 'S'} the current Kp ${kp.toFixed(1)} puts the auroral oval within reach — find a dark ${dir} horizon between 22:00 and 02:00 local, and check the sky every 20 minutes. Substorms come in waves.`;
+    if (probability >= 30) return `Possible but not certain. Kp ${kp.toFixed(1)} is near the ${reqKp} threshold for your latitude — a modest enhancement could light the ${dir} horizon. Best window is 22:00–02:00 local, away from city glow.`;
+    return `Unlikely tonight. Your latitude needs roughly Kp ${reqKp}, and it's currently ${kp.toFixed(1)}. Watch for NOAA storm alerts — during a strong CME impact this can change within the hour.`;
+  })();
+
+  return (
+    <motion.div initial={{ opacity:0, y:15 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.22 }}
+      className="glass-card p-6 rounded-2xl mb-10 relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none" style={{ background:`radial-gradient(ellipse at bottom left, ${pColor}0c 0%, transparent 55%)` }} />
+      <div className="relative z-10">
+        <p className="text-xs font-mono text-white/35 uppercase tracking-widest mb-1">Your Sky Tonight</p>
+        <h2 className="text-base font-bold font-space mb-5">Aurora Visibility Calculator</h2>
+        <div className="flex flex-col sm:flex-row items-center gap-6">
+          {/* radial ring */}
+          <div className="ring-chart flex-shrink-0" style={{
+            width: 140, height: 140,
+            ['--pct' as string]: probability ?? 0,
+            ['--ring-color' as string]: pColor,
+          }}>
+            <div className="text-center">
+              <p className="text-3xl font-bold font-mono" style={{ color: pColor }}>{probability !== null ? `${probability}%` : '—'}</p>
+              <p className="text-[9px] text-white/35 font-mono uppercase tracking-wider mt-0.5">chance</p>
+            </div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {[
+                { label: 'Latitude', val: absLat !== null ? `${absLat.toFixed(1)}°${(effLat ?? 0) >= 0 ? 'N' : 'S'}` : '—' },
+                { label: 'Kp needed', val: reqKp !== null ? `≥ ${reqKp}` : '—' },
+                { label: 'Window', val: '22:00–02:00' },
+              ].map(({ label, val }) => (
+                <div key={label} className="p-2.5 rounded-xl text-center" style={{ background:'rgba(255,255,255,0.04)' }}>
+                  <p className="text-sm font-bold font-mono text-white/85">{val}</p>
+                  <p className="text-[9px] text-white/30 font-mono uppercase tracking-wider mt-0.5">{label}</p>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-white/55 leading-relaxed mb-3">{narrative}</p>
+            {denied && lat === null && (
+              <div className="flex items-center gap-2">
+                <input type="number" inputMode="decimal" placeholder="Enter latitude, e.g. 54.5"
+                  value={manual} onChange={e => setManual(e.target.value)}
+                  className="input-field" style={{ maxWidth: 200 }} aria-label="Latitude" />
+                <span className="text-[10px] text-white/30 font-mono">(negative = south)</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── 27-day Kp outlook (NOAA text product) ──────────────────────────────────
+function Kp27DayOutlook() {
+  const [rows, setRows] = useState<{ date: string; kp: number }[]>([]);
+  useEffect(() => {
+    let alive = true;
+    fetch(`${NOAA_BASE}/text/27-day-outlook.txt`)
+      .then(r => r.text())
+      .then(txt => {
+        if (!alive) return;
+        const parsed: { date: string; kp: number }[] = [];
+        for (const line of txt.split('\n')) {
+          // rows look like: "2026 Jul 12     155          8          3"
+          const m = line.match(/^(\d{4})\s+([A-Z][a-z]{2})\s+(\d{1,2})\s+\d+\s+\d+\s+(\d)/);
+          if (m) parsed.push({ date: `${m[2]} ${m[3]}`, kp: parseInt(m[4], 10) });
+        }
+        setRows(parsed.slice(0, 27));
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  if (rows.length === 0) return null;
+  const kpBarColor = (kp: number) => kp >= 6 ? '#ff3366' : kp >= 5 ? '#f97316' : kp >= 4 ? '#ffb700' : '#00ff88';
+  return (
+    <motion.div initial={{ opacity:0, y:15 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.28 }}
+      className="glass-card p-5 rounded-2xl mb-10">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-xs font-mono text-white/35 uppercase tracking-widest mb-1">Plan Ahead</p>
+          <h2 className="text-base font-bold font-space">27-Day Kp Outlook</h2>
+        </div>
+        <a href="https://www.swpc.noaa.gov/products/27-day-outlook-107-cm-radio-flux-and-geomagnetic-indices"
+          target="_blank" rel="noopener noreferrer"
+          className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors">
+          NOAA <ExternalLink size={11} />
+        </a>
+      </div>
+      <div className="flex items-end gap-[3px] h-28" role="img" aria-label="27 day predicted Kp bar chart">
+        {rows.map(({ date, kp }, i) => (
+          <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
+            <div className="w-full rounded-t-sm transition-all duration-300"
+              style={{
+                height: `${Math.max(6, (kp / 9) * 100)}%`,
+                background: `linear-gradient(180deg, ${kpBarColor(kp)}, ${kpBarColor(kp)}44)`,
+                boxShadow: `0 0 8px ${kpBarColor(kp)}33`,
+              }}>
+              <span className="sr-only">{date}: Kp {kp}</span>
+            </div>
+            <div className="absolute -top-7 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded text-[9px] font-mono whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10"
+              style={{ background:'rgba(0,0,0,0.85)', color: kpBarColor(kp), border: `1px solid ${kpBarColor(kp)}44` }}>
+              {date} · Kp {kp}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="flex justify-between text-[9px] text-white/25 font-mono mt-2">
+        <span>{rows[0]?.date}</span>
+        <span>{rows[Math.floor(rows.length / 2)]?.date}</span>
+        <span>{rows[rows.length - 1]?.date}</span>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function AuroraPage() {
   const { kpNow, kpHistory, kpLabel, kpColor, kpStatus, auroraLat, flares, cmes, loading } = useSpaceData();
   const { northUrl, southUrl } = useAuroraOvals();
@@ -225,6 +381,12 @@ export default function AuroraPage() {
         </div>
         <p className="text-[10px] text-white/25 mt-3">Images update every 5 minutes from NOAA Space Weather Prediction Center. Green = aurora oval extent at current Kp.</p>
       </motion.div>
+
+      {/* Visibility calculator */}
+      <VisibilityCalculator kpNow={kpNow} />
+
+      {/* 27-day outlook */}
+      <Kp27DayOutlook />
 
       {/* Solar Flares + CMEs */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
