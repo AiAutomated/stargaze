@@ -114,8 +114,7 @@ function makePlayerShip(): THREE.Group {
   g.scale.setScalar(1.35);
   g.traverse(o => {
     if ((o as THREE.Mesh).isMesh) {
-      o.castShadow = true;
-      o.receiveShadow = true;
+      // shadows disabled for performance
     }
   });
   return g;
@@ -153,7 +152,7 @@ function makeEnemyShip(kind: 'fighter' | 'capital' = 'fighter'): THREE.Group {
 
 function makePlanet(radius: number, color: number, opts?: { rings?: boolean; ice?: boolean; gas?: boolean }): THREE.Group {
   const g = new THREE.Group();
-  const geo = new THREE.SphereGeometry(radius, 48, 48);
+  const geo = new THREE.SphereGeometry(radius, 24, 24);
   const mat = new THREE.MeshStandardMaterial({
     color,
     roughness: opts?.gas ? 0.55 : 0.75,
@@ -162,8 +161,7 @@ function makePlanet(radius: number, color: number, opts?: { rings?: boolean; ice
     emissiveIntensity: 0.06,
   });
   const mesh = new THREE.Mesh(geo, mat);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
+  // shadows disabled for performance
   g.add(mesh);
 
   // Atmosphere shell
@@ -188,8 +186,8 @@ function makePlanet(radius: number, color: number, opts?: { rings?: boolean; ice
     g.add(ring);
   }
 
-  // Simple continent noise via vertex colors for earth-like
-  if (!opts?.gas && !opts?.ice) {
+  // Continent noise disabled for performance — use emissive tint instead
+  if (false && !opts?.gas && !opts?.ice) {
     const pos = geo.attributes.position;
     const colors = new Float32Array(pos.count * 3);
     const c = new THREE.Color(color);
@@ -220,9 +218,7 @@ function makeAsteroid(r: number): THREE.Mesh {
   }
   geo.computeVertexNormals();
   const mat = new THREE.MeshStandardMaterial({ color: 0x8a7f72, roughness: 0.9, metalness: 0.15, flatShading: true });
-  const m = new THREE.Mesh(geo, mat);
-  m.castShadow = true;
-  return m;
+  return new THREE.Mesh(geo, mat);
 }
 
 interface Body {
@@ -289,13 +285,12 @@ export class VoidArmadaGame {
   constructor(container: HTMLElement) {
     this.container = container;
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     this.renderer.setSize(container.clientWidth, container.clientHeight);
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.15;
+    this.renderer.shadowMap.enabled = false;
+    this.renderer.toneMapping = THREE.LinearToneMapping;
+    this.renderer.toneMappingExposure = 1.0;
     this.renderer.setClearColor(0x020208);
     container.appendChild(this.renderer.domElement);
     this.renderer.domElement.style.display = 'block';
@@ -313,14 +308,6 @@ export class VoidArmadaGame {
     this.scene.add(amb);
     const sun = new THREE.DirectionalLight(0xfff2dd, 1.6);
     sun.position.set(80, 120, 40);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.near = 10;
-    sun.shadow.camera.far = 500;
-    sun.shadow.camera.left = -120;
-    sun.shadow.camera.right = 120;
-    sun.shadow.camera.top = 120;
-    sun.shadow.camera.bottom = -120;
     this.scene.add(sun);
     const rim = new THREE.PointLight(0x4488ff, 0.8, 400);
     rim.position.set(-60, 20, -40);
@@ -345,7 +332,8 @@ export class VoidArmadaGame {
     };
     this.onKeyUp = (e) => { this.keys[e.code] = false; };
     this.onMouseMove = (e) => {
-      if (!this.mouse.locked || this.phase !== 'playing') return;
+      if (this.phase !== 'playing') return;
+      // Accept movement whether or not pointer lock succeeded
       this.mouse.dx += e.movementX;
       this.mouse.dy += e.movementY;
     };
@@ -434,7 +422,7 @@ export class VoidArmadaGame {
   }
 
   private buildStarfield() {
-    const n = 4000;
+    const n = 2000;
     const pos = new Float32Array(n * 3);
     const col = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) {
@@ -506,7 +494,7 @@ export class VoidArmadaGame {
     }
 
     // Asteroid belt
-    for (let i = 0; i < 80; i++) {
+    for (let i = 0; i < 35; i++) {
       const r = 0.6 + Math.random() * 2.4;
       const a = makeAsteroid(r);
       const ang = Math.random() * Math.PI * 2;
@@ -529,8 +517,8 @@ export class VoidArmadaGame {
       });
     }
 
-    // Initial enemies near first planet
-    this.spawnEnemies(6, new THREE.Vector3(15, 5, -30));
+    // Initial enemies — start easy, ramp via waves
+    this.spawnEnemies(3, new THREE.Vector3(15, 5, -30));
   }
 
   private spawnEnemies(n: number, around: THREE.Vector3) {
@@ -623,10 +611,13 @@ export class VoidArmadaGame {
     this.messageT = 4;
   }
 
+  private _tickCount = 0;
   private tick() {
     const dt = Math.min(0.05, this.clock.getDelta());
+    this._tickCount++;
     if (this.phase === 'playing') this.updatePlaying(dt);
     else this.updateIdle(dt);
+    this.updateFX(dt);
     this.updateCamera(dt);
     this.renderer.render(this.scene, this.camera);
   }
@@ -789,8 +780,15 @@ export class VoidArmadaGame {
       this.audio.explode();
     }
 
-    this.emit();
+    // Throttle React HUD updates to ~15fps (every 4th tick)
+    if (this._tickCount % 4 === 0) this.emit();
   }
+
+  // Pre-built shared geometries — created once, reused every shot
+  private readonly _bulletGeo = new THREE.CylinderGeometry(0.06, 0.06, 1.4, 4);
+  private readonly _bulletMat = new THREE.MeshBasicMaterial({ color: 0x66eeff });
+  private readonly _ebulletGeo = new THREE.SphereGeometry(0.2, 4, 4);
+  private readonly _ebulletMat = new THREE.MeshBasicMaterial({ color: 0xff4422 });
 
   private fireCool = 0;
   private tryFire() {
@@ -804,12 +802,10 @@ export class VoidArmadaGame {
     const origin = this.player.position.clone().add(new THREE.Vector3(0, 0, -2.5).applyQuaternion(q));
     const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
 
-    // dual cannons
+    // dual cannons — reuse shared geometry/material
     for (const side of [-0.5, 0.5]) {
       const o = origin.clone().add(new THREE.Vector3(side, 0, 0).applyQuaternion(q));
-      const geo = new THREE.CylinderGeometry(0.06, 0.06, 1.4, 4);
-      const mat = new THREE.MeshBasicMaterial({ color: 0x66eeff });
-      const mesh = new THREE.Mesh(geo, mat);
+      const mesh = new THREE.Mesh(this._bulletGeo, this._bulletMat);
       mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
       mesh.position.copy(o);
       this.scene.add(mesh);
@@ -855,9 +851,8 @@ export class VoidArmadaGame {
       b.cool = (b.cool ?? 0) - dt;
       if (b.cool <= 0 && dist < 90) {
         b.cool = b.enemyKind === 'capital' ? 0.8 : 1.2;
-        const geo = new THREE.SphereGeometry(0.2, 6, 6);
-        const mat = new THREE.MeshBasicMaterial({ color: 0xff4422 });
-        const mesh = new THREE.Mesh(geo, mat);
+        // reuse shared geometry/material
+        const mesh = new THREE.Mesh(this._ebulletGeo, this._ebulletMat);
         mesh.position.copy(b.mesh.position);
         this.scene.add(mesh);
         const v = dir.clone().multiplyScalar(55);
@@ -920,29 +915,44 @@ export class VoidArmadaGame {
     this.bodies.splice(index, 1);
   }
 
+  // Particle pool — all managed by the main tick, no extra RAF loops
+  private readonly _fxGeoSm = new THREE.SphereGeometry(0.12, 3, 3);
+  private readonly _fxGeoBig = new THREE.SphereGeometry(0.25, 3, 3);
+  private readonly _fxMats: Map<number, THREE.MeshBasicMaterial> = new Map();
+  private _fxParticles: { mesh: THREE.Mesh; vel: THREE.Vector3; life: number }[] = [];
+
+  private getFxMat(color: number): THREE.MeshBasicMaterial {
+    if (!this._fxMats.has(color)) {
+      this._fxMats.set(color, new THREE.MeshBasicMaterial({ color }));
+    }
+    return this._fxMats.get(color)!;
+  }
+
   private spawnHitFX(pos: THREE.Vector3, color: number, big = false) {
-    const n = big ? 16 : 8;
+    const n = big ? 8 : 5;
+    const mat = this.getFxMat(color);
+    const geo = big ? this._fxGeoBig : this._fxGeoSm;
     for (let i = 0; i < n; i++) {
-      const m = new THREE.Mesh(
-        new THREE.SphereGeometry(big ? 0.25 : 0.12, 4, 4),
-        new THREE.MeshBasicMaterial({ color }),
-      );
+      const m = new THREE.Mesh(geo, mat);
       m.position.copy(pos);
       this.scene.add(m);
-      const vel = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize().multiplyScalar(big ? 12 : 6);
-      // simple fade via timeout removal
-      const start = performance.now();
-      const step = () => {
-        const t = (performance.now() - start) / 400;
-        if (t > 1) {
-          this.scene.remove(m);
-          return;
-        }
-        m.position.addScaledVector(vel, 0.016);
-        m.scale.multiplyScalar(0.96);
-        requestAnimationFrame(step);
-      };
-      requestAnimationFrame(step);
+      const vel = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5)
+        .normalize().multiplyScalar(big ? 10 : 5);
+      this._fxParticles.push({ mesh: m, vel, life: 1.0 });
+    }
+  }
+
+  private updateFX(dt: number) {
+    for (let i = this._fxParticles.length - 1; i >= 0; i--) {
+      const p = this._fxParticles[i];
+      p.life -= dt * 2.8;
+      p.mesh.position.addScaledVector(p.vel, dt);
+      const s = Math.max(0.01, p.life);
+      p.mesh.scale.setScalar(s);
+      if (p.life <= 0) {
+        this.scene.remove(p.mesh);
+        this._fxParticles.splice(i, 1);
+      }
     }
   }
 

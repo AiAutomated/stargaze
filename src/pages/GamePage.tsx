@@ -276,6 +276,13 @@ export default function GamePage() {
               <div className="absolute inset-0 rounded-full border border-cyan-400/30" />
             </div>
 
+            {/* Click-to-aim hint — shown briefly */}
+            <div className="absolute bottom-20 left-1/2 -translate-x-1/2 pointer-events-none">
+              <p className="text-[9px] font-mono text-white/25 tracking-widest">
+                CLICK CANVAS TO LOCK MOUSE AIM · ESC TO RELEASE
+              </p>
+            </div>
+
             {/* Pause button */}
             <button
               type="button"
