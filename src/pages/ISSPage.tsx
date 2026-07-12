@@ -45,16 +45,19 @@ function useISSPosition() {
 }
 
 async function fetchTLE(): Promise<TLE | null> {
+  // Note: celestrak.org/satcat/tle.php was retired (returns an HTML notice) — use the GP endpoint
   try {
-    const r = await fetch('https://celestrak.org/satcat/tle.php?CATNR=25544&FORMAT=TLE');
+    const r = await fetch('https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE');
     if (!r.ok) return null;
     const text = await r.text();
     const lines = text.trim().split('\n').map(l => l.trim());
     const l1 = lines.find(l => l.startsWith('1 25544'));
     const l2 = lines.find(l => l.startsWith('2 25544'));
     if (l1 && l2) return { line1: l1, line2: l2 };
-    // fallback: take lines 1 and 2 (0-indexed) if they follow TLE name format
-    if (lines.length >= 3) return { line1: lines[1], line2: lines[2] };
+    // fallback: name-line format — but only accept lines that actually look like TLE data
+    if (lines.length >= 3 && lines[1].startsWith('1 ') && lines[2].startsWith('2 ')) {
+      return { line1: lines[1], line2: lines[2] };
+    }
     return null;
   } catch { return null; }
 }
