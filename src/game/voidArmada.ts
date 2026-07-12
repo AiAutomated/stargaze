@@ -521,9 +521,7 @@ export class VoidArmadaGame {
 
     this.renderer.domElement.addEventListener('click', () => {
       this.audio.resume();
-      if (this.phase === 'playing') {
-        this.renderer.domElement.requestPointerLock();
-      }
+      if (this.phase === 'playing') this.safePointerLock();
     });
 
     this.bindMouseButtons();
@@ -787,6 +785,19 @@ export class VoidArmadaGame {
     }
   }
 
+  /** Pointer lock throws WrongDocumentError if the canvas is detached (e.g.
+   *  right after a route change) and returns a rejectable Promise in modern
+   *  Chrome — guard both failure modes. */
+  private safePointerLock() {
+    try {
+      if (!this.renderer.domElement.isConnected) return;
+      const p = this.renderer.domElement.requestPointerLock() as unknown;
+      if (p && typeof (p as Promise<void>).catch === 'function') {
+        (p as Promise<void>).catch(() => { /* user gesture required / denied */ });
+      }
+    } catch { /* detached canvas or unsupported */ }
+  }
+
   private saveHighScore() {
     if (this.score > this.highScore) {
       this.highScore = this.score;
@@ -802,7 +813,7 @@ export class VoidArmadaGame {
     if (p === 'playing') {
       this.audio.resume();
       this.audio.ui();
-      try { this.renderer.domElement.requestPointerLock(); } catch { /* ignore */ }
+      this.safePointerLock();
     }
     if (p === 'paused' || p === 'title') {
       if (document.pointerLockElement) document.exitPointerLock();

@@ -1620,7 +1620,7 @@ function Home({ watched, addNotification, toggleWatch }: {
               <h3 className="text-xs font-bold mb-1 group-hover:text-red-200 transition-colors">Curiosity Rover</h3>
               <p className="text-[10px] text-white/40 leading-relaxed">
                 {marsSnap
-                  ? `${marsSnap.camera} · Sol ${marsSnap.sol} · ${new Date(marsSnap.earthDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`
+                  ? `${marsSnap.camera}${marsSnap.sol >= 0 ? ` · Sol ${marsSnap.sol}` : ''} · ${new Date(marsSnap.earthDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`
                   : 'Latest photos from NASA Curiosity rover on the surface of Mars, updated when the rover transmits new images.'}
               </p>
             </div>
