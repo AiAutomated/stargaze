@@ -65,6 +65,13 @@ function makeNebulaSky(): { mesh: THREE.Mesh; uniforms: { uTime: { value: number
 }
 
 export type GamePhase = 'title' | 'briefing' | 'playing' | 'paused' | 'victory' | 'defeat';
+export type WeaponKind = 'cannon' | 'plasma' | 'missile';
+
+export const WEAPON_INFO: Record<WeaponKind, { name: string; key: string; color: string }> = {
+  cannon:  { name: 'DUAL CANNON',     key: '1', color: '#66eeff' },
+  plasma:  { name: 'PLASMA BURST',    key: '2', color: '#c084fc' },
+  missile: { name: 'HOMING MISSILES', key: '3', color: '#ffb700' },
+};
 
 export interface SectorInfo {
   id: string;
@@ -85,6 +92,8 @@ export interface HudState {
   kills: number;
   combo: number;
   highScore: number;
+  weapon: WeaponKind;
+  weaponsUnlocked: WeaponKind[];
   objective: string;
   capturing: string | null;
   capturePct: number;
@@ -187,10 +196,40 @@ function makePlayerShip(): THREE.Group {
   return g;
 }
 
-function makeEnemyShip(kind: 'fighter' | 'capital' = 'fighter'): THREE.Group {
+function makeEnemyShip(kind: 'fighter' | 'capital' | 'boss' = 'fighter'): THREE.Group {
   const g = new THREE.Group();
   const mat = new THREE.MeshStandardMaterial({ color: kind === 'capital' ? 0x6b3030 : 0x884444, metalness: 0.7, roughness: 0.4, emissive: 0x220808, emissiveIntensity: 0.3 });
   const accent = new THREE.MeshStandardMaterial({ color: 0xff4422, emissive: 0xff2200, emissiveIntensity: 0.6 });
+
+  if (kind === 'boss') {
+    const hullMat = new THREE.MeshStandardMaterial({ color: 0x2a1a3a, metalness: 0.8, roughness: 0.35, emissive: 0x1a0530, emissiveIntensity: 0.4 });
+    const hull = new THREE.Mesh(new THREE.BoxGeometry(4, 1.4, 9), hullMat);
+    g.add(hull);
+    const prow = new THREE.Mesh(new THREE.ConeGeometry(1.4, 3.5, 6), hullMat);
+    prow.rotation.x = -Math.PI / 2;
+    prow.position.z = -6;
+    g.add(prow);
+    // weapon hardpoints (glow brighter as hp drops — the weak points)
+    const wpMat = new THREE.MeshStandardMaterial({ color: 0xff2266, emissive: 0xff0044, emissiveIntensity: 0.7 });
+    const wps: THREE.Mesh[] = [];
+    for (const [x, z] of [[-1.6, -2], [1.6, -2], [-1.6, 2.5], [1.6, 2.5]]) {
+      const wp = new THREE.Mesh(new THREE.SphereGeometry(0.55, 8, 8), wpMat);
+      wp.position.set(x, 0.9, z);
+      g.add(wp);
+      wps.push(wp);
+    }
+    (g as any).weakPoints = wps;
+    (g as any).weakMat = wpMat;
+    // engine array
+    const eng = new THREE.Mesh(new THREE.SphereGeometry(0.9, 8, 8), accent);
+    eng.position.z = 5;
+    g.add(eng);
+    const finT = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3.2, 3), hullMat);
+    finT.position.set(0, 1.4, 1.5);
+    g.add(finT);
+    g.scale.setScalar(2.6);
+    return g;
+  }
 
   if (kind === 'capital') {
     const hull = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.8, 6), mat);
@@ -296,10 +335,18 @@ interface Body {
   maxHp: number;
   radius: number;
   sectorId?: string;
-  enemyKind?: 'fighter' | 'capital';
+  enemyKind?: 'fighter' | 'capital' | 'boss';
   cool?: number;
   spin?: THREE.Vector3;
   capture?: number;
+  /** bullet damage (default 10) */
+  dmg?: number;
+  /** area-of-effect radius on impact (plasma) */
+  aoe?: number;
+  /** homing missile steering */
+  homing?: boolean;
+  /** bullet time-to-live seconds */
+  ttl?: number;
 }
 
 export class VoidArmadaGame {
@@ -343,6 +390,11 @@ export class VoidArmadaGame {
   private combo = 0;
   private lastKillT = 0;
   private highScore = 0;
+  private weapon: WeaponKind = 'cannon';
+  private weaponsUnlocked: WeaponKind[] = ['cannon'];
+  private bossSpawned = false;
+  private shieldMesh: THREE.Mesh | null = null;
+  private shieldFlash = 0;
   private composer: EffectComposer | null = null;
   private nebulaUniforms: { uTime: { value: number } } | null = null;
   private spawnT = 0;
@@ -432,6 +484,15 @@ export class VoidArmadaGame {
         this.camDist = this.camDist > 12 ? 8 : 16;
       }
       if (e.code === 'KeyM') this.audio.muted = !this.audio.muted;
+      // weapon switching
+      const wkeys: Record<string, WeaponKind> = { Digit1: 'cannon', Digit2: 'plasma', Digit3: 'missile' };
+      const w = wkeys[e.code];
+      if (w && this.weaponsUnlocked.includes(w) && this.weapon !== w) {
+        this.weapon = w;
+        this.message = `${WEAPON_INFO[w].name} ARMED`;
+        this.messageT = 1.5;
+        this.audio.ui();
+      }
     };
     this.onKeyUp = (e) => { this.keys[e.code] = false; };
     this.onMouseMove = (e) => {
@@ -470,6 +531,16 @@ export class VoidArmadaGame {
     this.emit();
   }
 
+  /** Cycle to the next unlocked weapon (mobile HUD button) */
+  cycleWeapon() {
+    const idx = this.weaponsUnlocked.indexOf(this.weapon);
+    this.weapon = this.weaponsUnlocked[(idx + 1) % this.weaponsUnlocked.length];
+    this.message = `${WEAPON_INFO[this.weapon].name} ARMED`;
+    this.messageT = 1.5;
+    this.audio.ui();
+    this.emit();
+  }
+
   setMuted(m: boolean) {
     this.audio.muted = m;
   }
@@ -502,6 +573,8 @@ export class VoidArmadaGame {
       kills: this.kills,
       combo: this.combo,
       highScore: this.highScore,
+      weapon: this.weapon,
+      weaponsUnlocked: [...this.weaponsUnlocked],
       objective: this.objectiveText(),
       capturing: capturing ? capturing.name : null,
       capturePct: capturing ? Math.round(capturing.body.capture || 0) : 0,
@@ -561,6 +634,14 @@ export class VoidArmadaGame {
     this.player = makePlayerShip();
     this.player.position.set(0, 8, 40);
     this.scene.add(this.player);
+
+    // Shield bubble — invisible until hit, flickers on impact
+    const shieldMat = new THREE.MeshBasicMaterial({
+      color: 0x55ccff, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false,
+    });
+    this.shieldMesh = new THREE.Mesh(new THREE.SphereGeometry(2.4, 16, 12), shieldMat);
+    this.player.add(this.shieldMesh);
+    this.shieldFlash = 0;
     this.playerBody = {
       mesh: this.player,
       vel: new THREE.Vector3(),
@@ -653,6 +734,27 @@ export class VoidArmadaGame {
     this.hostileAlert = `${n} hostile contact${n > 1 ? 's' : ''} in sector`;
   }
 
+  private spawnBoss() {
+    const anchor = this.planets[this.planets.length - 1].body.mesh.position;
+    const ship = makeEnemyShip('boss');
+    ship.position.copy(anchor).add(new THREE.Vector3(0, 25, 45));
+    this.scene.add(ship);
+    this.bodies.push({
+      mesh: ship,
+      vel: new THREE.Vector3(),
+      kind: 'enemy',
+      hp: 600,
+      maxHp: 600,
+      radius: 9,
+      enemyKind: 'boss',
+      cool: 2,
+    });
+    this.message = '☠ DOMINION FLAGSHIP ON APPROACH';
+    this.messageT = 5;
+    this.hostileAlert = 'FLAGSHIP DETECTED — target the glowing hardpoints';
+    this.audio.failStinger(); // low dramatic rumble
+  }
+
   start() {
     if (this.running) return;
     this.running = true;
@@ -724,6 +826,9 @@ export class VoidArmadaGame {
     this.kills = 0;
     this.combo = 0;
     this.lastKillT = 0;
+    this.weapon = 'cannon';
+    this.weaponsUnlocked = ['cannon'];
+    this.bossSpawned = false;
     this.spawnT = 8;
     this.invuln = 2;
     this.initSectors();
@@ -841,6 +946,7 @@ export class VoidArmadaGame {
 
     // Shield regen
     if (this.shield < 100) this.shield = Math.min(100, this.shield + 4 * dt);
+    this.updateShieldVisual(dt);
 
     // Engine hum pitches with velocity (updated ~15Hz)
     if (this._tickCount % 4 === 0) {
@@ -889,6 +995,24 @@ export class VoidArmadaGame {
         this.messageT = 3;
         this.audio.ambientPulse();
         this.audio.ui();
+        // weapon unlocks
+        if (this.wave >= 3 && !this.weaponsUnlocked.includes('plasma')) {
+          this.weaponsUnlocked.push('plasma');
+          this.message = '⬢ PLASMA BURST UNLOCKED — press 2';
+          this.messageT = 4;
+          this.audio.pickup();
+        }
+        if (this.wave >= 5 && !this.weaponsUnlocked.includes('missile')) {
+          this.weaponsUnlocked.push('missile');
+          this.message = '⬢ HOMING MISSILES UNLOCKED — press 3';
+          this.messageT = 4;
+          this.audio.pickup();
+        }
+        // boss encounter
+        if (this.wave >= 10 && !this.bossSpawned) {
+          this.bossSpawned = true;
+          this.spawnBoss();
+        }
       }
       this.spawnT = 14;
     }
@@ -928,19 +1052,60 @@ export class VoidArmadaGame {
   private readonly _ebulletGeo = new THREE.SphereGeometry(0.2, 4, 4);
   private readonly _ebulletMat = new THREE.MeshBasicMaterial({ color: 0xff4422 });
 
+  private readonly _plasmaGeo = new THREE.SphereGeometry(1.0, 10, 8);
+  private readonly _plasmaMat = new THREE.MeshBasicMaterial({ color: 0xc084fc, transparent: true, opacity: 0.9 });
+  private readonly _missileGeo = new THREE.ConeGeometry(0.12, 0.7, 5);
+  private readonly _missileMat = new THREE.MeshBasicMaterial({ color: 0xffb700 });
+
   private fireCool = 0;
   private tryFire() {
     if (this.fireCool > 0) return;
-    if (this.energy < 3) return;
-    this.fireCool = 0.12;
-    this.energy -= 3;
-    this.audio.laser();
-
     const q = this.player.quaternion;
     const origin = this.player.position.clone().add(new THREE.Vector3(0, 0, -2.5).applyQuaternion(q));
     const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
 
-    // dual cannons — reuse shared geometry/material
+    if (this.weapon === 'plasma') {
+      if (this.energy < 18) return;
+      this.fireCool = 0.9;
+      this.energy -= 18;
+      this.audio.laser();
+      this.audio.ambientPulse();
+      const mesh = new THREE.Mesh(this._plasmaGeo, this._plasmaMat);
+      mesh.position.copy(origin);
+      this.scene.add(mesh);
+      this.bullets.push({
+        mesh,
+        vel: dir.clone().multiplyScalar(55).add(this.playerBody.vel),
+        kind: 'bullet', hp: 1, maxHp: 1, radius: 1.4,
+        dmg: 45, aoe: 12, ttl: 4,
+      });
+      return;
+    }
+
+    if (this.weapon === 'missile') {
+      // max 4 in flight
+      const inFlight = this.bullets.filter(b => b.homing).length;
+      if (inFlight >= 4 || this.energy < 6) return;
+      this.fireCool = 0.3;
+      this.energy -= 6;
+      this.audio.laser();
+      const mesh = new THREE.Mesh(this._missileGeo, this._missileMat);
+      mesh.position.copy(origin);
+      this.scene.add(mesh);
+      this.bullets.push({
+        mesh,
+        vel: dir.clone().multiplyScalar(40).add(this.playerBody.vel),
+        kind: 'bullet', hp: 1, maxHp: 1, radius: 0.5,
+        dmg: 25, homing: true, ttl: 6,
+      });
+      return;
+    }
+
+    // default: dual cannons
+    if (this.energy < 3) return;
+    this.fireCool = 0.12;
+    this.energy -= 3;
+    this.audio.laser();
     for (const side of [-0.5, 0.5]) {
       const o = origin.clone().add(new THREE.Vector3(side, 0, 0).applyQuaternion(q));
       const mesh = new THREE.Mesh(this._bulletGeo, this._bulletMat);
@@ -972,8 +1137,19 @@ export class VoidArmadaGame {
       const targetQ = new THREE.Quaternion().setFromRotationMatrix(look);
       b.mesh.quaternion.slerp(targetQ, 2 * dt);
 
+      // Boss: phase behaviour + weak-point glow scales with damage taken
+      if (b.enemyKind === 'boss') {
+        const hpFrac = b.hp / b.maxHp;
+        const weakMat = (b.mesh as any).weakMat as THREE.MeshStandardMaterial | undefined;
+        if (weakMat) weakMat.emissiveIntensity = 0.7 + (1 - hpFrac) * 2.2 + Math.sin(performance.now() * 0.006) * 0.3;
+        // phase 3: spawn escort fighters occasionally
+        if (hpFrac < 0.33 && Math.random() < 0.002) {
+          this.spawnEnemies(2, b.mesh.position.clone());
+        }
+      }
+
       // Strafe + approach
-      const speed = b.enemyKind === 'capital' ? 8 : 16;
+      const speed = b.enemyKind === 'boss' ? 6 : b.enemyKind === 'capital' ? 8 : 16;
       if (dist > 25) {
         b.vel.lerp(dir.clone().multiplyScalar(speed), 2 * dt);
       } else if (dist < 12) {
@@ -987,8 +1163,11 @@ export class VoidArmadaGame {
 
       // Shoot
       b.cool = (b.cool ?? 0) - dt;
-      if (b.cool <= 0 && dist < 90) {
-        b.cool = b.enemyKind === 'capital' ? 0.8 : 1.2;
+      if (b.cool <= 0 && dist < (b.enemyKind === 'boss' ? 140 : 90)) {
+        const hpFrac = b.hp / b.maxHp;
+        b.cool = b.enemyKind === 'boss'
+          ? (hpFrac > 0.66 ? 1.2 : hpFrac > 0.33 ? 0.7 : 0.45) // boss phases fire faster
+          : b.enemyKind === 'capital' ? 0.8 : 1.2;
         // reuse shared geometry/material
         const mesh = new THREE.Mesh(this._ebulletGeo, this._ebulletMat);
         mesh.position.copy(b.mesh.position);
@@ -1003,8 +1182,34 @@ export class VoidArmadaGame {
     this.fireCool = Math.max(0, this.fireCool - dt);
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       const b = this.bullets[i];
+
+      // homing missiles steer toward the nearest enemy
+      if (b.homing) {
+        let nearest: Body | null = null;
+        let bestD = 250;
+        for (const t of this.bodies) {
+          if (t.kind !== 'enemy') continue;
+          const d = b.mesh.position.distanceTo(t.mesh.position);
+          if (d < bestD) { bestD = d; nearest = t; }
+        }
+        if (nearest) {
+          const want = nearest.mesh.position.clone().sub(b.mesh.position).normalize().multiplyScalar(48);
+          b.vel.lerp(want, 3.2 * dt);
+        }
+        b.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.vel.clone().normalize());
+        if (this._tickCount % 8 === 0) this.spawnHitFX(b.mesh.position, 0xffb700); // exhaust puff
+      }
+
       b.mesh.position.addScaledVector(b.vel, dt);
-      // lifetime via distance from origin-ish — remove far ones
+      // lifetime: ttl (if set) or distance cull
+      if (b.ttl !== undefined) {
+        b.ttl -= dt;
+        if (b.ttl <= 0) {
+          this.scene.remove(b.mesh);
+          this.bullets.splice(i, 1);
+          continue;
+        }
+      }
       if (b.mesh.position.distanceTo(this.player.position) > 400) {
         this.scene.remove(b.mesh);
         this.bullets.splice(i, 1);
@@ -1016,14 +1221,27 @@ export class VoidArmadaGame {
         for (let j = this.bodies.length - 1; j >= 0; j--) {
           const t = this.bodies[j];
           if (t.kind !== 'enemy' && t.kind !== 'asteroid') continue;
-          if (b.mesh.position.distanceTo(t.mesh.position) < t.radius + 0.8) {
-            t.hp -= b.kind === 'bullet' ? 10 : 5;
+          if (b.mesh.position.distanceTo(t.mesh.position) < t.radius + b.radius + 0.5) {
+            const dmg = b.dmg ?? 10;
+            const hitPos = b.mesh.position.clone();
             this.scene.remove(b.mesh);
             this.bullets.splice(i, 1);
             this.audio.hit();
-            this.spawnHitFX(b.mesh.position, 0x66eeff);
-            if (t.hp <= 0) {
-              this.destroyBody(j);
+            if (b.aoe) {
+              // plasma: damage everything in radius
+              this.spawnHitFX(hitPos, 0xc084fc, true);
+              for (let k = this.bodies.length - 1; k >= 0; k--) {
+                const a = this.bodies[k];
+                if (a.kind !== 'enemy' && a.kind !== 'asteroid') continue;
+                if (a.mesh.position.distanceTo(hitPos) < b.aoe + a.radius) {
+                  a.hp -= dmg;
+                  if (a.hp <= 0) this.destroyBody(k);
+                }
+              }
+            } else {
+              t.hp -= dmg;
+              this.spawnHitFX(hitPos, b.homing ? 0xffb700 : 0x66eeff);
+              if (t.hp <= 0) this.destroyBody(j);
             }
             break;
           }
@@ -1048,7 +1266,15 @@ export class VoidArmadaGame {
       const now = performance.now();
       this.combo = now - this.lastKillT < 3000 ? this.combo + 1 : 1;
       this.lastKillT = now;
-      const base = t.enemyKind === 'capital' ? 500 : 100;
+      if (t.enemyKind === 'boss') {
+        this.message = '☠ DOMINION FLAGSHIP DESTROYED  +5000';
+        this.messageT = 5;
+        this.audio.fanfare();
+        // extra-large explosion
+        this.spawnHitFX(t.mesh.position, 0xff2266, true);
+        this.spawnHitFX(t.mesh.position, 0xffb700, true);
+      }
+      const base = t.enemyKind === 'boss' ? 5000 : t.enemyKind === 'capital' ? 500 : 100;
       const points = base * this.combo;
       this.score += points;
       if (this.combo > 1) {
@@ -1138,9 +1364,26 @@ export class VoidArmadaGame {
       const s = Math.min(this.shield, dmg);
       this.shield -= s;
       dmg -= s;
+      this.shieldFlash = 1; // visible shield flicker
     }
     if (dmg > 0) this.hull -= dmg;
     this.spawnHitFX(this.player.position, 0xff8844);
+  }
+
+  /** Shield bubble: flash on hit, subtle crackle while decaying */
+  private updateShieldVisual(dt: number) {
+    if (!this.shieldMesh) return;
+    const mat = this.shieldMesh.material as THREE.MeshBasicMaterial;
+    if (this.shieldFlash > 0) {
+      this.shieldFlash = Math.max(0, this.shieldFlash - dt * 2.2);
+      // flicker/crack effect while flashing
+      const flicker = Math.random() < 0.3 ? 0.3 : 1;
+      mat.opacity = this.shieldFlash * 0.4 * flicker * (this.shield > 0 ? 1 : 0.4);
+      mat.color.setHex(this.shield > 25 ? 0x55ccff : 0xff6644);
+      this.shieldMesh.scale.setScalar(1 + (1 - this.shieldFlash) * 0.08);
+    } else {
+      mat.opacity = 0;
+    }
   }
 
   private playerCollisions() {

@@ -4,7 +4,60 @@ import {
   Gamepad2, Play, Pause, RotateCcw, Crosshair, Shield, Zap,
   Heart, Volume2, VolumeX, BookOpen, Rocket,
 } from 'lucide-react';
-import { VoidArmadaGame, type HudState, type GamePhase } from '../game/voidArmada';
+import { VoidArmadaGame, WEAPON_INFO, type HudState, type GamePhase } from '../game/voidArmada';
+
+const TUTORIAL_KEY = 'stargaze_armada_tutorial_seen';
+
+/** Render a shareable 1200×630 result card to a PNG data URL */
+function buildShareCard(hud: HudState, victory: boolean): string {
+  const c = document.createElement('canvas');
+  c.width = 1200; c.height = 630;
+  const x = c.getContext('2d')!;
+  // bg
+  const bg = x.createLinearGradient(0, 0, 1200, 630);
+  bg.addColorStop(0, '#030014');
+  bg.addColorStop(0.5, victory ? '#052414' : '#1a0533');
+  bg.addColorStop(1, '#030014');
+  x.fillStyle = bg;
+  x.fillRect(0, 0, 1200, 630);
+  // stars
+  for (let i = 0; i < 140; i++) {
+    x.fillStyle = `rgba(255,255,255,${0.2 + Math.random() * 0.7})`;
+    x.beginPath();
+    x.arc(Math.random() * 1200, Math.random() * 630, Math.random() * 1.6, 0, Math.PI * 2);
+    x.fill();
+  }
+  // frame
+  x.strokeStyle = victory ? 'rgba(0,255,136,0.5)' : 'rgba(255,51,102,0.5)';
+  x.lineWidth = 3;
+  x.strokeRect(24, 24, 1152, 582);
+  // text
+  x.textAlign = 'center';
+  x.fillStyle = victory ? '#00ff88' : '#ff3366';
+  x.font = '600 26px monospace';
+  x.fillText(victory ? '★ GALAXY CONQUERED ★' : 'K.I.A. — DOMINION SPACE', 600, 110);
+  x.fillStyle = '#f0f4ff';
+  x.font = '800 92px sans-serif';
+  x.fillText('STARGAZE ARMADA', 600, 220);
+  x.font = '700 110px monospace';
+  x.fillStyle = '#00d4ff';
+  x.shadowColor = '#00d4ff'; x.shadowBlur = 30;
+  x.fillText(hud.score.toLocaleString(), 600, 370);
+  x.shadowBlur = 0;
+  x.font = '500 34px monospace';
+  x.fillStyle = 'rgba(240,244,255,0.75)';
+  x.fillText(`WAVE ${hud.wave}   ·   ${hud.kills} KILLS`, 600, 440);
+  x.font = '500 24px monospace';
+  x.fillStyle = 'rgba(240,244,255,0.4)';
+  x.fillText('play free at stargaze.io/game', 600, 545);
+  return c.toDataURL('image/png');
+}
+
+function shareTweet(hud: HudState, victory: boolean): string {
+  return victory
+    ? `I conquered the galaxy in STARGAZE ARMADA 🚀 ${hud.score.toLocaleString()} points, ${hud.kills} kills. Beat that → https://stargaze.io/game`
+    : `Made it to wave ${hud.wave} with ${hud.score.toLocaleString()} points in STARGAZE ARMADA 💥 Think you can do better? → https://stargaze.io/game`;
+}
 
 /**
  * Stargaze Armada — 3D free-flight conquest
@@ -23,6 +76,8 @@ const emptyHud: HudState = {
   kills: 0,
   combo: 0,
   highScore: 0,
+  weapon: 'cannon',
+  weaponsUnlocked: ['cannon'],
   objective: '',
   capturing: null,
   capturePct: 0,
@@ -63,6 +118,8 @@ export default function GamePage() {
   const [muted, setMuted] = useState(false);
   const [ready, setReady] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     setIsMobile(navigator.maxTouchPoints > 0 || 'ontouchstart' in window);
@@ -105,6 +162,36 @@ export default function GamePage() {
 
   const phase = hud.phase;
   const showOverlay = phase === 'title' || phase === 'briefing' || phase === 'paused' || phase === 'victory' || phase === 'defeat';
+
+  // First-run tutorial on touch devices
+  useEffect(() => {
+    if (phase === 'playing' && isMobile) {
+      try {
+        if (!localStorage.getItem(TUTORIAL_KEY)) setShowTutorial(true);
+      } catch {}
+    }
+  }, [phase, isMobile]);
+
+  const dismissTutorial = useCallback(() => {
+    setShowTutorial(false);
+    try { localStorage.setItem(TUTORIAL_KEY, '1'); } catch {}
+  }, []);
+
+  const saveCard = useCallback(() => {
+    const url = buildShareCard(hud, phase === 'victory');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `stargaze-armada-${hud.score}.png`;
+    a.click();
+  }, [hud, phase]);
+
+  const copyShare = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(shareTweet(hud, phase === 'victory'));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  }, [hud, phase]);
 
   return (
     <>
@@ -258,12 +345,23 @@ export default function GamePage() {
                 )}
                 <div
                   className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full"
-                  style={{ background: 'rgba(5,10,25,0.75)', border: '1px solid rgba(100,160,255,0.2)' }}
+                  style={{ background: 'rgba(5,10,25,0.75)', border: `1px solid ${WEAPON_INFO[hud.weapon].color}55` }}
                 >
-                  <Crosshair size={12} className="text-cyan-400" />
-                  <span className="text-[10px] font-mono text-white/70 tracking-wider">CAPITAL</span>
+                  <Crosshair size={12} style={{ color: WEAPON_INFO[hud.weapon].color }} />
+                  <span className="text-[10px] font-mono tracking-wider" style={{ color: WEAPON_INFO[hud.weapon].color }}>
+                    {WEAPON_INFO[hud.weapon].name}
+                  </span>
+                  {hud.weaponsUnlocked.length > 1 && (
+                    <span className="text-[9px] font-mono text-white/25">[{hud.weaponsUnlocked.map(w => WEAPON_INFO[w].key).join('/')}]</span>
+                  )}
                   <span className="text-[10px] font-mono text-white/30">·</span>
                   <span className="text-[10px] font-mono text-cyan-300/80">VEL {hud.velocity}</span>
+                  {hud.combo > 1 && (
+                    <>
+                      <span className="text-[10px] font-mono text-white/30">·</span>
+                      <span className="text-[10px] font-mono font-bold" style={{ color: '#ffb700' }}>×{hud.combo}</span>
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -366,6 +464,24 @@ export default function GamePage() {
                 <div className="absolute" style={{ bottom: 148, right: 40 }}>
                   <p className="text-[8px] font-mono text-white/20 text-center tracking-wider">DRAG TO AIM</p>
                 </div>
+
+                {/* Weapon cycle button (appears once something is unlocked) */}
+                {hud.weaponsUnlocked.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => gameRef.current?.cycleWeapon()}
+                    className="pointer-events-auto absolute flex items-center justify-center rounded-full"
+                    style={{
+                      bottom: 150, right: 140, width: 56, height: 56,
+                      background: `${WEAPON_INFO[hud.weapon].color}22`,
+                      border: `2px solid ${WEAPON_INFO[hud.weapon].color}88`,
+                      boxShadow: `0 0 14px ${WEAPON_INFO[hud.weapon].color}33`,
+                    }}
+                    aria-label="Switch weapon"
+                  >
+                    <Zap size={18} style={{ color: WEAPON_INFO[hud.weapon].color }} />
+                  </button>
+                )}
               </>
             )}
 
@@ -551,10 +667,21 @@ export default function GamePage() {
                   <p className="text-xs font-mono text-green-400 tracking-widest mb-2">SECTOR SECURED</p>
                   <h2 className="text-3xl font-bold font-space mb-2">Galaxy Conquered</h2>
                   <p className="text-4xl font-mono font-bold text-green-300 mb-1">{hud.score.toLocaleString()}</p>
-                  <p className="text-xs text-white/40 mb-6">{hud.kills} kills · all worlds allied</p>
-                  <button type="button" onClick={launch} className="btn-primary">
-                    <RotateCcw size={14} /> Play again
-                  </button>
+                  <p className="text-xs text-white/40 mb-2">{hud.kills} kills · all worlds allied</p>
+                  {hud.score >= hud.highScore && hud.score > 0 && (
+                    <p className="text-[11px] font-mono mb-4" style={{ color: '#ffb700' }}>★ NEW HIGH SCORE</p>
+                  )}
+                  <div className="flex gap-2 justify-center flex-wrap">
+                    <button type="button" onClick={launch} className="btn-primary">
+                      <RotateCcw size={14} /> Play again
+                    </button>
+                    <button type="button" onClick={saveCard} className="btn-secondary text-sm">
+                      Save card
+                    </button>
+                    <button type="button" onClick={copyShare} className="btn-secondary text-sm">
+                      {copied ? '✓ Copied' : 'Copy share text'}
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -567,12 +694,61 @@ export default function GamePage() {
                   <p className="text-xs font-mono text-red-400 tracking-widest mb-2">HULL CRITICAL</p>
                   <h2 className="text-3xl font-bold font-space mb-2">Ship Destroyed</h2>
                   <p className="text-4xl font-mono font-bold text-white/90 mb-1">{hud.score.toLocaleString()}</p>
-                  <p className="text-xs text-white/40 mb-6">Wave {hud.wave} · {hud.kills} kills</p>
-                  <button type="button" onClick={launch} className="btn-primary">
-                    <RotateCcw size={14} /> Re-deploy
-                  </button>
+                  <p className="text-xs text-white/40 mb-2">Wave {hud.wave} · {hud.kills} kills</p>
+                  {hud.score >= hud.highScore && hud.score > 0 && (
+                    <p className="text-[11px] font-mono mb-4" style={{ color: '#ffb700' }}>★ NEW HIGH SCORE</p>
+                  )}
+                  <div className="flex gap-2 justify-center flex-wrap">
+                    <button type="button" onClick={launch} className="btn-primary">
+                      <RotateCcw size={14} /> Re-deploy
+                    </button>
+                    <button type="button" onClick={saveCard} className="btn-secondary text-sm">
+                      Save card
+                    </button>
+                    <button type="button" onClick={copyShare} className="btn-secondary text-sm">
+                      {copied ? '✓ Copied' : 'Copy share text'}
+                    </button>
+                  </div>
                 </div>
               )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── First-run mobile tutorial ─────────────────────────────── */}
+        <AnimatePresence>
+          {showTutorial && phase === 'playing' && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-40 flex flex-col items-center justify-center p-6"
+              style={{ background: 'rgba(0,0,0,0.78)', backdropFilter: 'blur(3px)' }}
+              onClick={dismissTutorial}
+            >
+              <p className="text-xs font-mono tracking-[0.3em] text-cyan-400 mb-8">HOW TO FLY</p>
+              <div className="grid grid-cols-3 gap-4 w-full max-w-sm mb-10">
+                {[
+                  { icon: '🕹️', title: 'LEFT THUMB', desc: 'Hold & drag anywhere on the left to move' },
+                  { icon: '👆', title: 'RIGHT THUMB', desc: 'Drag on the right side to aim your ship' },
+                  { icon: '🔴', title: 'TAP FIRE', desc: 'Tap (don’t drag) the right side to shoot' },
+                ].map(({ icon, title, desc }) => (
+                  <div key={title} className="text-center">
+                    <motion.p
+                      animate={{ y: [0, -6, 0] }}
+                      transition={{ repeat: Infinity, duration: 1.6, ease: 'easeInOut' }}
+                      className="text-3xl mb-2"
+                    >
+                      {icon}
+                    </motion.p>
+                    <p className="text-[10px] font-mono text-cyan-300 mb-1 tracking-wider">{title}</p>
+                    <p className="text-[10px] text-white/50 leading-snug">{desc}</p>
+                  </div>
+                ))}
+              </div>
+              <button type="button" onClick={dismissTutorial} className="btn-primary text-sm">
+                Got it — fly
+              </button>
             </motion.div>
           )}
         </AnimatePresence>
