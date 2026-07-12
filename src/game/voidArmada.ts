@@ -26,6 +26,8 @@ export interface HudState {
   sectors: SectorInfo[];
   hostileAlert: string | null;
   message: string | null;
+  /** Mobile joystick knob offset, normalised -1..1 per axis */
+  joystick: { nx: number; ny: number } | null;
 }
 
 type Listener = (h: HudState) => void;
@@ -259,6 +261,13 @@ export class VoidArmadaGame {
   private camDist = 14;
   private boost = 0;
 
+  // ── Touch / mobile state ──────────────────────────────────────────────────
+  private _touch = {
+    left:  { active: false, id: -1, sx: 0, sy: 0, cx: 0, cy: 0 }, // joystick
+    right: { active: false, id: -1, lx: 0, ly: 0 },                // look
+    fire:  false,
+  };
+
   private phase: GamePhase = 'title';
   private hull = 100;
   private shield = 100;
@@ -362,6 +371,7 @@ export class VoidArmadaGame {
     });
 
     this.bindMouseButtons();
+    this.bindTouchControls();
     this.emit();
   }
 
@@ -401,6 +411,7 @@ export class VoidArmadaGame {
       sectors: this.sectors.map(s => ({ ...s })),
       hostileAlert: this.hostileAlert,
       message: this.message,
+      joystick: this._touch.left.active ? this.getTouchAxes() : null,
     };
   }
 
@@ -657,11 +668,12 @@ export class VoidArmadaGame {
     const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
     const up = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
+    const joy = this.getTouchAxes();
     const wish = new THREE.Vector3();
-    if (this.keys.KeyW || this.keys.ArrowUp) wish.add(forward);
-    if (this.keys.KeyS || this.keys.ArrowDown) wish.sub(forward);
-    if (this.keys.KeyD || this.keys.ArrowRight) wish.add(right);
-    if (this.keys.KeyA || this.keys.ArrowLeft) wish.sub(right);
+    if (this.keys.KeyW || this.keys.ArrowUp   || joy.ny < -0.2) wish.add(forward.clone().multiplyScalar(joy.ny < -0.2 ? Math.abs(joy.ny) : 1));
+    if (this.keys.KeyS || this.keys.ArrowDown  || joy.ny >  0.2) wish.sub(forward.clone().multiplyScalar(joy.ny >  0.2 ? joy.ny : 1));
+    if (this.keys.KeyD || this.keys.ArrowRight || joy.nx >  0.2) wish.add(right.clone().multiplyScalar(joy.nx >  0.2 ? joy.nx : 1));
+    if (this.keys.KeyA || this.keys.ArrowLeft  || joy.nx < -0.2) wish.sub(right.clone().multiplyScalar(joy.nx < -0.2 ? Math.abs(joy.nx) : 1));
     if (this.keys.KeyR || this.keys.Space) wish.add(up.clone().multiplyScalar(0.6));
     if (this.keys.KeyF || this.keys.ControlLeft) wish.sub(up.clone().multiplyScalar(0.6));
 
@@ -703,8 +715,8 @@ export class VoidArmadaGame {
       }
     }
 
-    // Fire — hold J/Z/E or left mouse
-    if (this.keys.KeyJ || this.keys.KeyZ || this.keys.KeyE || this.keys.Mouse0) {
+    // Fire — hold J/Z/E, left mouse, or touch fire
+    if (this.keys.KeyJ || this.keys.KeyZ || this.keys.KeyE || this.keys.Mouse0 || this._touch.fire) {
       this.tryFire();
     }
 
@@ -1067,5 +1079,95 @@ export class VoidArmadaGame {
     window.addEventListener('mouseup', up);
     (this as any)._mouseDown = down;
     (this as any)._mouseUp = up;
+  }
+
+  /** Virtual joystick + drag-to-aim touch controls */
+  private bindTouchControls() {
+    const el = this.renderer.domElement;
+    const W = () => el.clientWidth;
+
+    const getXY = (t: Touch) => {
+      const r = el.getBoundingClientRect();
+      return { x: t.clientX - r.left, y: t.clientY - r.top };
+    };
+
+    const onStart = (e: TouchEvent) => {
+      e.preventDefault();
+      this.audio.resume();
+
+      // Title/pause screens: any tap launches or resumes
+      if (this.phase === 'title' || this.phase === 'briefing') { this.launch(); return; }
+      if (this.phase === 'paused') { this.setPhase('playing'); return; }
+      if (this.phase === 'defeat' || this.phase === 'victory') { this.launch(); return; }
+
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        const { x, y } = getXY(t);
+        const isLeft = x < W() * 0.45;
+
+        if (isLeft && !this._touch.left.active) {
+          // Start joystick at touch origin
+          this._touch.left = { active: true, id: t.identifier, sx: x, sy: y, cx: x, cy: y };
+        } else if (!isLeft && !this._touch.right.active) {
+          this._touch.right = { active: true, id: t.identifier, lx: x, ly: y };
+          this._touch.fire = true; // tap right side = fire
+        }
+      }
+    };
+
+    const onMove = (e: TouchEvent) => {
+      e.preventDefault();
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        const { x, y } = getXY(t);
+
+        if (this._touch.left.active && t.identifier === this._touch.left.id) {
+          this._touch.left.cx = x;
+          this._touch.left.cy = y;
+        }
+        if (this._touch.right.active && t.identifier === this._touch.right.id) {
+          const dx = x - this._touch.right.lx;
+          const dy = y - this._touch.right.ly;
+          // Feed into mouse look
+          this.mouse.dx += dx * 1.4;
+          this.mouse.dy += dy * 1.4;
+          this._touch.right.lx = x;
+          this._touch.right.ly = y;
+          this._touch.fire = false; // dragging = aim, not firing
+        }
+      }
+    };
+
+    const onEnd = (e: TouchEvent) => {
+      e.preventDefault();
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        if (t.identifier === this._touch.left.id) {
+          this._touch.left.active = false;
+          this._touch.left.id = -1;
+        }
+        if (t.identifier === this._touch.right.id) {
+          this._touch.right.active = false;
+          this._touch.right.id = -1;
+          this._touch.fire = false;
+        }
+      }
+    };
+
+    el.addEventListener('touchstart', onStart, { passive: false });
+    el.addEventListener('touchmove',  onMove,  { passive: false });
+    el.addEventListener('touchend',   onEnd,   { passive: false });
+    el.addEventListener('touchcancel', onEnd,  { passive: false });
+  }
+
+  /** Read joystick touch and return normalised axes -1..1 */
+  private getTouchAxes(): { nx: number; ny: number } {
+    if (!this._touch.left.active) return { nx: 0, ny: 0 };
+    const dx = this._touch.left.cx - this._touch.left.sx;
+    const dy = this._touch.left.cy - this._touch.left.sy;
+    const maxR = 55; // pixels
+    const nx = Math.max(-1, Math.min(1, dx / maxR));
+    const ny = Math.max(-1, Math.min(1, dy / maxR));
+    return { nx, ny };
   }
 }

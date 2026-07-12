@@ -27,6 +27,7 @@ const emptyHud: HudState = {
   sectors: [],
   hostileAlert: null,
   message: null,
+  joystick: null,
 };
 
 function Bar({
@@ -59,6 +60,11 @@ export default function GamePage() {
   const [hud, setHud] = useState<HudState>(emptyHud);
   const [muted, setMuted] = useState(false);
   const [ready, setReady] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    setIsMobile(navigator.maxTouchPoints > 0 || 'ontouchstart' in window);
+  }, []);
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -111,88 +117,117 @@ export default function GamePage() {
         {/* ── In-game chrome ─────────────────────────────────────────── */}
         {phase === 'playing' || phase === 'paused' ? (
           <div className="pointer-events-none absolute inset-0 z-10 select-none">
-            {/* Top left — title + objective */}
-            <div className="absolute top-4 left-4 max-w-xs">
-              <div
-                className="px-3 py-2 rounded-lg mb-2"
-                style={{ background: 'rgba(5,10,25,0.72)', border: '1px solid rgba(100,160,255,0.2)' }}
-              >
-                <p className="text-[10px] font-mono tracking-[0.25em] text-cyan-400/90">STARGAZE :: ARMADA</p>
-                <p className="text-[9px] font-mono text-white/35">FIGHTER · YOUR CRAFT</p>
+            {/* Top left — title + objective (desktop only) */}
+            {!isMobile && (
+              <div className="absolute top-4 left-4 max-w-xs">
+                <div
+                  className="px-3 py-2 rounded-lg mb-2"
+                  style={{ background: 'rgba(5,10,25,0.72)', border: '1px solid rgba(100,160,255,0.2)' }}
+                >
+                  <p className="text-[10px] font-mono tracking-[0.25em] text-cyan-400/90">STARGAZE :: ARMADA</p>
+                  <p className="text-[9px] font-mono text-white/35">FIGHTER · YOUR CRAFT</p>
+                </div>
+                <div
+                  className="px-3 py-2 rounded-lg"
+                  style={{ background: 'rgba(5,10,25,0.65)', border: '1px solid rgba(100,160,255,0.15)' }}
+                >
+                  <p className="text-[8px] font-mono text-cyan-500/70 tracking-widest mb-1">PRIMARY OBJECTIVE</p>
+                  <p className="text-[11px] text-white/70 leading-snug">{hud.objective}</p>
+                </div>
               </div>
-              <div
-                className="px-3 py-2 rounded-lg"
-                style={{ background: 'rgba(5,10,25,0.65)', border: '1px solid rgba(100,160,255,0.15)' }}
-              >
-                <p className="text-[8px] font-mono text-cyan-500/70 tracking-widest mb-1">PRIMARY OBJECTIVE</p>
-                <p className="text-[11px] text-white/70 leading-snug">{hud.objective}</p>
-              </div>
-            </div>
+            )}
 
-            {/* Top right — galactic map */}
-            <div
-              className="absolute top-4 right-4 w-52 rounded-lg p-3"
-              style={{ background: 'rgba(5,10,25,0.75)', border: '1px solid rgba(100,160,255,0.2)' }}
-            >
-              <p className="text-[9px] font-mono tracking-[0.2em] text-cyan-400/80 mb-2">GALACTIC MAP</p>
-              <div className="space-y-1">
-                {hud.sectors.map(s => (
-                  <div key={s.id} className="flex items-center justify-between gap-2 text-[10px] font-mono">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span
-                        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                        style={{
-                          background:
-                            s.status === 'allied' ? '#4ade80'
-                              : s.status === 'capturing' ? '#fbbf24'
-                                : s.status === 'hostile' ? '#f87171'
-                                  : '#64748b',
-                          boxShadow: s.status === 'capturing' ? '0 0 6px #fbbf24' : undefined,
-                        }}
-                      />
-                      <span className={`truncate ${s.status === 'locked' ? 'text-white/25' : 'text-white/70'}`}>
-                        {s.name}
+            {/* Top right — galactic map (desktop) / compact dots (mobile) */}
+            {!isMobile ? (
+              <div
+                className="absolute top-4 right-4 w-52 rounded-lg p-3"
+                style={{ background: 'rgba(5,10,25,0.75)', border: '1px solid rgba(100,160,255,0.2)' }}
+              >
+                <p className="text-[9px] font-mono tracking-[0.2em] text-cyan-400/80 mb-2">GALACTIC MAP</p>
+                <div className="space-y-1">
+                  {hud.sectors.map(s => (
+                    <div key={s.id} className="flex items-center justify-between gap-2 text-[10px] font-mono">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span
+                          className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                          style={{
+                            background:
+                              s.status === 'allied' ? '#4ade80'
+                                : s.status === 'capturing' ? '#fbbf24'
+                                  : s.status === 'hostile' ? '#f87171'
+                                    : '#64748b',
+                            boxShadow: s.status === 'capturing' ? '0 0 6px #fbbf24' : undefined,
+                          }}
+                        />
+                        <span className={`truncate ${s.status === 'locked' ? 'text-white/25' : 'text-white/70'}`}>
+                          {s.name}
+                        </span>
+                      </div>
+                      <span className="text-white/30 text-[9px] flex-shrink-0">
+                        {s.status === 'allied' ? 'ALLIED'
+                          : s.status === 'capturing' ? `${s.capture | 0}%`
+                            : s.status === 'hostile' ? 'HOSTILE'
+                              : 'LOCKED'}
                       </span>
                     </div>
-                    <span className="text-white/30 text-[9px] flex-shrink-0">
-                      {s.status === 'allied' ? 'ALLIED'
-                        : s.status === 'capturing' ? `${s.capture | 0}%`
-                          : s.status === 'hostile' ? 'HOSTILE'
-                            : 'LOCKED'}
-                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              /* Mobile — compact sector dots top-right */
+              <div
+                className="absolute top-10 right-2 flex flex-col gap-1 p-2 rounded-lg"
+                style={{ background: 'rgba(5,10,25,0.65)', border: '1px solid rgba(100,160,255,0.15)' }}
+              >
+                {hud.sectors.map(s => (
+                  <div key={s.id} className="flex items-center gap-1.5">
+                    <span
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{
+                        background:
+                          s.status === 'allied' ? '#4ade80'
+                            : s.status === 'capturing' ? '#fbbf24'
+                              : s.status === 'hostile' ? '#f87171'
+                                : '#64748b',
+                        boxShadow: s.status === 'capturing' ? '0 0 5px #fbbf24' : undefined,
+                      }}
+                    />
+                    <span className="text-[8px] font-mono text-white/50 truncate max-w-[60px]">{s.name}</span>
                   </div>
                 ))}
               </div>
+            )}
+
+            {/* Top center — score / wave / kills */}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 sm:gap-4">
+              <div
+                className="px-2 sm:px-3 py-1.5 rounded-lg text-center"
+                style={{ background: 'rgba(5,10,25,0.7)', border: '1px solid rgba(100,160,255,0.15)' }}
+              >
+                <p className="text-[7px] sm:text-[8px] font-mono text-white/30">SCORE</p>
+                <p className="text-xs sm:text-sm font-mono font-bold text-white/90 tabular-nums">{hud.score.toLocaleString()}</p>
+              </div>
+              <div
+                className="px-2 sm:px-3 py-1.5 rounded-lg text-center"
+                style={{ background: 'rgba(5,10,25,0.7)', border: '1px solid rgba(100,160,255,0.15)' }}
+              >
+                <p className="text-[7px] sm:text-[8px] font-mono text-white/30">WAVE</p>
+                <p className="text-xs sm:text-sm font-mono font-bold text-cyan-300 tabular-nums">{hud.wave}</p>
+              </div>
+              <div
+                className="px-2 sm:px-3 py-1.5 rounded-lg text-center"
+                style={{ background: 'rgba(5,10,25,0.7)', border: '1px solid rgba(100,160,255,0.15)' }}
+              >
+                <p className="text-[7px] sm:text-[8px] font-mono text-white/30">KILLS</p>
+                <p className="text-xs sm:text-sm font-mono font-bold text-orange-300 tabular-nums">{hud.kills}</p>
+              </div>
             </div>
 
-            {/* Top center — score / wave */}
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-4">
-              <div
-                className="px-3 py-1.5 rounded-lg text-center"
-                style={{ background: 'rgba(5,10,25,0.7)', border: '1px solid rgba(100,160,255,0.15)' }}
-              >
-                <p className="text-[8px] font-mono text-white/30">SCORE</p>
-                <p className="text-sm font-mono font-bold text-white/90 tabular-nums">{hud.score.toLocaleString()}</p>
-              </div>
-              <div
-                className="px-3 py-1.5 rounded-lg text-center"
-                style={{ background: 'rgba(5,10,25,0.7)', border: '1px solid rgba(100,160,255,0.15)' }}
-              >
-                <p className="text-[8px] font-mono text-white/30">WAVE</p>
-                <p className="text-sm font-mono font-bold text-cyan-300 tabular-nums">{hud.wave}</p>
-              </div>
-              <div
-                className="px-3 py-1.5 rounded-lg text-center"
-                style={{ background: 'rgba(5,10,25,0.7)', border: '1px solid rgba(100,160,255,0.15)' }}
-              >
-                <p className="text-[8px] font-mono text-white/30">KILLS</p>
-                <p className="text-sm font-mono font-bold text-orange-300 tabular-nums">{hud.kills}</p>
-              </div>
-            </div>
-
-            {/* Bottom left — vitals */}
+            {/* Vitals — bottom-left desktop, top-left mobile */}
             <div
-              className="absolute bottom-6 left-4 w-44 rounded-lg p-3"
+              className={`absolute w-36 sm:w-44 rounded-lg p-2 sm:p-3 ${
+                isMobile ? 'top-10 left-2' : 'bottom-6 left-4'
+              }`}
               style={{ background: 'rgba(5,10,25,0.78)', border: '1px solid rgba(100,160,255,0.18)' }}
             >
               <Bar value={hud.hull} color="#f87171" label="HULL" />
@@ -201,35 +236,55 @@ export default function GamePage() {
             </div>
 
             {/* Bottom center — ship tag + capture */}
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-center">
-              {hud.capturing && (
-                <div
-                  className="mb-2 px-4 py-2 rounded-lg"
-                  style={{ background: 'rgba(5,10,25,0.8)', border: '1px solid rgba(251,191,36,0.35)' }}
-                >
-                  <p className="text-[9px] font-mono text-amber-400 tracking-widest mb-1">
-                    CAPTURING {hud.capturing}
-                  </p>
-                  <div className="w-48 h-1.5 rounded-full overflow-hidden mx-auto" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-amber-500 to-yellow-300 transition-[width] duration-200"
-                      style={{ width: `${hud.capturePct}%` }}
-                    />
+            {!isMobile && (
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-center">
+                {hud.capturing && (
+                  <div
+                    className="mb-2 px-4 py-2 rounded-lg"
+                    style={{ background: 'rgba(5,10,25,0.8)', border: '1px solid rgba(251,191,36,0.35)' }}
+                  >
+                    <p className="text-[9px] font-mono text-amber-400 tracking-widest mb-1">
+                      CAPTURING {hud.capturing}
+                    </p>
+                    <div className="w-48 h-1.5 rounded-full overflow-hidden mx-auto" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-amber-500 to-yellow-300 transition-[width] duration-200"
+                        style={{ width: `${hud.capturePct}%` }}
+                      />
+                    </div>
                   </div>
+                )}
+                <div
+                  className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full"
+                  style={{ background: 'rgba(5,10,25,0.75)', border: '1px solid rgba(100,160,255,0.2)' }}
+                >
+                  <Crosshair size={12} className="text-cyan-400" />
+                  <span className="text-[10px] font-mono text-white/70 tracking-wider">CAPITAL</span>
+                  <span className="text-[10px] font-mono text-white/30">·</span>
+                  <span className="text-[10px] font-mono text-cyan-300/80">VEL {hud.velocity}</span>
                 </div>
-              )}
-              <div
-                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full"
-                style={{ background: 'rgba(5,10,25,0.75)', border: '1px solid rgba(100,160,255,0.2)' }}
-              >
-                <Crosshair size={12} className="text-cyan-400" />
-                <span className="text-[10px] font-mono text-white/70 tracking-wider">CAPITAL</span>
-                <span className="text-[10px] font-mono text-white/30">·</span>
-                <span className="text-[10px] font-mono text-cyan-300/80">VEL {hud.velocity}</span>
               </div>
-            </div>
+            )}
 
-            {/* Bottom right — controls help + hostile */}
+            {/* Mobile — capture bar above joystick */}
+            {isMobile && hud.capturing && (
+              <div
+                className="absolute bottom-40 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg"
+                style={{ background: 'rgba(5,10,25,0.8)', border: '1px solid rgba(251,191,36,0.35)' }}
+              >
+                <p className="text-[9px] font-mono text-amber-400 tracking-widest mb-1">
+                  CAPTURING {hud.capturing}
+                </p>
+                <div className="w-40 h-1.5 rounded-full overflow-hidden mx-auto" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-amber-500 to-yellow-300 transition-[width] duration-200"
+                    style={{ width: `${hud.capturePct}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Bottom right — controls (desktop) or hostile alert */}
             <div className="absolute bottom-6 right-4 space-y-2">
               {hud.hostileAlert && (
                 <div
@@ -240,15 +295,77 @@ export default function GamePage() {
                   <p className="text-[10px] text-red-200/70">{hud.hostileAlert}</p>
                 </div>
               )}
-              <div
-                className="px-3 py-2 rounded-lg text-[9px] font-mono text-white/35 leading-relaxed"
-                style={{ background: 'rgba(5,10,25,0.7)', border: '1px solid rgba(100,160,255,0.12)' }}
-              >
-                <div>WASD fly · mouse look</div>
-                <div>SHIFT boost · J/Z fire</div>
-                <div>R/F up/down · C cam · P pause</div>
-              </div>
+              {!isMobile && (
+                <div
+                  className="px-3 py-2 rounded-lg text-[9px] font-mono text-white/35 leading-relaxed"
+                  style={{ background: 'rgba(5,10,25,0.7)', border: '1px solid rgba(100,160,255,0.12)' }}
+                >
+                  <div>WASD fly · mouse look</div>
+                  <div>SHIFT boost · J/Z fire</div>
+                  <div>R/F up/down · C cam · P pause</div>
+                </div>
+              )}
             </div>
+
+            {/* ── Mobile touch controls ───────────────────────────────── */}
+            {isMobile && (
+              <>
+                {/* Left joystick base + knob */}
+                <div
+                  className="absolute"
+                  style={{ bottom: 32, left: 32, width: 120, height: 120 }}
+                >
+                  {/* Base ring */}
+                  <div
+                    className="absolute inset-0 rounded-full"
+                    style={{
+                      border: '2px solid rgba(56,189,248,0.35)',
+                      background: 'rgba(5,10,25,0.45)',
+                    }}
+                  />
+                  {/* Knob — moves with hud.joystick */}
+                  <div
+                    className="absolute rounded-full"
+                    style={{
+                      width: 44,
+                      height: 44,
+                      top: '50%',
+                      left: '50%',
+                      transform: `translate(calc(-50% + ${(hud.joystick?.nx ?? 0) * 36}px), calc(-50% + ${(hud.joystick?.ny ?? 0) * 36}px))`,
+                      background: 'rgba(56,189,248,0.55)',
+                      border: '2px solid rgba(56,189,248,0.9)',
+                      boxShadow: '0 0 12px rgba(56,189,248,0.4)',
+                      transition: hud.joystick ? 'none' : 'transform 0.12s ease-out',
+                    }}
+                  />
+                  {/* Direction arrows hint */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-[16px] text-cyan-400/20 select-none">✛</span>
+                  </div>
+                </div>
+
+                {/* Right fire button */}
+                <div
+                  className="absolute flex items-center justify-center rounded-full"
+                  style={{
+                    bottom: 48,
+                    right: 40,
+                    width: 80,
+                    height: 80,
+                    background: 'rgba(248,113,113,0.2)',
+                    border: '2px solid rgba(248,113,113,0.5)',
+                    boxShadow: '0 0 16px rgba(248,113,113,0.2)',
+                  }}
+                >
+                  <span className="text-[9px] font-mono text-red-300/80 tracking-widest">FIRE</span>
+                </div>
+
+                {/* Drag-to-aim hint label */}
+                <div className="absolute" style={{ bottom: 148, right: 40 }}>
+                  <p className="text-[8px] font-mono text-white/20 text-center tracking-wider">DRAG TO AIM</p>
+                </div>
+              </>
+            )}
 
             {/* Floating message */}
             <AnimatePresence>
@@ -269,18 +386,26 @@ export default function GamePage() {
               )}
             </AnimatePresence>
 
-            {/* Crosshair */}
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 pointer-events-none opacity-50">
-              <div className="absolute left-1/2 top-0 bottom-0 w-px bg-cyan-400/60" />
-              <div className="absolute top-1/2 left-0 right-0 h-px bg-cyan-400/60" />
-              <div className="absolute inset-0 rounded-full border border-cyan-400/30" />
-            </div>
+            {/* Crosshair (desktop only — mobile uses drag aim) */}
+            {!isMobile && (
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 pointer-events-none opacity-50">
+                <div className="absolute left-1/2 top-0 bottom-0 w-px bg-cyan-400/60" />
+                <div className="absolute top-1/2 left-0 right-0 h-px bg-cyan-400/60" />
+                <div className="absolute inset-0 rounded-full border border-cyan-400/30" />
+              </div>
+            )}
 
-            {/* Click-to-aim hint — shown briefly */}
+            {/* Aim hint */}
             <div className="absolute bottom-20 left-1/2 -translate-x-1/2 pointer-events-none">
-              <p className="text-[9px] font-mono text-white/25 tracking-widest">
-                CLICK CANVAS TO LOCK MOUSE AIM · ESC TO RELEASE
-              </p>
+              {isMobile ? (
+                <p className="text-[9px] font-mono text-white/25 tracking-widest">
+                  LEFT THUMB MOVE · RIGHT THUMB AIM · TAP RIGHT FIRE
+                </p>
+              ) : (
+                <p className="text-[9px] font-mono text-white/25 tracking-widest">
+                  CLICK CANVAS TO LOCK MOUSE AIM · ESC TO RELEASE
+                </p>
+              )}
             </div>
 
             {/* Pause button */}
